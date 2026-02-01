@@ -117,6 +117,26 @@ app.patch('/api/bench-jobs/:id/notes', async (req, res) => {
   }
 });
 
+app.patch('/api/bench-jobs/:id/amp-profile', async (req, res) => {
+  try {
+    const { make, model, year, circuitFamily } = req.body;
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job || !job.ampProfileId) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    const [updated] = await db
+      .update(schema.ampProfiles)
+      .set({ make, model, year, circuitFamily })
+      .where(eq(schema.ampProfiles.id, job.ampProfileId))
+      .returning();
+    await db.update(schema.benchJobs).set({ updatedAt: new Date() }).where(eq(schema.benchJobs.id, req.params.id));
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating amp profile:', error);
+    res.status(500).json({ error: 'Failed to update amp profile' });
+  }
+});
+
 app.delete('/api/bench-jobs/:id', async (req, res) => {
   try {
     const jobId = req.params.id;

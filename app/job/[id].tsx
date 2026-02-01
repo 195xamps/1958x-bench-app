@@ -101,6 +101,9 @@ export default function JobDetailScreen() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [showMediaGallery, setShowMediaGallery] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ make: '', model: '', year: '', circuitFamily: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
   const chatScrollRef = useRef<ScrollView>(null);
   
   const [techNotes, setTechNotes] = useState('');
@@ -174,6 +177,40 @@ export default function JobDetailScreen() {
       console.error('Error saving notes:', error);
     } finally {
       setSavingNotes(false);
+    }
+  };
+
+  const openEditModal = () => {
+    if (jobData) {
+      setEditForm({
+        make: jobData.ampProfile.make || '',
+        model: jobData.ampProfile.model || '',
+        year: jobData.ampProfile.year || '',
+        circuitFamily: jobData.ampProfile.circuitFamily || '',
+      });
+      setShowEditModal(true);
+    }
+  };
+
+  const saveAmpProfile = async () => {
+    if (!id) return;
+    setSavingEdit(true);
+    try {
+      await axios.patch(`${API_URL}/api/bench-jobs/${id}/amp-profile`, editForm);
+      setJobData(prev => prev ? {
+        ...prev,
+        ampProfile: { ...prev.ampProfile, ...editForm }
+      } : null);
+      setShowEditModal(false);
+    } catch (error) {
+      console.error('Error updating amp profile:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to update job');
+      } else {
+        Alert.alert('Error', 'Failed to update job');
+      }
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -612,15 +649,18 @@ export default function JobDetailScreen() {
         <TouchableOpacity style={styles.headerBackButton} onPress={goBack}>
           <Ionicons name="arrow-back" size={28} color="#f59e0b" />
         </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {ampProfile.make} {ampProfile.model}
-          </Text>
+        <TouchableOpacity style={styles.headerInfo} onPress={openEditModal}>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {ampProfile.make} {ampProfile.model}
+            </Text>
+            <Ionicons name="pencil" size={16} color="#6b7280" style={{ marginLeft: 6 }} />
+          </View>
           <Text style={styles.headerSubtitle}>
             {ampProfile.circuitFamily && `${ampProfile.circuitFamily} • `}
             {ampProfile.year || 'Unknown year'}
           </Text>
-        </View>
+        </TouchableOpacity>
         {activeTab === 'chat' && (
           <TouchableOpacity style={styles.galleryButton} onPress={() => setShowMediaGallery(true)}>
             <Ionicons name="images-outline" size={22} color="#9ca3af" />
@@ -735,6 +775,69 @@ export default function JobDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={showEditModal} transparent animationType="slide">
+        <View style={styles.editModalOverlay}>
+          <View style={styles.editModalContent}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit Job</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <Ionicons name="close" size={28} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.editModalForm}>
+              <Text style={styles.editLabel}>Make</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editForm.make}
+                onChangeText={(text) => setEditForm({ ...editForm, make: text })}
+                placeholder="e.g., Fender"
+                placeholderTextColor="#6b7280"
+              />
+
+              <Text style={styles.editLabel}>Model</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editForm.model}
+                onChangeText={(text) => setEditForm({ ...editForm, model: text })}
+                placeholder="e.g., Deluxe Reverb"
+                placeholderTextColor="#6b7280"
+              />
+
+              <Text style={styles.editLabel}>Year</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editForm.year}
+                onChangeText={(text) => setEditForm({ ...editForm, year: text })}
+                placeholder="e.g., 1965"
+                placeholderTextColor="#6b7280"
+              />
+
+              <Text style={styles.editLabel}>Circuit Family</Text>
+              <TextInput
+                style={styles.editInput}
+                value={editForm.circuitFamily}
+                onChangeText={(text) => setEditForm({ ...editForm, circuitFamily: text })}
+                placeholder="e.g., Blackface"
+                placeholderTextColor="#6b7280"
+              />
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.editSaveButton, savingEdit && styles.buttonDisabled]}
+              onPress={saveAmpProfile}
+              disabled={savingEdit}
+            >
+              {savingEdit ? (
+                <ActivityIndicator size="small" color="#1f2937" />
+              ) : (
+                <Text style={styles.editSaveButtonText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -790,6 +893,10 @@ const styles = StyleSheet.create({
   },
   headerInfo: {
     flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 20,
@@ -1255,5 +1362,59 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
     textAlign: 'center',
+  },
+  editModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'flex-end',
+  },
+  editModalContent: {
+    backgroundColor: '#1f2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  editModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#e5e7eb',
+  },
+  editModalForm: {
+    marginBottom: 16,
+  },
+  editLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  editInput: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    color: '#e5e7eb',
+    fontSize: 16,
+  },
+  editSaveButton: {
+    backgroundColor: '#f59e0b',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  editSaveButtonText: {
+    color: '#1f2937',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });
