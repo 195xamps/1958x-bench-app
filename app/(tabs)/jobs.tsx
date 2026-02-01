@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import { StructuredResponse } from '../components/StructuredResponse';
 
 const API_URL = '';
 
@@ -592,14 +593,13 @@ export default function JobsScreen() {
                     <Text style={styles.assistantLabel}>Job Assistant</Text>
                   </View>
                 )}
-                <Text
-                  style={[
-                    styles.messageText,
-                    message.role === 'user' && styles.userMessageText,
-                  ]}
-                >
-                  {message.content}
-                </Text>
+                {message.role === 'assistant' ? (
+                  <StructuredResponse content={message.content} />
+                ) : (
+                  <Text style={[styles.messageText, styles.userMessageText]}>
+                    {message.content}
+                  </Text>
+                )}
               </View>
             ))}
 

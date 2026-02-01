@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import { StructuredResponse } from '../components/StructuredResponse';
 
 const API_URL = '';
 
@@ -538,14 +539,13 @@ export default function DashboardScreen() {
                   </View>
                 )}
                 {message.content ? (
-                  <Text
-                    style={[
-                      styles.messageText,
-                      message.role === 'user' && styles.userMessageText,
-                    ]}
-                  >
-                    {message.content}
-                  </Text>
+                  message.role === 'assistant' ? (
+                    <StructuredResponse content={message.content} />
+                  ) : (
+                    <Text style={[styles.messageText, styles.userMessageText]}>
+                      {message.content}
+                    </Text>
+                  )
                 ) : null}
               </View>
             ))}
