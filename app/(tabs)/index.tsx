@@ -158,37 +158,49 @@ export default function DashboardScreen() {
   };
 
   const deleteChat = async (chatId: string) => {
-    Alert.alert('Delete Chat', 'Are you sure you want to delete this chat?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await axios.delete(`${API_URL}/api/chats/${chatId}`);
-            setChats((prev) => prev.filter((c) => c.id !== chatId));
-            setShowOptionsModal(false);
-            if (activeChat?.id === chatId) {
-              setShowChatModal(false);
-              setActiveChat(null);
-            }
-          } catch (error) {
-            console.error('Error deleting chat:', error);
-            Alert.alert('Error', 'Failed to delete chat');
-          }
-        },
-      },
-    ]);
+    const doDelete = async () => {
+      try {
+        await axios.delete(`${API_URL}/api/chats/${chatId}`);
+        setChats((prev) => prev.filter((c) => c.id !== chatId));
+        setShowOptionsModal(false);
+        if (activeChat?.id === chatId) {
+          setShowChatModal(false);
+          setActiveChat(null);
+        }
+      } catch (error) {
+        console.error('Error deleting chat:', error);
+        if (Platform.OS === 'web') {
+          window.alert('Failed to delete chat');
+        } else {
+          Alert.alert('Error', 'Failed to delete chat');
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this chat?')) {
+        await doDelete();
+      }
+    } else {
+      Alert.alert('Delete Chat', 'Are you sure you want to delete this chat?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
+    }
   };
 
   const convertToJob = async (chat: Chat) => {
     try {
       const response = await axios.post(`${API_URL}/api/chats/${chat.id}/convert-to-job`);
-      Alert.alert(
-        'Job Created',
-        'This chat has been converted to a bench job. You can now fill in the amp details.',
-        [{ text: 'OK' }]
-      );
+      if (Platform.OS === 'web') {
+        window.alert('This chat has been converted to a bench job. You can now fill in the amp details.');
+      } else {
+        Alert.alert(
+          'Job Created',
+          'This chat has been converted to a bench job. You can now fill in the amp details.',
+          [{ text: 'OK' }]
+        );
+      }
       setChats((prev) =>
         prev.map((c) =>
           c.id === chat.id ? { ...c, benchJobId: response.data.benchJob.id, isStandalone: false } : c
@@ -197,7 +209,12 @@ export default function DashboardScreen() {
       setShowOptionsModal(false);
     } catch (error: any) {
       console.error('Error converting to job:', error);
-      Alert.alert('Error', error.response?.data?.error || 'Failed to convert chat to job');
+      const errorMsg = error.response?.data?.error || 'Failed to convert chat to job';
+      if (Platform.OS === 'web') {
+        window.alert(errorMsg);
+      } else {
+        Alert.alert('Error', errorMsg);
+      }
     }
   };
 
