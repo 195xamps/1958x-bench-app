@@ -633,6 +633,14 @@ export default function DashboardScreen() {
                     </Text>
                   )
                 ) : null}
+                <Text style={styles.messageTimestamp}>
+                  {new Date(message.createdAt).toLocaleString([], { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: 'numeric', 
+                    minute: '2-digit' 
+                  })}
+                </Text>
               </View>
             ))}
 
@@ -1101,6 +1109,12 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontSize: 12,
     fontWeight: '600',
+  },
+  messageTimestamp: {
+    color: '#9ca3af',
+    fontSize: 11,
+    marginTop: 6,
+    alignSelf: 'flex-end',
   },
   messageText: {
     color: '#e5e7eb',

@@ -65,6 +65,7 @@ interface JobData {
     knownMods: string;
     safetyChecklistCompleted: boolean;
     createdAt: string;
+    updatedAt: string;
   };
   ampProfile: {
     id: string;
@@ -413,6 +414,14 @@ export default function JobDetailScreen() {
                 {message.content}
               </Text>
             )}
+            <Text style={styles.messageTimestamp}>
+              {new Date(message.createdAt).toLocaleString([], { 
+                month: 'short', 
+                day: 'numeric', 
+                hour: 'numeric', 
+                minute: '2-digit' 
+              })}
+            </Text>
           </View>
         ))}
 
@@ -478,7 +487,19 @@ export default function JobDetailScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.notesHeader}>
-        <Text style={styles.notesTitle}>Repair Notes</Text>
+        <View>
+          <Text style={styles.notesTitle}>Repair Notes</Text>
+          {job.updatedAt && (
+            <Text style={styles.notesLastUpdated}>
+              Last updated: {new Date(job.updatedAt).toLocaleString([], { 
+                month: 'short', 
+                day: 'numeric', 
+                hour: 'numeric', 
+                minute: '2-digit' 
+              })}
+            </Text>
+          )}
+        </View>
         <View style={styles.saveStatus}>
           {savingNotes && (
             <>
@@ -874,6 +895,12 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontWeight: '600',
   },
+  messageTimestamp: {
+    color: '#9ca3af',
+    fontSize: 11,
+    marginTop: 6,
+    alignSelf: 'flex-end',
+  },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
@@ -989,13 +1016,18 @@ const styles = StyleSheet.create({
   notesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
   },
   notesTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#e5e7eb',
+  },
+  notesLastUpdated: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
   },
   saveStatus: {
     flexDirection: 'row',

@@ -143,6 +143,9 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Timestamps on Chat & Notes** - All entries now display timestamps
+  - Chat messages show "Feb 1, 10:30 AM" format below each message
+  - Notes section shows "Last updated" timestamp in header
 - Feb 2026: **Enhanced Measurements Workflow** - Redesigned for real tech workflows
   - 8 categorized measurement sections organized by diagnostic sequence
   - Safety & Baseline, PT Secondaries, B+ Rail & Ripple, Output Stage, Phase Inverter, Preamp Triodes, Power-Off Resistance, Output Performance
