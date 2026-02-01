@@ -52,6 +52,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="reference"
+        options={{
+          title: 'Reference',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="troubleshoot"
         options={{
           href: null,
