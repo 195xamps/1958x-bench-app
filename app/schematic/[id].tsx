@@ -35,6 +35,14 @@ export default function SchematicDetailScreen() {
   const router = useRouter();
   const [schematic, setSchematic] = useState<Schematic | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/schematics' as any);
+    }
+  };
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -112,7 +120,7 @@ export default function SchematicDetailScreen() {
       <View style={styles.errorContainer}>
         <Ionicons name="alert-circle-outline" size={64} color="#ef4444" />
         <Text style={styles.errorText}>Schematic not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -122,7 +130,7 @@ export default function SchematicDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backArrow}>
+        <TouchableOpacity onPress={goBack} style={styles.backArrow}>
           <Ionicons name="arrow-back" size={24} color="#f59e0b" />
         </TouchableOpacity>
         <View style={styles.headerTitle}>

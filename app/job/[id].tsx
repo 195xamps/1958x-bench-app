@@ -84,6 +84,14 @@ export default function JobDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [jobData, setJobData] = useState<JobData | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('chat');
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/jobs' as any);
+    }
+  };
   
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -340,7 +348,7 @@ export default function JobDetailScreen() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Job not found</Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -601,7 +609,7 @@ export default function JobDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBackButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.headerBackButton} onPress={goBack}>
           <Ionicons name="arrow-back" size={28} color="#f59e0b" />
         </TouchableOpacity>
         <View style={styles.headerInfo}>

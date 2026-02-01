@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 
 const API_URL = '';
@@ -176,7 +176,18 @@ const UNITS = ['V', 'mV', 'A', 'mA', 'ohms', 'k-ohms', 'M-ohms'];
 
 export default function MeasurementScreen() {
   const { benchJobId, jobName } = useLocalSearchParams<{ benchJobId: string; jobName: string }>();
+  const router = useRouter();
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else if (benchJobId) {
+      router.replace(`/job/${benchJobId}` as any);
+    } else {
+      router.replace('/(tabs)/jobs' as any);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -342,7 +353,7 @@ export default function MeasurementScreen() {
       <View style={styles.loadingContainer}>
         <Ionicons name="alert-circle" size={48} color="#ef4444" />
         <Text style={styles.loadingText}>No job selected</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16, padding: 12, backgroundColor: '#f59e0b', borderRadius: 8 }}>
+        <TouchableOpacity onPress={goBack} style={{ marginTop: 16, padding: 12, backgroundColor: '#f59e0b', borderRadius: 8 }}>
           <Text style={{ color: '#1f2937', fontWeight: '600' }}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -352,7 +363,7 @@ export default function MeasurementScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={goBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#f59e0b" />
         </TouchableOpacity>
         <View style={styles.headerText}>
