@@ -1,0 +1,39 @@
+Error sending message: DrizzleQueryError: Failed query: insert into "chat_messages" ("id", "chat_id", "role", "content", "attachments", "created_at") values (default, $1, $2, $3, $4, default) returning "id", "chat_id", "role", "content", "attachments", "created_at"
+params: 3f224fe8-9c4c-4269-a3e2-52c468db5202,user,Can you identify this amp?,[{"type":"image","url":"/objects/uploads/ef7756c5-a6be-473c-8bdf-f0a857df2b88"}]
+    at NodePgPreparedQuery.queryWithCache (/home/runner/workspace/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/runner/workspace/node_modules/src/node-postgres/session.ts:154:19)
+    at async <anonymous> (/home/runner/workspace/server/index.ts:558:27) {
+  query: 'insert into "chat_messages" ("id", "chat_id", "role", "content", "attachments", "created_at") values (default, $1, $2, $3, $4, default) returning "id", "chat_id", "role", "content", "attachments", "created_at"',
+  params: [
+    '3f224fe8-9c4c-4269-a3e2-52c468db5202',
+    'user',
+    'Can you identify this amp?',
+    '[{"type":"image","url":"/objects/uploads/ef7756c5-a6be-473c-8bdf-f0a857df2b88"}]'
+  ],
+  cause: error: column "attachments" of relation "chat_messages" does not exist
+      at /home/runner/workspace/node_modules/pg-pool/index.js:45:11
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async <anonymous> (/home/runner/workspace/node_modules/src/node-postgres/session.ts:161:13)
+      at async NodePgPreparedQuery.queryWithCache (/home/runner/workspace/node_modules/src/pg-core/session.ts:71:12)
+      at async <anonymous> (/home/runner/workspace/node_modules/src/node-postgres/session.ts:154:19)
+      at async <anonymous> (/home/runner/workspace/server/index.ts:558:27) {
+    length: 137,
+    severity: 'ERROR',
+    code: '42703',
+    detail: undefined,
+    hint: undefined,
+    position: '66',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_target.c',
+    line: '1071',
+    routine: 'checkInsertTargets'
+  }
+}
