@@ -534,7 +534,7 @@ export default function JobDetailScreen() {
         <Text style={styles.measurementsTitle}>Measurements</Text>
         <TouchableOpacity 
           style={styles.addMeasurementButton}
-          onPress={() => router.push(`/measurement?jobId=${id}`)}
+          onPress={() => router.push(`/measurement?benchJobId=${id}`)}
         >
           <Ionicons name="add" size={20} color="#1f2937" />
           <Text style={styles.addMeasurementText}>Add</Text>
