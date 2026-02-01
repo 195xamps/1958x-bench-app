@@ -13,8 +13,7 @@ app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));
 app.use(express.static(path.join(__dirname, '..', 'dist', 'server')));
 
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: "https://ai.replit.dev/v1",
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 const SYSTEM_PROMPT = `You are a senior guitar amplifier technician and bench mentor for the 195X Bench App. Your role is to guide technicians step-by-step through troubleshooting, servicing, and validating guitar amplifiers (vintage and modern), including blackface/silverface Fender-style circuits and beyond.
