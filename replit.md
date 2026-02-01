@@ -143,6 +143,12 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Image Upload Feature** - Users can now upload images/photos to chat
+  - Camera access on mobile devices for real-time photo capture
+  - Image picker for selecting photos from library
+  - Images stored in Replit Object Storage
+  - GPT-4o Vision integration for image analysis
+  - Attachments displayed in chat messages
 - Feb 2026: **Major Feature** - Persistent AI chatbot as primary feature
   - Dashboard with recent chats list
   - Chat rename, delete, convert to job functionality

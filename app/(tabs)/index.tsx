@@ -11,9 +11,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  ActionSheetIOS,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = '';
 
@@ -26,11 +29,18 @@ interface Chat {
   updatedAt: string;
 }
 
+interface Attachment {
+  type: 'image' | 'file';
+  url: string;
+  name?: string;
+}
+
 interface ChatMessage {
   id: string;
   chatId: string;
   role: 'user' | 'assistant';
   content: string;
+  attachments?: Attachment[];
   createdAt: string;
 }
 
@@ -55,6 +65,9 @@ export default function DashboardScreen() {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [newTitle, setNewTitle] = useState('');
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -95,6 +108,7 @@ export default function DashboardScreen() {
   const openChat = async (chat: Chat) => {
     setActiveChat(chat);
     setShowChatModal(true);
+    setPendingAttachments([]);
     try {
       const response = await axios.get(`${API_URL}/api/chats/${chat.id}`);
       setMessages(response.data.messages);
@@ -103,11 +117,114 @@ export default function DashboardScreen() {
     }
   };
 
+  const uploadImage = async (uri: string): Promise<string | null> => {
+    try {
+      setUploadingImage(true);
+      const urlResponse = await axios.post(`${API_URL}/api/uploads/request-url`, {
+        name: `image-${Date.now()}.jpg`,
+        size: 0,
+        contentType: 'image/jpeg',
+      });
+      const { uploadURL, objectPath } = urlResponse.data;
+
+      const imageResponse = await fetch(uri);
+      const blob = await imageResponse.blob();
+
+      await fetch(uploadURL, {
+        method: 'PUT',
+        body: blob,
+        headers: { 'Content-Type': 'image/jpeg' },
+      });
+
+      const publicUrl = `${API_URL}${objectPath}`;
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const pickImage = async (useCamera: boolean) => {
+    setShowAttachmentModal(false);
+    
+    if (useCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        if (Platform.OS === 'web') {
+          window.alert('Camera permission is required to take photos');
+        } else {
+          Alert.alert('Permission Required', 'Camera permission is required to take photos');
+        }
+        return;
+      }
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        if (Platform.OS === 'web') {
+          window.alert('Photo library permission is required to select images');
+        } else {
+          Alert.alert('Permission Required', 'Photo library permission is required to select images');
+        }
+        return;
+      }
+    }
+
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          quality: 0.8,
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          quality: 0.8,
+        });
+
+    if (!result.canceled && result.assets[0]) {
+      const uploadedUrl = await uploadImage(result.assets[0].uri);
+      if (uploadedUrl) {
+        setPendingAttachments((prev) => [...prev, { type: 'image', url: uploadedUrl }]);
+      } else {
+        if (Platform.OS === 'web') {
+          window.alert('Failed to upload image');
+        } else {
+          Alert.alert('Error', 'Failed to upload image');
+        }
+      }
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const showAttachmentOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) pickImage(true);
+          else if (buttonIndex === 2) pickImage(false);
+        }
+      );
+    } else {
+      setShowAttachmentModal(true);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || !activeChat || sending) return;
+    if ((!input.trim() && pendingAttachments.length === 0) || !activeChat || sending) return;
 
     const messageText = input.trim();
+    const attachmentsToSend = [...pendingAttachments];
     setInput('');
+    setPendingAttachments([]);
     setSending(true);
 
     const tempUserMessage: ChatMessage = {
@@ -115,6 +232,7 @@ export default function DashboardScreen() {
       chatId: activeChat.id,
       role: 'user',
       content: messageText,
+      attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMessage]);
@@ -122,6 +240,7 @@ export default function DashboardScreen() {
     try {
       const response = await axios.post(`${API_URL}/api/chats/${activeChat.id}/messages`, {
         content: messageText,
+        attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
       });
       
       setMessages((prev) => [
@@ -137,7 +256,11 @@ export default function DashboardScreen() {
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.id !== 'temp-user'));
-      Alert.alert('Error', 'Failed to send message');
+      if (Platform.OS === 'web') {
+        window.alert('Failed to send message');
+      } else {
+        Alert.alert('Error', 'Failed to send message');
+      }
     } finally {
       setSending(false);
     }
@@ -381,14 +504,30 @@ export default function DashboardScreen() {
                     <Text style={styles.assistantLabel}>Bench Assistant</Text>
                   </View>
                 )}
-                <Text
-                  style={[
-                    styles.messageText,
-                    message.role === 'user' && styles.userMessageText,
-                  ]}
-                >
-                  {message.content}
-                </Text>
+                {message.attachments && message.attachments.length > 0 && (
+                  <View style={styles.messageAttachments}>
+                    {message.attachments.map((attachment, idx) => (
+                      attachment.type === 'image' && (
+                        <Image
+                          key={idx}
+                          source={{ uri: attachment.url }}
+                          style={styles.messageImage}
+                          resizeMode="cover"
+                        />
+                      )
+                    ))}
+                  </View>
+                )}
+                {message.content ? (
+                  <Text
+                    style={[
+                      styles.messageText,
+                      message.role === 'user' && styles.userMessageText,
+                    ]}
+                  >
+                    {message.content}
+                  </Text>
+                ) : null}
               </View>
             ))}
 
@@ -400,7 +539,37 @@ export default function DashboardScreen() {
             )}
           </ScrollView>
 
+          {pendingAttachments.length > 0 && (
+            <View style={styles.pendingAttachmentsContainer}>
+              {pendingAttachments.map((attachment, idx) => (
+                <View key={idx} style={styles.pendingAttachment}>
+                  <Image source={{ uri: attachment.url }} style={styles.pendingAttachmentImage} />
+                  <TouchableOpacity
+                    style={styles.removeAttachmentButton}
+                    onPress={() => removeAttachment(idx)}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {uploadingImage && (
+            <View style={styles.uploadingContainer}>
+              <ActivityIndicator size="small" color="#f59e0b" />
+              <Text style={styles.uploadingText}>Uploading image...</Text>
+            </View>
+          )}
+
           <View style={styles.inputContainer}>
+            <TouchableOpacity
+              style={styles.attachButton}
+              onPress={showAttachmentOptions}
+              disabled={sending || uploadingImage}
+            >
+              <Ionicons name="camera" size={24} color={sending || uploadingImage ? '#6b7280' : '#f59e0b'} />
+            </TouchableOpacity>
             <TextInput
               style={styles.input}
               value={input}
@@ -411,9 +580,9 @@ export default function DashboardScreen() {
               maxLength={2000}
             />
             <TouchableOpacity
-              style={[styles.sendButton, (!input.trim() || sending) && styles.sendButtonDisabled]}
+              style={[styles.sendButton, ((!input.trim() && pendingAttachments.length === 0) || sending) && styles.sendButtonDisabled]}
               onPress={sendMessage}
-              disabled={!input.trim() || sending}
+              disabled={(!input.trim() && pendingAttachments.length === 0) || sending}
             >
               <Ionicons name="send" size={22} color="#1f2937" />
             </TouchableOpacity>
@@ -496,6 +665,40 @@ export default function DashboardScreen() {
             >
               <Ionicons name="trash" size={22} color="#ef4444" />
               <Text style={[styles.optionText, styles.optionTextDanger]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={showAttachmentModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.optionsModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowAttachmentModal(false)}
+        >
+          <View style={styles.optionsModalContent}>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => pickImage(true)}
+            >
+              <Ionicons name="camera" size={22} color="#e5e7eb" />
+              <Text style={styles.optionText}>Take Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => pickImage(false)}
+            >
+              <Ionicons name="images" size={22} color="#e5e7eb" />
+              <Text style={styles.optionText}>Choose from Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => setShowAttachmentModal(false)}
+            >
+              <Ionicons name="close" size={22} color="#9ca3af" />
+              <Text style={[styles.optionText, { color: '#9ca3af' }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -852,5 +1055,57 @@ const styles = StyleSheet.create({
   },
   optionTextDanger: {
     color: '#ef4444',
+  },
+  attachButton: {
+    padding: 8,
+    marginRight: 4,
+  },
+  pendingAttachmentsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#1f2937',
+    gap: 8,
+  },
+  pendingAttachment: {
+    position: 'relative',
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  pendingAttachmentImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  removeAttachmentButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#1f2937',
+    borderRadius: 10,
+  },
+  uploadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    backgroundColor: '#1f2937',
+    gap: 8,
+  },
+  uploadingText: {
+    color: '#f59e0b',
+    fontSize: 14,
+  },
+  messageAttachments: {
+    marginBottom: 8,
+    gap: 8,
+  },
+  messageImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 8,
   },
 });

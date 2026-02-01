@@ -541,11 +541,25 @@ app.post('/api/chats/:id/messages', async (req, res) => {
       return res.status(404).json({ error: 'Chat not found' });
     }
     
+    let validatedAttachments = null;
+    if (attachments && Array.isArray(attachments)) {
+      validatedAttachments = attachments.filter((att: any) => {
+        if (!att.url || !att.type) return false;
+        if (att.type === 'image') {
+          return att.url.includes('/objects/uploads/');
+        }
+        return false;
+      });
+      if (validatedAttachments.length === 0) {
+        validatedAttachments = null;
+      }
+    }
+    
     const [userMessage] = await db.insert(schema.chatMessages).values({
       chatId,
       role: 'user',
       content,
-      attachments: attachments || null,
+      attachments: validatedAttachments,
     }).returning();
     
     const previousMessages = await db.select().from(schema.chatMessages)
@@ -597,7 +611,7 @@ app.post('/api/chats/:id/messages', async (req, res) => {
       })),
     ];
     
-    const currentMessageContent = buildMessageContent({ content, attachments });
+    const currentMessageContent = buildMessageContent({ content, attachments: validatedAttachments });
     messages.push({ role: 'user', content: currentMessageContent });
     
     const completion = await openai.chat.completions.create({

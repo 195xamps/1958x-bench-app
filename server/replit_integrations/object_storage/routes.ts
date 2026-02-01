@@ -16,6 +16,9 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 export function registerObjectStorageRoutes(app: Express): void {
   const objectStorageService = new ObjectStorageService();
 
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   /**
    * Request a presigned URL for file upload.
    *
@@ -45,6 +48,18 @@ export function registerObjectStorageRoutes(app: Express): void {
         });
       }
 
+      if (!contentType || !ALLOWED_IMAGE_TYPES.includes(contentType.toLowerCase())) {
+        return res.status(400).json({
+          error: "Invalid file type. Only images (JPEG, PNG, GIF, WebP) are allowed.",
+        });
+      }
+
+      if (size && size > MAX_FILE_SIZE) {
+        return res.status(400).json({
+          error: "File too large. Maximum size is 10MB.",
+        });
+      }
+
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
 
       // Extract object path from the presigned URL for later reference
@@ -65,14 +80,15 @@ export function registerObjectStorageRoutes(app: Express): void {
   /**
    * Serve uploaded objects.
    *
-   * GET /objects/:objectPath(*)
+   * GET /objects/uploads/:objectId
    *
    * This serves files from object storage. For public files, no auth needed.
    * For protected files, add authentication middleware and ACL checks.
    */
-  app.get("/objects/:objectPath(*)", async (req, res) => {
+  app.get("/objects/uploads/:objectId", async (req, res) => {
     try {
-      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const objectPath = `/objects/uploads/${req.params.objectId}`;
+      const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
       await objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error serving object:", error);
