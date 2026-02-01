@@ -1,0 +1,48 @@
+195x Bench App running on port 5000
+Error sending message: BadRequestError: 400 Failed to download image from /objects/uploads/51b269ce-d894-45b9-b75c-764523251a6f. Image URL is invalid.
+    at Function.generate (/home/runner/workspace/node_modules/openai/src/core/error.ts:72:14)
+    at OpenAI.makeStatusError (/home/runner/workspace/node_modules/openai/src/client.ts:478:28)
+    at OpenAI.makeRequest (/home/runner/workspace/node_modules/openai/src/client.ts:728:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async <anonymous> (/home/runner/workspace/server/index.ts:663:24) {
+  status: 400,
+  headers: Headers {
+    date: 'Sun, 01 Feb 2026 16:50:14 GMT',
+    'content-type': 'application/json',
+    'content-length': '233',
+    connection: 'keep-alive',
+    'access-control-expose-headers': 'X-Request-ID',
+    'openai-organization': 'user-azikk4scewe9aifcr4fubphc',
+    'openai-processing-ms': '24',
+    'openai-project': 'proj_PqJKkFWZZBxeM2TLW7hs4qlJ',
+    'openai-version': '2020-10-01',
+    'x-ratelimit-limit-input-images': '250000',
+    'x-ratelimit-limit-requests': '10000',
+    'x-ratelimit-limit-tokens': '30000000',
+    'x-ratelimit-remaining-input-images': '249999',
+    'x-ratelimit-remaining-requests': '9999',
+    'x-ratelimit-remaining-tokens': '29999031',
+    'x-ratelimit-reset-input-images': '0s',
+    'x-ratelimit-reset-requests': '6ms',
+    'x-ratelimit-reset-tokens': '1ms',
+    'x-request-id': 'req_fcaf0cdf16ea45ab8b1fd34fdcd565be',
+    'x-openai-proxy-wasm': 'v0.1',
+    'cf-cache-status': 'DYNAMIC',
+    'set-cookie': '__cf_bm=2GFGP_ZouLcM6xCr0dDex.nt2qfGNI_llxmnGNmnWis-1769964614-1.0.1.1-k74tWC8_FKknnh9AB4Y9u7FHuDIh_bV7vvTXw0p26UvPzgBsg7ROGqeP368XPgKpv5nHTed7BTbwZP_D01r2zLdS4pIMJ.vJlK0L6RQ.OR4; path=/; expires=Sun, 01-Feb-26 17:20:14 GMT; domain=.api.openai.com; HttpOnly; Secure; SameSite=None, _cfuvid=X_Spejbi89riKZVZfNR9LQ4xPs2B78NI1GmBJ.44TnE-1769964614935-0.0.1.1-604800000; path=/; domain=.api.openai.com; HttpOnly; Secure; SameSite=None',
+    'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+    'x-content-type-options': 'nosniff',
+    server: 'cloudflare',
+    'cf-ray': '9c72f253aaf56179-ORD',
+    'alt-svc': 'h3=":443"; ma=86400'
+  },
+  requestID: 'req_fcaf0cdf16ea45ab8b1fd34fdcd565be',
+  error: {
+    message: 'Failed to download image from /objects/uploads/51b269ce-d894-45b9-b75c-764523251a6f. Image URL is invalid.',
+    type: 'invalid_request_error',
+    param: null,
+    code: 'invalid_image_url'
+  },
+  code: 'invalid_image_url',
+  param: null,
+  type: 'invalid_request_error'
+}

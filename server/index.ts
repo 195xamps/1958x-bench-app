@@ -629,6 +629,10 @@ app.post('/api/chats/:id/messages', async (req, res) => {
       contextInfo += dbContext;
     }
     
+    const publicBaseUrl = process.env.REPLIT_DEV_DOMAIN 
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : '';
+    
     const buildMessageContent = (msg: any): any => {
       const msgAttachments = msg.attachments as any[] | null;
       if (msgAttachments && msgAttachments.length > 0) {
@@ -638,9 +642,13 @@ app.post('/api/chats/:id/messages', async (req, res) => {
         }
         for (const attachment of msgAttachments) {
           if (attachment.type === 'image' && attachment.url) {
+            let imageUrl = attachment.url;
+            if (imageUrl.startsWith('/') && publicBaseUrl) {
+              imageUrl = publicBaseUrl + imageUrl;
+            }
             contentParts.push({
               type: 'image_url',
-              image_url: { url: attachment.url, detail: 'high' }
+              image_url: { url: imageUrl, detail: 'high' }
             });
           }
         }
