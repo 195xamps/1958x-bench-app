@@ -1,15 +1,18 @@
 {
-  "name": "my-app",
+  "name": "195x-bench-app",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "dev": "concurrently \"npx tsx server/index.ts\" \"expo start --web --port 5000\"",
+    "server": "npx tsx server/index.ts",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "migrate": "npx tsx server/migrate.ts"
   },
   "jest": {
     "preset": "jest-expo"
@@ -17,6 +20,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
@@ -25,15 +29,19 @@
     "@types/multer": "^2.0.0",
     "@types/pg": "^8.16.0",
     "@types/uuid": "^10.0.0",
+    "axios": "^1.13.4",
     "concurrently": "^9.2.1",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.1",
+    "drizzle-zod": "^0.8.3",
     "expo": "^54.0.9",
     "expo-blur": "~15.0.7",
     "expo-constants": "~18.0.9",
+    "expo-file-system": "^19.0.21",
     "expo-font": "~14.0.8",
     "expo-haptics": "~15.0.7",
     "expo-image": "~3.0.8",
+    "expo-image-picker": "^17.0.10",
     "expo-linking": "~8.0.8",
     "expo-router": "~6.0.7",
     "expo-splash-screen": "~31.0.10",
@@ -43,6 +51,9 @@
     "expo-web-browser": "~15.0.7",
     "express": "^5.2.1",
     "multer": "^2.0.2",
+    "openai": "^6.17.0",
+    "p-limit": "^7.2.0",
+    "p-retry": "^7.1.1",
     "pg": "^8.18.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -55,7 +66,9 @@
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
     "tsx": "^4.21.0",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^4.3.6",
+    "zod-validation-error": "^5.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
