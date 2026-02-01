@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -70,6 +71,35 @@ export default function SchematicsScreen() {
       console.error('Error fetching schematics:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteSchematic = async (schematicId: string, name: string) => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(`Delete "${name}"? This cannot be undone.`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Delete Schematic',
+            `Delete "${name}"? This cannot be undone.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+    
+    if (!confirmed) return;
+    
+    try {
+      await axios.delete(`${API_URL}/api/schematics/${schematicId}`);
+      setSchematics(schematics.filter(s => s.id !== schematicId));
+    } catch (error) {
+      console.error('Error deleting schematic:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to delete schematic');
+      } else {
+        Alert.alert('Error', 'Failed to delete schematic');
+      }
     }
   };
 
@@ -241,6 +271,14 @@ export default function SchematicsScreen() {
                     {schematic.notes}
                   </Text>
                 )}
+
+                <TouchableOpacity
+                  style={styles.deleteSchematicButton}
+                  onPress={() => deleteSchematic(schematic.id, schematic.name)}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                  <Text style={styles.deleteSchematicText}>Delete</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
             ))}
           </>
@@ -493,6 +531,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
     lineHeight: 20,
+  },
+  deleteSchematicButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    gap: 6,
+  },
+  deleteSchematicText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',

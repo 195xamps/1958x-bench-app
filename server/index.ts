@@ -366,6 +366,24 @@ app.get('/api/schematics/search', async (req, res) => {
   }
 });
 
+app.delete('/api/schematics/:id', async (req, res) => {
+  try {
+    const schematicId = req.params.id;
+    
+    const [schematic] = await db.select().from(schema.schematics).where(eq(schema.schematics.id, schematicId));
+    if (!schematic) {
+      return res.status(404).json({ error: 'Schematic not found' });
+    }
+    
+    await db.delete(schema.schematics).where(eq(schema.schematics.id, schematicId));
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting schematic:', error);
+    res.status(500).json({ error: 'Failed to delete schematic' });
+  }
+});
+
 const CHAT_SYSTEM_PROMPT = `You are a senior guitar amplifier technician and bench mentor for the 195x Bench App. You help technicians with troubleshooting, servicing, and validating guitar amplifiers.
 
 CAPABILITIES:
