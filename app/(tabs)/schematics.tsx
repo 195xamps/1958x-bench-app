@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -46,6 +47,7 @@ const CIRCUIT_FAMILIES = [
 ];
 
 export default function SchematicsScreen() {
+  const router = useRouter();
   const [schematics, setSchematics] = useState<Schematic[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -374,7 +376,11 @@ export default function SchematicsScreen() {
               {searchQuery ? `Results for "${searchQuery}"` : 'Schematic Library'}
             </Text>
             {schematics.map((schematic) => (
-              <TouchableOpacity key={schematic.id} style={styles.schematicCard}>
+              <TouchableOpacity 
+                key={schematic.id} 
+                style={styles.schematicCard}
+                onPress={() => router.push(`/schematic/${schematic.id}`)}
+              >
                 <View style={styles.schematicHeader}>
                   <View style={styles.schematicIcon}>
                     <Ionicons name="document-text" size={24} color="#f59e0b" />

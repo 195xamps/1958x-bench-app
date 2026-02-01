@@ -331,6 +331,42 @@ app.get('/api/schematics/search', async (req, res) => {
   }
 });
 
+app.get('/api/schematics/:id', async (req, res) => {
+  try {
+    const schematicId = req.params.id;
+    const [schematic] = await db.select().from(schema.schematics).where(eq(schema.schematics.id, schematicId));
+    if (!schematic) {
+      return res.status(404).json({ error: 'Schematic not found' });
+    }
+    res.json(schematic);
+  } catch (error) {
+    console.error('Error fetching schematic:', error);
+    res.status(500).json({ error: 'Failed to fetch schematic' });
+  }
+});
+
+app.patch('/api/schematics/:id', async (req, res) => {
+  try {
+    const schematicId = req.params.id;
+    const { notes } = req.body;
+    
+    const [schematic] = await db.select().from(schema.schematics).where(eq(schema.schematics.id, schematicId));
+    if (!schematic) {
+      return res.status(404).json({ error: 'Schematic not found' });
+    }
+    
+    const [updated] = await db.update(schema.schematics)
+      .set({ notes })
+      .where(eq(schema.schematics.id, schematicId))
+      .returning();
+    
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating schematic:', error);
+    res.status(500).json({ error: 'Failed to update schematic' });
+  }
+});
+
 app.delete('/api/schematics/:id', async (req, res) => {
   try {
     const schematicId = req.params.id;
