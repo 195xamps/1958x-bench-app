@@ -104,7 +104,17 @@ export default function JobDetailScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ jobName: '' });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState('active');
   const chatScrollRef = useRef<ScrollView>(null);
+
+  const JOB_STATUSES = [
+    { value: 'active', label: 'Active', color: '#3b82f6' },
+    { value: 'in_progress', label: 'In Progress', color: '#f59e0b' },
+    { value: 'waiting_parts', label: 'Waiting Parts', color: '#8b5cf6' },
+    { value: 'completed', label: 'Completed', color: '#22c55e' },
+    { value: 'archived', label: 'Archived', color: '#6b7280' },
+  ];
   
   const [techNotes, setTechNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
@@ -129,6 +139,7 @@ export default function JobDetailScreen() {
       const response = await axios.get(`${API_URL}/api/bench-jobs/${id}`);
       setJobData(response.data);
       setTechNotes(response.data.job.techNotes || '');
+      setCurrentStatus(response.data.job.status || 'active');
     } catch (error) {
       console.error('Error fetching job:', error);
       if (Platform.OS === 'web') {
@@ -178,6 +189,23 @@ export default function JobDetailScreen() {
     } finally {
       setSavingNotes(false);
     }
+  };
+
+  const updateJobStatus = async (newStatus: string) => {
+    if (!id) return;
+    const oldStatus = currentStatus;
+    setCurrentStatus(newStatus);
+    setShowStatusPicker(false);
+    try {
+      await axios.patch(`${API_URL}/api/bench-jobs/${id}/status`, { status: newStatus });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      setCurrentStatus(oldStatus);
+    }
+  };
+
+  const getStatusConfig = () => {
+    return JOB_STATUSES.find(s => s.value === currentStatus) || JOB_STATUSES[0];
   };
 
   const openEditModal = () => {
@@ -655,10 +683,22 @@ export default function JobDetailScreen() {
             </Text>
             <Ionicons name="pencil" size={16} color="#6b7280" style={{ marginLeft: 6 }} />
           </View>
-          <Text style={styles.headerSubtitle}>
-            {ampProfile.circuitFamily && `${ampProfile.circuitFamily} • `}
-            {ampProfile.year || 'Unknown year'}
-          </Text>
+          <View style={styles.headerSecondRow}>
+            <Text style={styles.headerSubtitle}>
+              {ampProfile.circuitFamily && `${ampProfile.circuitFamily} • `}
+              {ampProfile.year || 'Unknown year'}
+            </Text>
+            <TouchableOpacity 
+              style={[styles.statusBadge, { backgroundColor: getStatusConfig().color + '20' }]}
+              onPress={() => setShowStatusPicker(true)}
+            >
+              <View style={[styles.statusDot, { backgroundColor: getStatusConfig().color }]} />
+              <Text style={[styles.statusBadgeText, { color: getStatusConfig().color }]}>
+                {getStatusConfig().label}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color={getStatusConfig().color} />
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
         {activeTab === 'chat' && (
           <TouchableOpacity style={styles.galleryButton} onPress={() => setShowMediaGallery(true)}>
@@ -775,6 +815,36 @@ export default function JobDetailScreen() {
         </View>
       </Modal>
 
+      <Modal visible={showStatusPicker} transparent animationType="fade">
+        <TouchableOpacity 
+          style={styles.statusPickerOverlay}
+          activeOpacity={1}
+          onPress={() => setShowStatusPicker(false)}
+        >
+          <View style={styles.statusPickerContent}>
+            <Text style={styles.statusPickerTitle}>Update Status</Text>
+            {JOB_STATUSES.map((status) => (
+              <TouchableOpacity
+                key={status.value}
+                style={[
+                  styles.statusPickerOption,
+                  currentStatus === status.value && styles.statusPickerOptionSelected
+                ]}
+                onPress={() => updateJobStatus(status.value)}
+              >
+                <View style={[styles.statusDot, { backgroundColor: status.color }]} />
+                <Text style={[styles.statusPickerOptionText, { color: status.color }]}>
+                  {status.label}
+                </Text>
+                {currentStatus === status.value && (
+                  <Ionicons name="checkmark" size={20} color={status.color} style={{ marginLeft: 'auto' }} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <Modal visible={showEditModal} transparent animationType="slide">
         <View style={styles.editModalOverlay}>
           <View style={styles.editModalContent}>
@@ -876,10 +946,71 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#e5e7eb',
   },
+  headerSecondRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
   headerSubtitle: {
     fontSize: 14,
     color: '#f59e0b',
-    marginTop: 2,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusPickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  statusPickerContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    maxWidth: 320,
+  },
+  statusPickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#e5e7eb',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  statusPickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#374151',
+    gap: 10,
+  },
+  statusPickerOptionSelected: {
+    backgroundColor: '#374151',
+    borderWidth: 1,
+    borderColor: '#6b7280',
+  },
+  statusPickerOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
   galleryButton: {
     position: 'relative',

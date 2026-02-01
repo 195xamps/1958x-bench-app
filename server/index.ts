@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { db, schema } from './db';
-import { eq, desc, ilike, or } from 'drizzle-orm';
+import { eq, desc, ilike, or, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 
@@ -25,8 +25,34 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/bench-jobs', async (req, res) => {
   try {
-    const jobs = await db.select().from(schema.benchJobs);
-    res.json(jobs);
+    const { status, search } = req.query;
+    let query = db.select({
+      job: schema.benchJobs,
+      ampProfile: schema.ampProfiles,
+    }).from(schema.benchJobs)
+      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id));
+    
+    const conditions = [];
+    if (status && status !== 'all') {
+      conditions.push(eq(schema.benchJobs.status, status as string));
+    }
+    if (search) {
+      const searchTerm = `%${(search as string).toLowerCase()}%`;
+      conditions.push(
+        or(
+          ilike(schema.ampProfiles.make, searchTerm),
+          ilike(schema.ampProfiles.model, searchTerm),
+          ilike(schema.benchJobs.ownerSymptoms, searchTerm),
+          ilike(schema.benchJobs.techNotes, searchTerm)
+        )
+      );
+    }
+    
+    const results = conditions.length > 0 
+      ? await query.where(and(...conditions)).orderBy(desc(schema.benchJobs.createdAt))
+      : await query.orderBy(desc(schema.benchJobs.createdAt));
+    
+    res.json(results);
   } catch (error) {
     console.error('Error fetching bench jobs:', error);
     res.status(500).json({ error: 'Failed to fetch bench jobs' });
@@ -114,6 +140,28 @@ app.patch('/api/bench-jobs/:id/notes', async (req, res) => {
   } catch (error) {
     console.error('Error updating notes:', error);
     res.status(500).json({ error: 'Failed to update notes' });
+  }
+});
+
+app.patch('/api/bench-jobs/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['active', 'in_progress', 'waiting_parts', 'completed', 'archived'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    const [updated] = await db
+      .update(schema.benchJobs)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(schema.benchJobs.id, req.params.id))
+      .returning();
+    if (!updated) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({ error: 'Failed to update status' });
   }
 });
 

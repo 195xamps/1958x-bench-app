@@ -75,6 +75,15 @@ const SAFETY_CHECKLIST = [
   'Emergency shutoff accessible',
 ];
 
+const JOB_STATUSES = [
+  { value: 'all', label: 'All', color: '#9ca3af' },
+  { value: 'active', label: 'Active', color: '#3b82f6' },
+  { value: 'in_progress', label: 'In Progress', color: '#f59e0b' },
+  { value: 'waiting_parts', label: 'Waiting', color: '#8b5cf6' },
+  { value: 'completed', label: 'Done', color: '#22c55e' },
+  { value: 'archived', label: 'Archived', color: '#6b7280' },
+];
+
 export default function JobsScreen() {
   const router = useRouter();
   const [jobs, setJobs] = useState<JobWithProfile[]>([]);
@@ -86,6 +95,10 @@ export default function JobsScreen() {
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobWithProfile | null>(null);
   const [safetyChecks, setSafetyChecks] = useState<boolean[]>(new Array(SAFETY_CHECKLIST.length).fill(false));
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -119,6 +132,14 @@ export default function JobsScreen() {
 
   useEffect(() => {
     fetchJobs();
+  }, [statusFilter, searchQuery]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -160,23 +181,30 @@ export default function JobsScreen() {
 
   const fetchJobs = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/bench-jobs`);
-      const jobsWithProfiles: JobWithProfile[] = await Promise.all(
-        response.data.map(async (job: BenchJob) => {
-          try {
-            const detailResponse = await axios.get(`${API_URL}/api/bench-jobs/${job.id}`);
-            return { job, ampProfile: detailResponse.data.ampProfile };
-          } catch {
-            return { job, ampProfile: null };
-          }
-        })
-      );
-      setJobs(jobsWithProfiles);
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (searchQuery) params.append('search', searchQuery);
+      const response = await axios.get(`${API_URL}/api/bench-jobs?${params.toString()}`);
+      setJobs(response.data);
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearchInput = (text: string) => {
+    setSearchInput(text);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(text);
+    }, 500);
+  };
+
+  const getStatusConfig = (status: string) => {
+    return JOB_STATUSES.find(s => s.value === status) || JOB_STATUSES[1];
   };
 
   const createJob = async () => {
@@ -292,12 +320,49 @@ export default function JobsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Bench Jobs</Text>
-          <Text style={styles.subtitle}>Manage your amp repair jobs</Text>
-        </View>
+      <View style={styles.header}>
+        <Text style={styles.title}>Bench Jobs</Text>
+        <Text style={styles.subtitle}>Manage your amp repair jobs</Text>
+      </View>
 
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search jobs..."
+          placeholderTextColor="#6b7280"
+          value={searchInput}
+          onChangeText={handleSearchInput}
+        />
+        {searchInput.length > 0 && (
+          <TouchableOpacity onPress={() => { setSearchInput(''); setSearchQuery(''); }}>
+            <Ionicons name="close-circle" size={20} color="#6b7280" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusFilterContainer}>
+        {JOB_STATUSES.map((status) => (
+          <TouchableOpacity
+            key={status.value}
+            style={[
+              styles.statusFilterTab,
+              statusFilter === status.value && { backgroundColor: status.color + '30', borderColor: status.color }
+            ]}
+            onPress={() => setStatusFilter(status.value)}
+          >
+            <View style={[styles.statusFilterDot, { backgroundColor: status.color }]} />
+            <Text style={[
+              styles.statusFilterText,
+              statusFilter === status.value && { color: status.color }
+            ]}>
+              {status.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <ScrollView style={styles.scrollView}>
         {jobs.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="briefcase-outline" size={64} color="#6b7280" />
@@ -305,36 +370,42 @@ export default function JobsScreen() {
             <Text style={styles.emptySubtext}>Start a new job to begin troubleshooting</Text>
           </View>
         ) : (
-          jobs.map(({ job, ampProfile }) => (
-            <TouchableOpacity
-              key={job.id}
-              style={styles.jobCard}
-              onPress={() => openJobDetail({ job, ampProfile })}
-            >
-              <View style={styles.jobHeader}>
-                <Text style={styles.jobAmpName}>
-                  {ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}
-                </Text>
-                <View style={styles.jobBadges}>
-                  {job.safetyChecklistCompleted && (
-                    <Ionicons name="shield-checkmark" size={20} color="#22c55e" />
-                  )}
-                  <View style={[styles.statusBadge, job.status === 'active' ? styles.statusActive : styles.statusComplete]}>
-                    <Text style={styles.statusText}>{job.status}</Text>
+          jobs.map(({ job, ampProfile }) => {
+            const statusConfig = getStatusConfig(job.status || 'active');
+            return (
+              <TouchableOpacity
+                key={job.id}
+                style={styles.jobCard}
+                onPress={() => openJobDetail({ job, ampProfile })}
+              >
+                <View style={styles.jobHeader}>
+                  <Text style={styles.jobAmpName}>
+                    {[ampProfile?.make, ampProfile?.model].filter(Boolean).join(' ') || 'Untitled Job'}
+                  </Text>
+                  <View style={styles.jobBadges}>
+                    {job.safetyChecklistCompleted && (
+                      <Ionicons name="shield-checkmark" size={18} color="#22c55e" style={{ marginRight: 6 }} />
+                    )}
+                    <View style={[styles.statusBadge, { backgroundColor: statusConfig.color + '20' }]}>
+                      <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
+                      <Text style={[styles.statusText, { color: statusConfig.color }]}>
+                        {statusConfig.label}
+                      </Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-              {ampProfile?.year && (
-                <Text style={styles.jobYear}>{ampProfile.year}</Text>
-              )}
-              <Text style={styles.jobSymptoms} numberOfLines={2}>
-                {job.ownerSymptoms || 'No symptoms recorded'}
-              </Text>
-              <Text style={styles.jobDate}>
-                {new Date(job.createdAt).toLocaleDateString()}
-              </Text>
-            </TouchableOpacity>
-          ))
+                {ampProfile?.circuitFamily && (
+                  <Text style={styles.jobCircuitFamily}>{ampProfile.circuitFamily}</Text>
+                )}
+                <Text style={styles.jobSymptoms} numberOfLines={2}>
+                  {job.ownerSymptoms || 'No symptoms recorded'}
+                </Text>
+                <Text style={styles.jobDate}>
+                  {new Date(job.createdAt).toLocaleDateString()}
+                </Text>
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
 
@@ -740,8 +811,55 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    marginBottom: 24,
+    paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 8,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#e5e7eb',
+    fontSize: 16,
+    height: '100%',
+  },
+  statusFilterContainer: {
+    flexGrow: 0,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  statusFilterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginHorizontal: 4,
+    backgroundColor: '#1f2937',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  statusFilterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusFilterText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    fontWeight: '500',
   },
   title: {
     fontSize: 28,
@@ -794,21 +912,26 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusBadge: {
-    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
+    gap: 4,
   },
-  statusActive: {
-    backgroundColor: '#065f46',
-  },
-  statusComplete: {
-    backgroundColor: '#374151',
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusText: {
-    color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    textTransform: 'uppercase',
+  },
+  jobCircuitFamily: {
+    color: '#9ca3af',
+    fontSize: 13,
+    marginBottom: 4,
   },
   jobYear: {
     color: '#9ca3af',
