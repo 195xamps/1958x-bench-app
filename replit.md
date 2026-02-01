@@ -143,6 +143,11 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **PDF Upload Support** - Users can now upload PDF documents
+  - PDF uploads in chat (alongside images)
+  - PDF uploads in schematics library
+  - Clickable PDF attachments that open in browser/system viewer
+  - Files stored in Replit Object Storage
 - Feb 2026: **Rich Markdown Responses** - AI now returns detailed, conversational responses like ChatGPT
   - Expert-level amp identification with visual evidence analysis
   - Detailed troubleshooting with explanations and reasoning

@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import axios from 'axios';
 
 const API_URL = '';
@@ -117,6 +119,56 @@ export default function SchematicsScreen() {
     }
   };
 
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [fileName, setFileName] = useState('');
+
+  const uploadFileToStorage = async (uri: string, name: string, contentType: string): Promise<string | null> => {
+    try {
+      setUploadingFile(true);
+      const urlResponse = await axios.post(`${API_URL}/api/uploads/request-url`, {
+        name: name,
+        size: 0,
+        contentType: contentType,
+      });
+      const { uploadURL, objectPath } = urlResponse.data;
+
+      let uploadBody: Blob | Uint8Array;
+      
+      if (Platform.OS === 'web') {
+        const fileResponse = await fetch(uri);
+        uploadBody = await fileResponse.blob();
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        uploadBody = bytes;
+      }
+
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: uploadBody,
+        headers: { 'Content-Type': contentType },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
+
+      const publicUrl = `${API_URL}${objectPath}`;
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      return null;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -125,13 +177,50 @@ export default function SchematicsScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setNewSchematic({ ...newSchematic, fileUrl: result.assets[0].uri });
+      const uri = result.assets[0].uri;
+      const uploadedUrl = await uploadFileToStorage(uri, `schematic-${Date.now()}.jpg`, 'image/jpeg');
+      if (uploadedUrl) {
+        setNewSchematic({ ...newSchematic, fileUrl: uploadedUrl });
+        setFileName('Image uploaded');
+      } else {
+        Alert.alert('Error', 'Failed to upload image');
+      }
+    }
+  };
+
+  const pickPdf = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        const name = file.name || `schematic-${Date.now()}.pdf`;
+        const uploadedUrl = await uploadFileToStorage(file.uri, name, 'application/pdf');
+        
+        if (uploadedUrl) {
+          setNewSchematic({ ...newSchematic, fileUrl: uploadedUrl });
+          setFileName(name);
+        } else {
+          Alert.alert('Error', 'Failed to upload PDF');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking PDF:', error);
+      Alert.alert('Error', 'Failed to pick PDF');
     }
   };
 
   const uploadSchematic = async () => {
     if (!newSchematic.name) {
       Alert.alert('Required', 'Please enter a name for the schematic');
+      return;
+    }
+
+    if (!newSchematic.fileUrl) {
+      Alert.alert('Required', 'Please upload a schematic file (image or PDF)');
       return;
     }
 
@@ -151,6 +240,7 @@ export default function SchematicsScreen() {
         notes: '',
         fileUrl: '',
       });
+      setFileName('');
       Alert.alert('Success', 'Schematic added to library');
     } catch (error) {
       console.error('Error uploading schematic:', error);
@@ -364,15 +454,48 @@ export default function SchematicsScreen() {
                 numberOfLines={3}
               />
 
-              <TouchableOpacity style={styles.uploadButton} onPress={pickImage}>
-                <Ionicons name="image" size={24} color="#f59e0b" />
-                <Text style={styles.uploadButtonText}>
-                  {newSchematic.fileUrl ? 'Image Selected' : 'Select Schematic Image'}
-                </Text>
-                {newSchematic.fileUrl && (
-                  <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                )}
-              </TouchableOpacity>
+              <Text style={styles.inputLabel}>Schematic File *</Text>
+              
+              {uploadingFile && (
+                <View style={styles.uploadingIndicator}>
+                  <ActivityIndicator size="small" color="#f59e0b" />
+                  <Text style={styles.uploadingText}>Uploading file...</Text>
+                </View>
+              )}
+
+              {fileName ? (
+                <View style={styles.fileSelectedContainer}>
+                  <Ionicons 
+                    name={fileName.endsWith('.pdf') ? 'document-text' : 'image'} 
+                    size={24} 
+                    color="#22c55e" 
+                  />
+                  <Text style={styles.fileSelectedText} numberOfLines={1}>{fileName}</Text>
+                  <TouchableOpacity onPress={() => { setFileName(''); setNewSchematic({ ...newSchematic, fileUrl: '' }); }}>
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.filePickerRow}>
+                  <TouchableOpacity 
+                    style={[styles.uploadButton, styles.halfWidth]} 
+                    onPress={pickImage}
+                    disabled={uploadingFile}
+                  >
+                    <Ionicons name="image" size={22} color={uploadingFile ? '#6b7280' : '#f59e0b'} />
+                    <Text style={[styles.uploadButtonText, uploadingFile && styles.disabledText]}>Image</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.uploadButton, styles.halfWidth]} 
+                    onPress={pickPdf}
+                    disabled={uploadingFile}
+                  >
+                    <Ionicons name="document-text" size={22} color={uploadingFile ? '#6b7280' : '#f59e0b'} />
+                    <Text style={[styles.uploadButtonText, uploadingFile && styles.disabledText]}>PDF</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </ScrollView>
 
             <TouchableOpacity
@@ -659,5 +782,44 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  filePickerRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  halfWidth: {
+    flex: 1,
+    marginTop: 0,
+  },
+  fileSelectedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#22c55e',
+  },
+  fileSelectedText: {
+    color: '#e5e7eb',
+    fontSize: 14,
+    flex: 1,
+  },
+  uploadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    padding: 10,
+  },
+  uploadingText: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  disabledText: {
+    color: '#6b7280',
   },
 });

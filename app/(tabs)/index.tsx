@@ -13,10 +13,12 @@ import {
   Platform,
   Image,
   ActionSheetIOS,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { MarkdownContent } from '../components/MarkdownContent';
 
@@ -119,21 +121,21 @@ export default function DashboardScreen() {
     }
   };
 
-  const uploadImage = async (uri: string): Promise<string | null> => {
+  const uploadFile = async (uri: string, fileName: string, contentType: string): Promise<string | null> => {
     try {
       setUploadingImage(true);
       const urlResponse = await axios.post(`${API_URL}/api/uploads/request-url`, {
-        name: `image-${Date.now()}.jpg`,
+        name: fileName,
         size: 0,
-        contentType: 'image/jpeg',
+        contentType: contentType,
       });
       const { uploadURL, objectPath } = urlResponse.data;
 
       let uploadBody: Blob | Uint8Array;
       
       if (Platform.OS === 'web') {
-        const imageResponse = await fetch(uri);
-        uploadBody = await imageResponse.blob();
+        const fileResponse = await fetch(uri);
+        uploadBody = await fileResponse.blob();
       } else {
         const base64 = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
@@ -149,7 +151,7 @@ export default function DashboardScreen() {
       const uploadResponse = await fetch(uploadURL, {
         method: 'PUT',
         body: uploadBody,
-        headers: { 'Content-Type': 'image/jpeg' },
+        headers: { 'Content-Type': contentType },
       });
       
       if (!uploadResponse.ok) {
@@ -159,11 +161,15 @@ export default function DashboardScreen() {
       const publicUrl = `${API_URL}${objectPath}`;
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error uploading file:', error);
       return null;
     } finally {
       setUploadingImage(false);
     }
+  };
+
+  const uploadImage = async (uri: string): Promise<string | null> => {
+    return uploadFile(uri, `image-${Date.now()}.jpg`, 'image/jpeg');
   };
 
   const pickImage = async (useCamera: boolean) => {
@@ -217,6 +223,40 @@ export default function DashboardScreen() {
     }
   };
 
+  const pickDocument = async () => {
+    setShowAttachmentModal(false);
+    
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const file = result.assets[0];
+        const fileName = file.name || `document-${Date.now()}.pdf`;
+        const uploadedUrl = await uploadFile(file.uri, fileName, 'application/pdf');
+        
+        if (uploadedUrl) {
+          setPendingAttachments((prev) => [...prev, { type: 'file', url: uploadedUrl, name: fileName }]);
+        } else {
+          if (Platform.OS === 'web') {
+            window.alert('Failed to upload PDF');
+          } else {
+            Alert.alert('Error', 'Failed to upload PDF');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to pick document');
+      } else {
+        Alert.alert('Error', 'Failed to pick document');
+      }
+    }
+  };
+
   const removeAttachment = (index: number) => {
     setPendingAttachments((prev) => prev.filter((_, i) => i !== index));
   };
@@ -225,12 +265,13 @@ export default function DashboardScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Take Photo', 'Choose from Library'],
+          options: ['Cancel', 'Take Photo', 'Choose from Library', 'Choose PDF'],
           cancelButtonIndex: 0,
         },
         (buttonIndex) => {
           if (buttonIndex === 1) pickImage(true);
           else if (buttonIndex === 2) pickImage(false);
+          else if (buttonIndex === 3) pickDocument();
         }
       );
     } else {
@@ -527,14 +568,35 @@ export default function DashboardScreen() {
                 {message.attachments && message.attachments.length > 0 && (
                   <View style={styles.messageAttachments}>
                     {message.attachments.map((attachment, idx) => (
-                      attachment.type === 'image' && (
+                      attachment.type === 'image' ? (
                         <Image
                           key={idx}
                           source={{ uri: attachment.url }}
                           style={styles.messageImage}
                           resizeMode="cover"
                         />
-                      )
+                      ) : attachment.type === 'file' ? (
+                        <TouchableOpacity
+                          key={idx}
+                          style={styles.pdfAttachment}
+                          onPress={() => {
+                            if (Platform.OS === 'web') {
+                              window.open(attachment.url, '_blank');
+                            } else {
+                              Linking.openURL(attachment.url).catch((err) => {
+                                console.error('Failed to open PDF:', err);
+                                Alert.alert('Error', 'Could not open PDF');
+                              });
+                            }
+                          }}
+                        >
+                          <Ionicons name="document-text" size={24} color="#f59e0b" />
+                          <Text style={styles.pdfAttachmentText} numberOfLines={1}>
+                            {attachment.name || 'PDF Document'}
+                          </Text>
+                          <Ionicons name="open-outline" size={18} color="#9ca3af" />
+                        </TouchableOpacity>
+                      ) : null
                     ))}
                   </View>
                 )}
@@ -562,7 +624,16 @@ export default function DashboardScreen() {
             <View style={styles.pendingAttachmentsContainer}>
               {pendingAttachments.map((attachment, idx) => (
                 <View key={idx} style={styles.pendingAttachment}>
-                  <Image source={{ uri: attachment.url }} style={styles.pendingAttachmentImage} />
+                  {attachment.type === 'image' ? (
+                    <Image source={{ uri: attachment.url }} style={styles.pendingAttachmentImage} />
+                  ) : (
+                    <View style={styles.pendingPdfAttachment}>
+                      <Ionicons name="document-text" size={28} color="#f59e0b" />
+                      <Text style={styles.pendingPdfText} numberOfLines={1}>
+                        {attachment.name || 'PDF'}
+                      </Text>
+                    </View>
+                  )}
                   <TouchableOpacity
                     style={styles.removeAttachmentButton}
                     onPress={() => removeAttachment(idx)}
@@ -710,6 +781,14 @@ export default function DashboardScreen() {
             >
               <Ionicons name="images" size={22} color="#e5e7eb" />
               <Text style={styles.optionText}>Choose from Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={pickDocument}
+            >
+              <Ionicons name="document-text" size={22} color="#e5e7eb" />
+              <Text style={styles.optionText}>Upload PDF</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1126,5 +1205,35 @@ const styles = StyleSheet.create({
     width: 200,
     height: 150,
     borderRadius: 8,
+  },
+  pdfAttachment: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  pdfAttachmentText: {
+    color: '#e5e7eb',
+    fontSize: 14,
+    flex: 1,
+  },
+  pendingPdfAttachment: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingPdfText: {
+    color: '#9ca3af',
+    fontSize: 10,
+    marginTop: 2,
+    maxWidth: 50,
+    textAlign: 'center',
   },
 });
