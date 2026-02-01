@@ -76,6 +76,8 @@ export default function MeasurementScreen() {
   useEffect(() => {
     if (benchJobId) {
       fetchMeasurements();
+    } else {
+      setLoading(false);
     }
   }, [benchJobId]);
 
@@ -153,6 +155,18 @@ export default function MeasurementScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#f59e0b" />
         <Text style={styles.loadingText}>Loading measurements...</Text>
+      </View>
+    );
+  }
+
+  if (!benchJobId) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Ionicons name="alert-circle" size={48} color="#ef4444" />
+        <Text style={styles.loadingText}>No job selected</Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 16, padding: 12, backgroundColor: '#f59e0b', borderRadius: 8 }}>
+          <Text style={{ color: '#1f2937', fontWeight: '600' }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
