@@ -30,17 +30,136 @@ interface Measurement {
   createdAt: string;
 }
 
-const COMMON_NODES = [
-  { name: 'B+1', description: 'First filter cap' },
-  { name: 'B+2', description: 'Second filter cap' },
-  { name: 'B+3', description: 'Third filter cap' },
-  { name: 'Plate V1', description: 'V1 plate voltage' },
-  { name: 'Plate V2', description: 'V2 plate voltage' },
-  { name: 'Cathode V1', description: 'V1 cathode voltage' },
-  { name: 'Screen', description: 'Output tube screen voltage' },
-  { name: 'Bias', description: 'Fixed bias voltage' },
-  { name: 'Heater', description: 'Heater voltage (AC)' },
-  { name: 'Ripple', description: 'B+ ripple (mV AC)' },
+interface MeasurementNode {
+  name: string;
+  description: string;
+  unit: string;
+  meterMode: string;
+  expectedMin?: number;
+  expectedMax?: number;
+}
+
+interface MeasurementCategory {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  nodes: MeasurementNode[];
+}
+
+const MEASUREMENT_CATEGORIES: MeasurementCategory[] = [
+  {
+    id: 'safety',
+    title: '1. Safety & Baseline',
+    icon: 'shield-checkmark',
+    description: 'First checks to prevent mistakes',
+    nodes: [
+      { name: 'Mains VAC', description: 'Wall voltage', unit: 'V', meterMode: 'AC Volts', expectedMin: 115, expectedMax: 125 },
+      { name: 'Earth→Chassis Ω', description: '3-prong cord integrity', unit: 'ohms', meterMode: 'Ohms', expectedMin: 0, expectedMax: 1 },
+      { name: 'Speaker DCR', description: 'Speaker DC resistance', unit: 'ohms', meterMode: 'Ohms', expectedMin: 4, expectedMax: 16 },
+    ],
+  },
+  {
+    id: 'pt_secondaries',
+    title: '2. PT Secondaries (VAC)',
+    icon: 'flash',
+    description: 'Power transformer outputs',
+    nodes: [
+      { name: 'Heater VAC', description: 'Tube heater voltage', unit: 'V', meterMode: 'AC Volts', expectedMin: 6.0, expectedMax: 6.6 },
+      { name: 'PT HT VAC', description: 'High tension secondary', unit: 'V', meterMode: 'AC Volts' },
+      { name: 'PT Bias VAC', description: 'Bias tap secondary', unit: 'V', meterMode: 'AC Volts' },
+      { name: '5VAC Rectifier', description: 'Rectifier heater', unit: 'V', meterMode: 'AC Volts', expectedMin: 4.8, expectedMax: 5.2 },
+    ],
+  },
+  {
+    id: 'b_plus',
+    title: '3. B+ Rail & Ripple',
+    icon: 'battery-charging',
+    description: 'Power quality map',
+    nodes: [
+      { name: 'B+0', description: 'Rectifier output', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'B+1', description: 'First filter cap', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'B+2', description: 'Second filter cap', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'B+3', description: 'Third filter cap', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'Ripple B+1', description: 'Ripple at first node', unit: 'mV', meterMode: 'mV AC', expectedMin: 0, expectedMax: 50 },
+      { name: 'Ripple B+2', description: 'Ripple at second node', unit: 'mV', meterMode: 'mV AC', expectedMin: 0, expectedMax: 20 },
+      { name: 'Dropper ΔV', description: 'Voltage drop across choke/resistor', unit: 'V', meterMode: 'DC Volts' },
+    ],
+  },
+  {
+    id: 'output_stage',
+    title: '4. Output Stage',
+    icon: 'volume-high',
+    description: 'Power tubes operating point',
+    nodes: [
+      { name: 'Power Plate V', description: 'Power tube plate voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'Power Screen V', description: 'Power tube screen voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'Power Grid V', description: 'Control grid bias (neg)', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'Power Cathode V', description: 'Cathode bias voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'Bias mA', description: 'Bias current', unit: 'mA', meterMode: 'DC Volts' },
+      { name: 'Dissipation W', description: 'Plate dissipation (calculated)', unit: 'W', meterMode: 'DC Volts' },
+    ],
+  },
+  {
+    id: 'phase_inverter',
+    title: '5. Phase Inverter',
+    icon: 'git-compare',
+    description: 'PI operating point',
+    nodes: [
+      { name: 'PI Plate 1', description: 'PI first plate voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'PI Plate 2', description: 'PI second plate voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'PI Cathode', description: 'PI cathode/tail voltage', unit: 'V', meterMode: 'DC Volts' },
+    ],
+  },
+  {
+    id: 'preamp',
+    title: '6. Preamp Triodes',
+    icon: 'radio',
+    description: 'Preamp stage DC checks',
+    nodes: [
+      { name: 'V1A Plate', description: 'V1A plate voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'V1A Cathode', description: 'V1A cathode voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'V1B Plate', description: 'V1B plate voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'V1B Cathode', description: 'V1B cathode voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'V2A Plate', description: 'V2A plate voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'V2A Cathode', description: 'V2A cathode voltage', unit: 'V', meterMode: 'DC Volts' },
+      { name: 'Preamp Grid DC', description: 'Grid DC (leaky cap check)', unit: 'V', meterMode: 'DC Volts', expectedMin: -0.5, expectedMax: 0.5 },
+    ],
+  },
+  {
+    id: 'resistance',
+    title: '7. Power-Off Resistance',
+    icon: 'construct',
+    description: 'Safe resistance checks',
+    nodes: [
+      { name: 'OT Pri DCR A-CT', description: 'Output transformer primary A to CT', unit: 'ohms', meterMode: 'Ohms' },
+      { name: 'OT Pri DCR B-CT', description: 'Output transformer primary B to CT', unit: 'ohms', meterMode: 'Ohms' },
+      { name: 'OT Sec DCR', description: 'Output transformer secondary', unit: 'ohms', meterMode: 'Ohms' },
+      { name: 'PT HV DCR', description: 'Power transformer HV winding', unit: 'ohms', meterMode: 'Ohms' },
+      { name: 'Bleeder Ω', description: 'Bleeder resistor value', unit: 'k-ohms', meterMode: 'Ohms' },
+      { name: 'Input Jack Switch', description: 'Input jack switching continuity', unit: 'ohms', meterMode: 'Continuity' },
+    ],
+  },
+  {
+    id: 'output_performance',
+    title: '8. Output Performance',
+    icon: 'pulse',
+    description: 'Health checks without scope',
+    nodes: [
+      { name: 'Output Hum mV', description: 'Idle hum at speaker jack', unit: 'mV', meterMode: 'mV AC', expectedMin: 0, expectedMax: 50 },
+      { name: 'Output Vrms @1kHz', description: 'Output with 1kHz test tone', unit: 'V', meterMode: 'AC Volts' },
+      { name: 'Output Power W', description: 'Calculated output power', unit: 'W', meterMode: 'AC Volts' },
+    ],
+  },
+];
+
+const DEFAULT_DIAGNOSTIC_SEQUENCE = [
+  'Mains VAC', 'Speaker DCR', 'Earth→Chassis Ω',
+  'Heater VAC',
+  'B+0', 'B+1', 'B+2', 'B+3', 'Ripple B+1',
+  'Power Plate V', 'Power Screen V', 'Power Grid V', 'Bias mA',
+  'PI Plate 1', 'PI Plate 2', 'PI Cathode',
+  'V1A Plate', 'V1A Cathode', 'V2A Plate', 'V2A Cathode',
 ];
 
 const METER_MODES = [
@@ -61,6 +180,9 @@ export default function MeasurementScreen() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [showDiagnosticMode, setShowDiagnosticMode] = useState(false);
+  const [diagnosticStep, setDiagnosticStep] = useState(0);
 
   const [newMeasurement, setNewMeasurement] = useState({
     nodeName: '',
@@ -72,6 +194,56 @@ export default function MeasurementScreen() {
     meterMode: 'DC Volts',
     notes: '',
   });
+
+  const toggleCategory = (categoryId: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryId]: !prev[categoryId]
+    }));
+  };
+
+  const selectNode = (node: MeasurementNode) => {
+    setNewMeasurement({
+      ...newMeasurement,
+      nodeName: node.name,
+      unit: node.unit,
+      meterMode: node.meterMode,
+      expectedMin: node.expectedMin !== undefined ? String(node.expectedMin) : '',
+      expectedMax: node.expectedMax !== undefined ? String(node.expectedMax) : '',
+    });
+  };
+
+  const startDiagnosticSequence = () => {
+    setShowDiagnosticMode(true);
+    setDiagnosticStep(0);
+    const firstNode = findNodeByName(DEFAULT_DIAGNOSTIC_SEQUENCE[0]);
+    if (firstNode) {
+      selectNode(firstNode);
+    }
+    setShowAddModal(true);
+  };
+
+  const findNodeByName = (name: string): MeasurementNode | null => {
+    for (const category of MEASUREMENT_CATEGORIES) {
+      const node = category.nodes.find(n => n.name === name);
+      if (node) return node;
+    }
+    return null;
+  };
+
+  const advanceDiagnostic = () => {
+    if (diagnosticStep < DEFAULT_DIAGNOSTIC_SEQUENCE.length - 1) {
+      const nextStep = diagnosticStep + 1;
+      setDiagnosticStep(nextStep);
+      const nextNode = findNodeByName(DEFAULT_DIAGNOSTIC_SEQUENCE[nextStep]);
+      if (nextNode) {
+        selectNode(nextNode);
+      }
+    } else {
+      setShowDiagnosticMode(false);
+      setDiagnosticStep(0);
+    }
+  };
 
   useEffect(() => {
     if (benchJobId) {
@@ -113,17 +285,23 @@ export default function MeasurementScreen() {
       });
 
       setMeasurements([response.data, ...measurements]);
-      setShowAddModal(false);
-      setNewMeasurement({
-        nodeName: '',
-        expectedMin: '',
-        expectedMax: '',
-        recordedValue: '',
-        unit: 'V',
-        meterTool: '',
-        meterMode: 'DC Volts',
-        notes: '',
-      });
+      
+      if (showDiagnosticMode) {
+        advanceDiagnostic();
+        setNewMeasurement(prev => ({ ...prev, recordedValue: '', notes: '' }));
+      } else {
+        setShowAddModal(false);
+        setNewMeasurement({
+          nodeName: '',
+          expectedMin: '',
+          expectedMax: '',
+          recordedValue: '',
+          unit: 'V',
+          meterTool: '',
+          meterMode: 'DC Volts',
+          notes: '',
+        });
+      }
     } catch (error) {
       console.error('Error saving measurement:', error);
       Alert.alert('Error', 'Failed to save measurement');
@@ -184,11 +362,19 @@ export default function MeasurementScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        <TouchableOpacity 
+          style={styles.startDiagnosticButton}
+          onPress={startDiagnosticSequence}
+        >
+          <Ionicons name="navigate" size={24} color="#f59e0b" />
+          <Text style={styles.startDiagnosticText}>Start Diagnostic Sequence</Text>
+        </TouchableOpacity>
+
         {measurements.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="speedometer-outline" size={64} color="#6b7280" />
             <Text style={styles.emptyText}>No measurements recorded</Text>
-            <Text style={styles.emptySubtext}>Tap the + button to add a measurement</Text>
+            <Text style={styles.emptySubtext}>Tap the button above or + to add measurements</Text>
           </View>
         ) : (
           measurements.map((measurement) => (
@@ -250,26 +436,68 @@ export default function MeasurementScreen() {
             </View>
 
             <ScrollView style={styles.modalScroll}>
-              <Text style={styles.sectionTitle}>Quick Select Node</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.nodesScroll}>
-                {COMMON_NODES.map((node, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.nodeChip,
-                      newMeasurement.nodeName === node.name && styles.nodeChipSelected,
-                    ]}
-                    onPress={() => setNewMeasurement({ ...newMeasurement, nodeName: node.name })}
-                  >
-                    <Text style={[
-                      styles.nodeChipText,
-                      newMeasurement.nodeName === node.name && styles.nodeChipTextSelected,
-                    ]}>
-                      {node.name}
+              {showDiagnosticMode && (
+                <View style={styles.diagnosticBanner}>
+                  <View style={styles.diagnosticProgress}>
+                    <Ionicons name="navigate" size={20} color="#f59e0b" />
+                    <Text style={styles.diagnosticText}>
+                      Diagnostic Step {diagnosticStep + 1} of {DEFAULT_DIAGNOSTIC_SEQUENCE.length}
                     </Text>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={() => { setShowDiagnosticMode(false); setShowAddModal(false); }}
+                    style={styles.diagnosticExit}
+                  >
+                    <Text style={styles.diagnosticExitText}>Exit</Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                </View>
+              )}
+
+              <Text style={styles.sectionTitle}>Select Measurement Node</Text>
+              
+              {MEASUREMENT_CATEGORIES.map((category) => (
+                <View key={category.id} style={styles.categoryContainer}>
+                  <TouchableOpacity 
+                    style={styles.categoryHeader}
+                    onPress={() => toggleCategory(category.id)}
+                  >
+                    <View style={styles.categoryTitleRow}>
+                      <Ionicons name={category.icon as any} size={20} color="#f59e0b" />
+                      <Text style={styles.categoryTitle}>{category.title}</Text>
+                    </View>
+                    <Ionicons 
+                      name={expandedCategories[category.id] ? 'chevron-up' : 'chevron-down'} 
+                      size={20} 
+                      color="#9ca3af" 
+                    />
+                  </TouchableOpacity>
+                  
+                  {expandedCategories[category.id] && (
+                    <View style={styles.categoryNodes}>
+                      <Text style={styles.categoryDescription}>{category.description}</Text>
+                      <View style={styles.nodeGrid}>
+                        {category.nodes.map((node) => (
+                          <TouchableOpacity
+                            key={node.name}
+                            style={[
+                              styles.nodeChip,
+                              newMeasurement.nodeName === node.name && styles.nodeChipSelected,
+                            ]}
+                            onPress={() => selectNode(node)}
+                          >
+                            <Text style={[
+                              styles.nodeChipText,
+                              newMeasurement.nodeName === node.name && styles.nodeChipTextSelected,
+                            ]}>
+                              {node.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))}
 
               <Text style={styles.inputLabel}>Node Name *</Text>
               <TextInput
@@ -676,5 +904,86 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  diagnosticBanner: {
+    backgroundColor: '#292524',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  diagnosticProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  diagnosticText: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  diagnosticExit: {
+    padding: 8,
+  },
+  diagnosticExitText: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  categoryContainer: {
+    marginBottom: 8,
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+  },
+  categoryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  categoryTitle: {
+    color: '#e5e7eb',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  categoryNodes: {
+    padding: 14,
+    paddingTop: 0,
+  },
+  categoryDescription: {
+    color: '#9ca3af',
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  nodeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  startDiagnosticButton: {
+    backgroundColor: '#292524',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  startDiagnosticText: {
+    color: '#f59e0b',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
