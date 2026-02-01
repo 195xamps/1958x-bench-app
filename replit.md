@@ -143,13 +143,12 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
-- Feb 2026: **Structured JSON Responses** - AI now returns deterministic, structured responses
-  - Intent classification: SAFETY_PROCEDURE, MEASUREMENT_SETUP, SYMPTOM_TROUBLESHOOTING, IMAGE_IDENTIFICATION, VALIDATION_QA, QUICK_ANSWER, NEED_MORE_INFO
-  - Step-by-step troubleshooting with stop conditions
-  - Measurement specs with tool settings and expected ranges
-  - Decision tree visualization for diagnostic logic
-  - Intent-aware UI components render based on response type
-  - OpenAI JSON mode for reliable parsing
+- Feb 2026: **Rich Markdown Responses** - AI now returns detailed, conversational responses like ChatGPT
+  - Expert-level amp identification with visual evidence analysis
+  - Detailed troubleshooting with explanations and reasoning
+  - Rich markdown formatting (headers, bullets, bold, code blocks)
+  - Confident, educational mentor voice
+  - Proper formatting for step-by-step procedures
 - Feb 2026: **Image Upload Feature** - Users can now upload images/photos to chat
   - Camera access on mobile devices for real-time photo capture
   - Image picker for selecting photos from library

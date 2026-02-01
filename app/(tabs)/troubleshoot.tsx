@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import { StructuredResponse } from '../components/StructuredResponse';
+import { MarkdownContent } from '../components/MarkdownContent';
 
 const API_URL = '';
 
@@ -145,7 +145,7 @@ export default function TroubleshootScreen() {
             {message.content}
           </Text>
         ) : (
-          <StructuredResponse content={message.content} />
+          <MarkdownContent content={message.content} />
         )}
       </View>
     );
