@@ -215,12 +215,20 @@ export default function SchematicsScreen() {
 
   const uploadSchematic = async () => {
     if (!newSchematic.name) {
-      Alert.alert('Required', 'Please enter a name for the schematic');
+      if (Platform.OS === 'web') {
+        window.alert('Please enter a name for the schematic');
+      } else {
+        Alert.alert('Required', 'Please enter a name for the schematic');
+      }
       return;
     }
 
     if (!newSchematic.fileUrl) {
-      Alert.alert('Required', 'Please upload a schematic file (image or PDF)');
+      if (Platform.OS === 'web') {
+        window.alert('Please upload a schematic file (image or PDF)');
+      } else {
+        Alert.alert('Required', 'Please upload a schematic file (image or PDF)');
+      }
       return;
     }
 
@@ -241,10 +249,18 @@ export default function SchematicsScreen() {
         fileUrl: '',
       });
       setFileName('');
-      Alert.alert('Success', 'Schematic added to library');
+      if (Platform.OS === 'web') {
+        window.alert('Schematic added to library');
+      } else {
+        Alert.alert('Success', 'Schematic added to library');
+      }
     } catch (error) {
       console.error('Error uploading schematic:', error);
-      Alert.alert('Error', 'Failed to upload schematic');
+      if (Platform.OS === 'web') {
+        window.alert('Failed to upload schematic');
+      } else {
+        Alert.alert('Error', 'Failed to upload schematic');
+      }
     } finally {
       setUploading(false);
     }
