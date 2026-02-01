@@ -99,6 +99,24 @@ app.patch('/api/bench-jobs/:id/safety-checklist', async (req, res) => {
   }
 });
 
+app.patch('/api/bench-jobs/:id/notes', async (req, res) => {
+  try {
+    const { techNotes } = req.body;
+    const [updated] = await db
+      .update(schema.benchJobs)
+      .set({ techNotes, updatedAt: new Date() })
+      .where(eq(schema.benchJobs.id, req.params.id))
+      .returning();
+    if (!updated) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating notes:', error);
+    res.status(500).json({ error: 'Failed to update notes' });
+  }
+});
+
 app.delete('/api/bench-jobs/:id', async (req, res) => {
   try {
     const jobId = req.params.id;

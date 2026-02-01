@@ -15,6 +15,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { MarkdownContent } from '../components/MarkdownContent';
 
@@ -75,6 +76,7 @@ const SAFETY_CHECKLIST = [
 ];
 
 export default function JobsScreen() {
+  const router = useRouter();
   const [jobs, setJobs] = useState<JobWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewJobModal, setShowNewJobModal] = useState(false);
@@ -230,8 +232,7 @@ export default function JobsScreen() {
   };
 
   const openJobDetail = (jobData: JobWithProfile) => {
-    setSelectedJob(jobData);
-    setShowJobDetailModal(true);
+    router.push(`/job/${jobData.job.id}`);
   };
 
   const openJobChat = async (jobId: string) => {
