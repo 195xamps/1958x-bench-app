@@ -170,46 +170,71 @@ export default function SchematicsScreen() {
   };
 
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 1,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      const uploadedUrl = await uploadFileToStorage(uri, `schematic-${Date.now()}.jpg`, 'image/jpeg');
-      if (uploadedUrl) {
-        setNewSchematic({ ...newSchematic, fileUrl: uploadedUrl });
-        setFileName('Image uploaded');
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        const uploadedUrl = await uploadFileToStorage(uri, `schematic-${Date.now()}.jpg`, 'image/jpeg');
+        if (uploadedUrl) {
+          setNewSchematic({ ...newSchematic, fileUrl: uploadedUrl });
+          setFileName('Image uploaded');
+        } else {
+          if (Platform.OS === 'web') {
+            window.alert('Failed to upload image. Please try again.');
+          } else {
+            Alert.alert('Error', 'Failed to upload image');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to pick image: ' + (error instanceof Error ? error.message : 'Unknown error'));
       } else {
-        Alert.alert('Error', 'Failed to upload image');
+        Alert.alert('Error', 'Failed to pick image');
       }
     }
   };
 
   const pickPdf = async () => {
     try {
+      console.log('Opening document picker for PDF...');
       const result = await DocumentPicker.getDocumentAsync({
         type: 'application/pdf',
         copyToCacheDirectory: true,
       });
+      console.log('Document picker result:', JSON.stringify(result));
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const file = result.assets[0];
         const name = file.name || `schematic-${Date.now()}.pdf`;
+        console.log('Uploading PDF:', name, 'URI:', file.uri);
         const uploadedUrl = await uploadFileToStorage(file.uri, name, 'application/pdf');
+        console.log('Upload result:', uploadedUrl);
         
         if (uploadedUrl) {
           setNewSchematic({ ...newSchematic, fileUrl: uploadedUrl });
           setFileName(name);
         } else {
-          Alert.alert('Error', 'Failed to upload PDF');
+          if (Platform.OS === 'web') {
+            window.alert('Failed to upload PDF. Please try again.');
+          } else {
+            Alert.alert('Error', 'Failed to upload PDF');
+          }
         }
       }
     } catch (error) {
       console.error('Error picking PDF:', error);
-      Alert.alert('Error', 'Failed to pick PDF');
+      if (Platform.OS === 'web') {
+        window.alert('Failed to pick PDF: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      } else {
+        Alert.alert('Error', 'Failed to pick PDF');
+      }
     }
   };
 
