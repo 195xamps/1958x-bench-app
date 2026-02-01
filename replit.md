@@ -143,6 +143,12 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Job Status Workflow & Search** - Enhanced job management workflow
+  - 5 job statuses: Active (blue), In Progress (amber), Waiting Parts (purple), Completed (green), Archived (gray)
+  - Status picker modal in job detail header - tap status badge to change
+  - Color-coded status badges on jobs list with filter tabs
+  - Search bar on Jobs tab with debounced search
+  - Backend search across job names, symptoms, and notes
 - Feb 2026: **Timestamps on Chat & Notes** - All entries now display timestamps
   - Chat messages show "Feb 1, 10:30 AM" format below each message
   - Notes section shows "Last updated" timestamp in header
