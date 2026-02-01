@@ -134,6 +134,34 @@ app.patch('/api/bench-jobs/:id/safety-checklist', async (req, res) => {
   }
 });
 
+app.delete('/api/bench-jobs/:id', async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, jobId));
+    if (!job) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    
+    await db.delete(schema.chatMessages)
+      .where(eq(schema.chatMessages.chatId, 
+        db.select({ id: schema.chats.id }).from(schema.chats).where(eq(schema.chats.benchJobId, jobId))
+      ));
+    await db.delete(schema.chats).where(eq(schema.chats.benchJobId, jobId));
+    await db.delete(schema.measurements).where(eq(schema.measurements.benchJobId, jobId));
+    await db.delete(schema.benchJobs).where(eq(schema.benchJobs.id, jobId));
+    
+    if (job.ampProfileId) {
+      await db.delete(schema.ampProfiles).where(eq(schema.ampProfiles.id, job.ampProfileId));
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting bench job:', error);
+    res.status(500).json({ error: 'Failed to delete bench job' });
+  }
+});
+
 app.post('/api/troubleshooting/start', async (req, res) => {
   try {
     const { benchJobId, mode = 'guided' } = req.body;

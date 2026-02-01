@@ -102,6 +102,37 @@ export default function JobsScreen() {
     }
   }, [chatMessages, showJobChatModal]);
 
+  const deleteJob = async (jobId: string, ampName: string) => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(`Delete "${ampName}"? This will permanently remove the job, its chat history, and all measurements.`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Delete Job',
+            `Delete "${ampName}"? This will permanently remove the job, its chat history, and all measurements.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+    
+    if (!confirmed) return;
+    
+    try {
+      await axios.delete(`${API_URL}/api/bench-jobs/${jobId}`);
+      setShowJobDetailModal(false);
+      setSelectedJob(null);
+      fetchJobs();
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to delete job');
+      } else {
+        Alert.alert('Error', 'Failed to delete job');
+      }
+    }
+  };
+
   const fetchJobs = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/bench-jobs`);
@@ -496,6 +527,17 @@ export default function JobsScreen() {
               <Ionicons name="chatbubble-ellipses" size={22} color="#1f2937" />
               <Text style={styles.chatButtonText}>Open Job Chat</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => selectedJob && deleteJob(
+                selectedJob.job.id,
+                `${selectedJob.ampProfile?.make || ''} ${selectedJob.ampProfile?.model || 'Unknown Amp'}`
+              )}
+            >
+              <Ionicons name="trash-outline" size={22} color="#fff" />
+              <Text style={styles.deleteButtonText}>Delete Job</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -883,6 +925,21 @@ const styles = StyleSheet.create({
   },
   chatButtonText: {
     color: '#1f2937',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#dc2626',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 12,
+    gap: 10,
+  },
+  deleteButtonText: {
+    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
