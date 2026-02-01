@@ -125,19 +125,25 @@ export default function SchematicsScreen() {
   const uploadFileToStorage = async (uri: string, name: string, contentType: string): Promise<string | null> => {
     try {
       setUploadingFile(true);
+      console.log('Step 1: Requesting upload URL for:', name);
       const urlResponse = await axios.post(`${API_URL}/api/uploads/request-url`, {
         name: name,
         size: 0,
         contentType: contentType,
       });
       const { uploadURL, objectPath } = urlResponse.data;
+      console.log('Step 2: Got upload URL:', uploadURL?.substring(0, 50) + '...');
 
       let uploadBody: Blob | Uint8Array;
       
       if (Platform.OS === 'web') {
+        console.log('Step 3: Fetching file from URI (web):', uri?.substring(0, 50));
         const fileResponse = await fetch(uri);
+        console.log('Step 3b: File response ok:', fileResponse.ok);
         uploadBody = await fileResponse.blob();
+        console.log('Step 3c: Got blob, size:', uploadBody.size);
       } else {
+        console.log('Step 3: Reading file from URI (native):', uri?.substring(0, 50));
         const base64 = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
@@ -147,22 +153,31 @@ export default function SchematicsScreen() {
           bytes[i] = binaryString.charCodeAt(i);
         }
         uploadBody = bytes;
+        console.log('Step 3b: Got bytes, size:', bytes.length);
       }
 
+      console.log('Step 4: Uploading to storage...');
       const uploadResponse = await fetch(uploadURL, {
         method: 'PUT',
         body: uploadBody,
         headers: { 'Content-Type': contentType },
       });
+      console.log('Step 4b: Upload response status:', uploadResponse.status);
       
       if (!uploadResponse.ok) {
-        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+        const errorText = await uploadResponse.text();
+        console.error('Upload error response:', errorText);
+        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
       }
 
       const publicUrl = `${API_URL}${objectPath}`;
+      console.log('Step 5: Success! Public URL:', publicUrl);
       return publicUrl;
     } catch (error) {
       console.error('Error uploading file:', error);
+      if (Platform.OS === 'web') {
+        console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      }
       return null;
     } finally {
       setUploadingFile(false);
