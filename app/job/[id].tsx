@@ -102,7 +102,7 @@ export default function JobDetailScreen() {
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [showMediaGallery, setShowMediaGallery] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ make: '', model: '', year: '', circuitFamily: '' });
+  const [editForm, setEditForm] = useState({ jobName: '' });
   const [savingEdit, setSavingEdit] = useState(false);
   const chatScrollRef = useRef<ScrollView>(null);
   
@@ -182,12 +182,8 @@ export default function JobDetailScreen() {
 
   const openEditModal = () => {
     if (jobData) {
-      setEditForm({
-        make: jobData.ampProfile.make || '',
-        model: jobData.ampProfile.model || '',
-        year: jobData.ampProfile.year || '',
-        circuitFamily: jobData.ampProfile.circuitFamily || '',
-      });
+      const currentName = [jobData.ampProfile.make, jobData.ampProfile.model].filter(Boolean).join(' ').trim();
+      setEditForm({ jobName: currentName || 'Untitled Job' });
       setShowEditModal(true);
     }
   };
@@ -196,10 +192,13 @@ export default function JobDetailScreen() {
     if (!id) return;
     setSavingEdit(true);
     try {
-      await axios.patch(`${API_URL}/api/bench-jobs/${id}/amp-profile`, editForm);
+      await axios.patch(`${API_URL}/api/bench-jobs/${id}/amp-profile`, { 
+        make: '', 
+        model: editForm.jobName 
+      });
       setJobData(prev => prev ? {
         ...prev,
-        ampProfile: { ...prev.ampProfile, ...editForm }
+        ampProfile: { ...prev.ampProfile, make: '', model: editForm.jobName }
       } : null);
       setShowEditModal(false);
     } catch (error) {
@@ -652,7 +651,7 @@ export default function JobDetailScreen() {
         <TouchableOpacity style={styles.headerInfo} onPress={openEditModal}>
           <View style={styles.headerTitleRow}>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {ampProfile.make} {ampProfile.model}
+              {[ampProfile.make, ampProfile.model].filter(Boolean).join(' ') || 'Untitled Job'}
             </Text>
             <Ionicons name="pencil" size={16} color="#6b7280" style={{ marginLeft: 6 }} />
           </View>
@@ -786,43 +785,17 @@ export default function JobDetailScreen() {
               </TouchableOpacity>
             </View>
             
-            <ScrollView style={styles.editModalForm}>
-              <Text style={styles.editLabel}>Make</Text>
+            <View style={styles.editModalForm}>
+              <Text style={styles.editLabel}>Job Name</Text>
               <TextInput
                 style={styles.editInput}
-                value={editForm.make}
-                onChangeText={(text) => setEditForm({ ...editForm, make: text })}
-                placeholder="e.g., Fender"
+                value={editForm.jobName}
+                onChangeText={(text) => setEditForm({ jobName: text })}
+                placeholder="e.g., John's Deluxe Reverb, 1965 Twin, etc."
                 placeholderTextColor="#6b7280"
+                autoFocus
               />
-
-              <Text style={styles.editLabel}>Model</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editForm.model}
-                onChangeText={(text) => setEditForm({ ...editForm, model: text })}
-                placeholder="e.g., Deluxe Reverb"
-                placeholderTextColor="#6b7280"
-              />
-
-              <Text style={styles.editLabel}>Year</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editForm.year}
-                onChangeText={(text) => setEditForm({ ...editForm, year: text })}
-                placeholder="e.g., 1965"
-                placeholderTextColor="#6b7280"
-              />
-
-              <Text style={styles.editLabel}>Circuit Family</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editForm.circuitFamily}
-                onChangeText={(text) => setEditForm({ ...editForm, circuitFamily: text })}
-                placeholder="e.g., Blackface"
-                placeholderTextColor="#6b7280"
-              />
-            </ScrollView>
+            </View>
 
             <TouchableOpacity
               style={[styles.editSaveButton, savingEdit && styles.buttonDisabled]}
