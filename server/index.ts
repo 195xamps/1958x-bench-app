@@ -4,10 +4,13 @@ import path from 'path';
 import { db, schema } from './db';
 import { eq, desc, ilike, or } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+registerObjectStorageRoutes(app);
 
 app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));
 app.use(express.static(path.join(__dirname, '..', 'dist', 'server')));
@@ -530,7 +533,7 @@ app.delete('/api/chats/:id', async (req, res) => {
 
 app.post('/api/chats/:id/messages', async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, attachments } = req.body;
     const chatId = req.params.id;
     
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
@@ -542,6 +545,7 @@ app.post('/api/chats/:id/messages', async (req, res) => {
       chatId,
       role: 'user',
       content,
+      attachments: attachments || null,
     }).returning();
     
     const previousMessages = await db.select().from(schema.chatMessages)
@@ -565,11 +569,36 @@ app.post('/api/chats/:id/messages', async (req, res) => {
       contextInfo += dbContext;
     }
     
+    const buildMessageContent = (msg: any): any => {
+      const msgAttachments = msg.attachments as any[] | null;
+      if (msgAttachments && msgAttachments.length > 0) {
+        const contentParts: any[] = [];
+        if (msg.content) {
+          contentParts.push({ type: 'text', text: msg.content });
+        }
+        for (const attachment of msgAttachments) {
+          if (attachment.type === 'image' && attachment.url) {
+            contentParts.push({
+              type: 'image_url',
+              image_url: { url: attachment.url, detail: 'high' }
+            });
+          }
+        }
+        return contentParts.length > 0 ? contentParts : msg.content;
+      }
+      return msg.content;
+    };
+    
     const messages: any[] = [
       { role: 'system', content: CHAT_SYSTEM_PROMPT + contextInfo },
-      ...previousMessages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content }
+      ...previousMessages.slice(0, -1).map(m => ({
+        role: m.role,
+        content: buildMessageContent(m)
+      })),
     ];
+    
+    const currentMessageContent = buildMessageContent({ content, attachments });
+    messages.push({ role: 'user', content: currentMessageContent });
     
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',

@@ -146,5 +146,6 @@ export const chatMessages = pgTable('chat_messages', {
   chatId: uuid('chat_id').references(() => chats.id).notNull(),
   role: text('role').notNull(),
   content: text('content').notNull(),
+  attachments: jsonb('attachments'),
   createdAt: timestamp('created_at').defaultNow(),
 });
