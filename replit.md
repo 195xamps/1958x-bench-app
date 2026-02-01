@@ -8,10 +8,12 @@ The 195X Bench App implements the "Reality + Remix" concept:
 - **Reality**: The technician's actual bench situation (symptoms, measurements, photos, known mods, voltages, noise behavior)
 - **Remix**: Trusted guidance assembled from curated schematics, structured troubleshooting playbooks, and open-source community knowledge
 
+**Primary Feature**: Persistent AI chatbot accessible from the dashboard and within each job, capable of answering both general amp repair questions and querying the app's database (past jobs, schematics).
+
 ## Technology Stack
 
 - **Frontend**: React Native with Expo (iOS-first, web preview)
-- **Backend**: Express.js with TypeScript
+- **Backend**: Express.js with TypeScript (unified server on port 5000)
 - **Database**: PostgreSQL with Drizzle ORM
 - **AI**: OpenAI GPT-4o via Replit AI Integrations
 
@@ -21,42 +23,44 @@ The 195X Bench App implements the "Reality + Remix" concept:
 /
 ├── app/                     # Expo Router app screens
 │   ├── (tabs)/             # Tab navigation screens
-│   │   ├── index.tsx       # Jobs screen (bench job management)
-│   │   ├── troubleshoot.tsx # AI troubleshooting assistant
-│   │   └── schematics.tsx  # Schematic library
-│   └── _layout.tsx         # Root layout
+│   │   ├── index.tsx       # Dashboard with AI chat
+│   │   ├── jobs.tsx        # Bench job management
+│   │   ├── schematics.tsx  # Schematic library
+│   │   ├── troubleshoot.tsx # Legacy troubleshooting (hidden)
+│   │   └── _layout.tsx     # Tab navigation layout
+│   ├── _layout.tsx         # Root layout
+│   └── measurement.tsx     # Measurement entry screen
 ├── server/                  # Express backend
-│   ├── index.ts            # Main server entry
+│   ├── index.ts            # Main server entry with API routes
 │   ├── migrate.ts          # Database migration script
 │   └── db/                 # Database configuration
 │       ├── index.ts        # Drizzle DB instance
 │       └── schema.ts       # Database schema
-├── assets/                  # Static assets
-│   └── schematics/         # Schematic file storage (placeholder)
-└── components/             # Reusable React Native components
+├── dist/                    # Built Expo web app (served by Express)
+└── assets/                  # Static assets
 ```
 
 ## Core Features
 
-### 1. Start New Bench Job
+### 1. Persistent AI Chatbot (Primary Feature)
+- **Dashboard Access**: Start new chats from the home screen
+- **Dual-Purpose AI**: Answers general amp repair questions AND queries the database
+- **Database Queries**: Ask about past jobs, schematics, and work history
+- **Chat Management**: Rename, delete, and convert chats to jobs
+- **Job-Specific Chat**: Each job has its own dedicated chat thread
+- **Persistent History**: All conversations saved for future reference
+
+### 2. Bench Job Management
 - Amp identification (make/model/year, circuit family)
 - Owner symptom recording
-- Photo upload support
 - Safety checklist with mandatory confirmation
 - Prior work and known mods tracking
-
-### 2. Guided Troubleshooting Session
-- AI-powered diagnostic assistant
-- Two modes: Guided (step-by-step) and Expert (condensed)
-- Safety gates for high-voltage procedures
-- Common symptom quick-select
-- Measurement guidance with meter settings and probe placement
+- Dedicated chat thread per job
 
 ### 3. Measurement Capture
 - Structured measurement entries (node name, expected range, recorded value)
 - Automatic red/yellow/green status indicators
 - Meter tool and mode tracking
-- Photo attachment support
 
 ### 4. Schematic Library
 - Search by name, model, or circuit family
@@ -70,23 +74,37 @@ Key entities:
 - `users` - Technician accounts with competency confirmation
 - `amp_profiles` - Amplifier identification info
 - `bench_jobs` - Service job records with safety checklist
+- `chats` - Persistent chat sessions (standalone or linked to jobs)
+- `chat_messages` - Individual messages in chat threads
 - `symptoms` - Problem descriptions
-- `troubleshooting_sessions` - AI chat sessions with history
+- `troubleshooting_sessions` - Legacy AI chat sessions
 - `test_steps` - Individual diagnostic steps
 - `measurements` - Captured voltage/resistance readings
 - `schematics` - Schematic library entries
 - `repair_actions` - Parts replaced and repairs made
 - `reference_sources` - Curated knowledge sources
+- `media` - Photos and attachments
 
 ## API Endpoints
 
-- `GET /api/health` - Health check
+### Chat Endpoints (New)
+- `GET /api/chats` - List all chats
+- `POST /api/chats` - Create new chat
+- `GET /api/chats/:id` - Get chat with messages
+- `PATCH /api/chats/:id` - Rename chat
+- `DELETE /api/chats/:id` - Delete chat
+- `POST /api/chats/:id/messages` - Send message (AI responds)
+- `POST /api/chats/:id/convert-to-job` - Convert chat to bench job
+- `GET /api/bench-jobs/:id/chat` - Get/create job-specific chat
+
+### Job Endpoints
 - `GET /api/bench-jobs` - List all bench jobs
 - `POST /api/bench-jobs` - Create new bench job
 - `GET /api/bench-jobs/:id` - Get job details with measurements
 - `PATCH /api/bench-jobs/:id/safety-checklist` - Complete safety checklist
-- `POST /api/troubleshooting/start` - Start troubleshooting session
-- `POST /api/troubleshooting/chat` - Send message to AI assistant
+
+### Other Endpoints
+- `GET /api/health` - Health check
 - `POST /api/measurements` - Record a measurement
 - `GET /api/measurements/:benchJobId` - Get measurements for a job
 - `GET /api/schematics` - List all schematics
@@ -97,21 +115,20 @@ Key entities:
 
 - `DATABASE_URL` - PostgreSQL connection string (auto-configured)
 - `AI_INTEGRATIONS_OPENAI_API_KEY` - OpenAI API key (Replit AI Integrations)
-- `AI_INTEGRATIONS_OPENAI_BASE_URL` - OpenAI base URL
-- `EXPO_PUBLIC_API_URL` - Backend API URL for frontend
+- `EXPO_PUBLIC_API_URL` - Backend API URL for frontend (empty for relative paths)
 
 ## Running the App
 
-The app uses two workflows:
-1. **API Server** - Express backend on port 3001
-2. **Expo App** - React Native web preview on port 5000
+The app runs as a single unified server:
+- **API Server** - Express backend serving both API and static web app on port 5000
 
 To run migrations: `npm run migrate`
+To rebuild frontend: `npx expo export --platform web`
 
 ## Safety Features
 
 The app emphasizes safety for high-voltage work:
-- Mandatory safety checklist before starting work
+- Mandatory 7-item safety checklist before starting work
 - AI assistant always includes safety warnings
 - Stop conditions for dangerous situations
 - One-hand rule reminders for HV measurements
@@ -122,11 +139,17 @@ The app emphasizes safety for high-voltage work:
 - Dark mode UI optimized for bench work
 - Large tap targets for gloved hands
 - Technician-friendly terminology
-- Amber/gold accent color theme
+- Amber/gold (#f59e0b) accent color theme
 
 ## Recent Changes
 
+- Feb 2026: **Major Feature** - Persistent AI chatbot as primary feature
+  - Dashboard with recent chats list
+  - Chat rename, delete, convert to job functionality
+  - AI queries database for past jobs and schematics
+  - Job-specific chat threads
+- Feb 2026: Unified server architecture (single port 5000)
 - Feb 2026: Initial MVP with Jobs, Troubleshooting, and Schematics tabs
-- Database schema created with full entity relationships
+- Database schema with chats and chat_messages tables
 - OpenAI integration for AI troubleshooting assistant
 - Safety checklist implementation
