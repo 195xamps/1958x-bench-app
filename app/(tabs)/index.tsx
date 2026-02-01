@@ -72,7 +72,20 @@ export default function DashboardScreen() {
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [showMediaGallery, setShowMediaGallery] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  const getAllAttachments = (): Attachment[] => {
+    const attachments: Attachment[] = [];
+    messages.forEach((msg) => {
+      if (msg.attachments && Array.isArray(msg.attachments)) {
+        msg.attachments.forEach((att) => {
+          attachments.push(att);
+        });
+      }
+    });
+    return attachments;
+  };
 
   useEffect(() => {
     fetchChats();
@@ -518,6 +531,17 @@ export default function DashboardScreen() {
               <Ionicons name="pencil" size={16} color="#9ca3af" />
             </TouchableOpacity>
             <TouchableOpacity
+              style={styles.mediaGalleryButton}
+              onPress={() => setShowMediaGallery(true)}
+            >
+              <Ionicons name="images-outline" size={22} color="#9ca3af" />
+              {getAllAttachments().length > 0 && (
+                <View style={styles.mediaCountBadge}>
+                  <Text style={styles.mediaCountText}>{getAllAttachments().length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
               onPress={() => {
                 if (activeChat) {
                   setSelectedChat(activeChat);
@@ -800,6 +824,65 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={showMediaGallery} transparent animationType="slide">
+        <View style={styles.mediaGalleryOverlay}>
+          <View style={styles.mediaGalleryContainer}>
+            <View style={styles.mediaGalleryHeader}>
+              <Text style={styles.mediaGalleryTitle}>Media Gallery</Text>
+              <TouchableOpacity onPress={() => setShowMediaGallery(false)}>
+                <Ionicons name="close" size={28} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+            {getAllAttachments().length === 0 ? (
+              <View style={styles.emptyGallery}>
+                <Ionicons name="images-outline" size={48} color="#4b5563" />
+                <Text style={styles.emptyGalleryText}>No attachments yet</Text>
+                <Text style={styles.emptyGallerySubtext}>
+                  Photos and PDFs shared in this chat will appear here
+                </Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.mediaGalleryScroll}>
+                <View style={styles.mediaGrid}>
+                  {getAllAttachments().map((att, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.mediaGridItem}
+                      onPress={() => {
+                        if (att.type === 'file') {
+                          if (Platform.OS === 'web') {
+                            window.open(att.url, '_blank');
+                          } else {
+                            Linking.openURL(att.url);
+                          }
+                        } else if (att.type === 'image') {
+                          if (Platform.OS === 'web') {
+                            window.open(att.url, '_blank');
+                          } else {
+                            Linking.openURL(att.url);
+                          }
+                        }
+                      }}
+                    >
+                      {att.type === 'image' ? (
+                        <Image source={{ uri: att.url }} style={styles.mediaGridImage} />
+                      ) : (
+                        <View style={styles.pdfGridItem}>
+                          <Ionicons name="document-text" size={32} color="#f59e0b" />
+                          <Text style={styles.pdfGridName} numberOfLines={2}>
+                            {att.name || 'Document.pdf'}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1234,6 +1317,105 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
     maxWidth: 50,
+    textAlign: 'center',
+  },
+  mediaGalleryButton: {
+    position: 'relative',
+    padding: 4,
+    marginRight: 8,
+  },
+  mediaCountBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#f59e0b',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  mediaCountText: {
+    color: '#111827',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  mediaGalleryOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  mediaGalleryContainer: {
+    flex: 1,
+    backgroundColor: '#111827',
+    marginTop: 50,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  mediaGalleryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  mediaGalleryTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#e5e7eb',
+  },
+  emptyGallery: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyGalleryText: {
+    color: '#9ca3af',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyGallerySubtext: {
+    color: '#6b7280',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  mediaGalleryScroll: {
+    flex: 1,
+    padding: 8,
+  },
+  mediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  mediaGridItem: {
+    width: '31%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  mediaGridImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  pdfGridItem: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1f2937',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+  },
+  pdfGridName: {
+    color: '#9ca3af',
+    fontSize: 10,
+    marginTop: 4,
     textAlign: 'center',
   },
 });

@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -42,11 +44,18 @@ interface Chat {
   benchJobId: string | null;
 }
 
+interface Attachment {
+  type: 'image' | 'file';
+  url: string;
+  name?: string;
+}
+
 interface ChatMessage {
   id: string;
   chatId: string;
   role: 'user' | 'assistant';
   content: string;
+  attachments?: Attachment[];
   createdAt: string;
 }
 
@@ -80,7 +89,20 @@ export default function JobsScreen() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [chatInput, setChatInput] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
+  const [showJobMediaGallery, setShowJobMediaGallery] = useState(false);
   const chatScrollRef = useRef<ScrollView>(null);
+
+  const getAllJobAttachments = (): Attachment[] => {
+    const attachments: Attachment[] = [];
+    chatMessages.forEach((msg) => {
+      if (msg.attachments && Array.isArray(msg.attachments)) {
+        msg.attachments.forEach((att) => {
+          attachments.push(att);
+        });
+      }
+    });
+    return attachments;
+  };
 
   const [newJob, setNewJob] = useState({
     ampMake: '',
@@ -558,10 +580,20 @@ export default function JobsScreen() {
             >
               <Ionicons name="arrow-back" size={28} color="#f59e0b" />
             </TouchableOpacity>
-            <Text style={styles.chatModalTitle}>
+            <Text style={styles.chatModalTitle} numberOfLines={1}>
               {selectedJob?.ampProfile?.make} {selectedJob?.ampProfile?.model} Chat
             </Text>
-            <View style={{ width: 28 }} />
+            <TouchableOpacity
+              style={styles.jobMediaGalleryButton}
+              onPress={() => setShowJobMediaGallery(true)}
+            >
+              <Ionicons name="images-outline" size={22} color="#9ca3af" />
+              {getAllJobAttachments().length > 0 && (
+                <View style={styles.jobMediaCountBadge}>
+                  <Text style={styles.jobMediaCountText}>{getAllJobAttachments().length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <ScrollView
@@ -630,6 +662,57 @@ export default function JobsScreen() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={showJobMediaGallery} transparent animationType="slide">
+        <View style={styles.jobMediaGalleryOverlay}>
+          <View style={styles.jobMediaGalleryContainer}>
+            <View style={styles.jobMediaGalleryHeader}>
+              <Text style={styles.jobMediaGalleryTitle}>Media Gallery</Text>
+              <TouchableOpacity onPress={() => setShowJobMediaGallery(false)}>
+                <Ionicons name="close" size={28} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+            {getAllJobAttachments().length === 0 ? (
+              <View style={styles.emptyJobGallery}>
+                <Ionicons name="images-outline" size={48} color="#4b5563" />
+                <Text style={styles.emptyJobGalleryText}>No attachments yet</Text>
+                <Text style={styles.emptyJobGallerySubtext}>
+                  Photos and PDFs shared in this job chat will appear here
+                </Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.jobMediaGalleryScroll}>
+                <View style={styles.jobMediaGrid}>
+                  {getAllJobAttachments().map((att, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.jobMediaGridItem}
+                      onPress={() => {
+                        if (Platform.OS === 'web') {
+                          window.open(att.url, '_blank');
+                        } else {
+                          Linking.openURL(att.url);
+                        }
+                      }}
+                    >
+                      {att.type === 'image' ? (
+                        <Image source={{ uri: att.url }} style={styles.jobMediaGridImage} />
+                      ) : (
+                        <View style={styles.jobPdfGridItem}>
+                          <Ionicons name="document-text" size={32} color="#f59e0b" />
+                          <Text style={styles.jobPdfGridName} numberOfLines={2}>
+                            {att.name || 'Document.pdf'}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1061,5 +1144,103 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.5,
+  },
+  jobMediaGalleryButton: {
+    position: 'relative',
+    padding: 4,
+  },
+  jobMediaCountBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#f59e0b',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  jobMediaCountText: {
+    color: '#111827',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  jobMediaGalleryOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+  },
+  jobMediaGalleryContainer: {
+    flex: 1,
+    backgroundColor: '#111827',
+    marginTop: 50,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  jobMediaGalleryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  jobMediaGalleryTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#e5e7eb',
+  },
+  emptyJobGallery: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyJobGalleryText: {
+    color: '#9ca3af',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyJobGallerySubtext: {
+    color: '#6b7280',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  jobMediaGalleryScroll: {
+    flex: 1,
+    padding: 8,
+  },
+  jobMediaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  jobMediaGridItem: {
+    width: '31%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  jobMediaGridImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  jobPdfGridItem: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1f2937',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 8,
+  },
+  jobPdfGridName: {
+    color: '#9ca3af',
+    fontSize: 10,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
