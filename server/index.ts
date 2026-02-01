@@ -66,6 +66,10 @@ app.post('/api/bench-jobs', async (req, res) => {
   try {
     const { ampMake, ampModel, ampYear, ownerSymptoms, techNotes, priorWork, knownMods, circuitFamily, serialNumber, photoUrl } = req.body;
     
+    if (!ampMake || !ampModel) {
+      return res.status(400).json({ error: 'Amp make and model are required' });
+    }
+    
     const [ampProfile] = await db.insert(schema.ampProfiles).values({
       make: ampMake,
       model: ampModel,
@@ -127,6 +131,22 @@ app.patch('/api/bench-jobs/:id/safety-checklist', async (req, res) => {
 app.post('/api/troubleshooting/start', async (req, res) => {
   try {
     const { benchJobId, mode = 'guided' } = req.body;
+    
+    if (!benchJobId) {
+      return res.status(400).json({ error: 'Bench job ID is required to start troubleshooting' });
+    }
+    
+    const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, benchJobId));
+    if (!benchJob) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    
+    if (!benchJob.safetyChecklistCompleted) {
+      return res.status(403).json({ 
+        error: 'Safety checklist must be completed before starting troubleshooting',
+        safetyRequired: true
+      });
+    }
     
     const [session] = await db.insert(schema.troubleshootingSessions).values({
       benchJobId,
@@ -192,6 +212,26 @@ app.post('/api/troubleshooting/chat', async (req, res) => {
 app.post('/api/measurements', async (req, res) => {
   try {
     const { benchJobId, nodeName, expectedMin, expectedMax, recordedValue, unit, meterTool, meterMode, notes, testStepId } = req.body;
+    
+    if (!benchJobId) {
+      return res.status(400).json({ error: 'Bench job ID is required' });
+    }
+    
+    if (!nodeName || recordedValue === null || recordedValue === undefined) {
+      return res.status(400).json({ error: 'Node name and recorded value are required' });
+    }
+    
+    const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, benchJobId));
+    if (!benchJob) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    
+    if (!benchJob.safetyChecklistCompleted) {
+      return res.status(403).json({ 
+        error: 'Safety checklist must be completed before recording measurements',
+        safetyRequired: true
+      });
+    }
     
     let status = 'unknown';
     if (recordedValue !== null && recordedValue !== undefined) {
@@ -292,7 +332,7 @@ app.get('/api/schematics/search', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
