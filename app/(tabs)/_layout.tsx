@@ -27,18 +27,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Jobs',
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="briefcase" size={size} color={color} />
+            <Ionicons name="chatbubbles" size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="troubleshoot"
+        name="jobs"
         options={{
-          title: 'Troubleshoot',
+          title: 'Jobs',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="build" size={size} color={color} />
+            <Ionicons name="briefcase" size={size} color={color} />
           ),
         }}
       />
@@ -49,6 +49,12 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="document-text" size={size} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="troubleshoot"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

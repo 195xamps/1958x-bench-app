@@ -131,3 +131,20 @@ export const media = pgTable('media', {
   caption: text('caption'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+export const chats = pgTable('chats', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').default('New Chat'),
+  benchJobId: uuid('bench_job_id').references(() => benchJobs.id),
+  isStandalone: boolean('is_standalone').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  chatId: uuid('chat_id').references(() => chats.id).notNull(),
+  role: text('role').notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});

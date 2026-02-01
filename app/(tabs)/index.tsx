@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,30 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 
 const API_URL = '';
+
+interface Chat {
+  id: string;
+  title: string;
+  benchJobId: string | null;
+  isStandalone: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ChatMessage {
+  id: string;
+  chatId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
 
 interface BenchJob {
   id: string;
@@ -25,113 +43,189 @@ interface BenchJob {
   createdAt: string;
 }
 
-interface AmpProfile {
-  make: string;
-  model: string;
-  year: string;
-  circuitFamily: string;
-}
-
-const SAFETY_CHECKLIST = [
-  'Isolation transformer connected and verified',
-  'High voltage capacitors discharged (check with meter)',
-  'PPE available (rubber gloves, safety glasses)',
-  'One-hand rule understood for HV measurements',
-  'Meter verified working on known voltage source',
-  'Work area clear and dry',
-  'Emergency shutoff accessible',
-];
-
-export default function JobsScreen() {
-  const [jobs, setJobs] = useState<BenchJob[]>([]);
+export default function DashboardScreen() {
+  const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showNewJobModal, setShowNewJobModal] = useState(false);
-  const [showSafetyModal, setShowSafetyModal] = useState(false);
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
-  const [safetyChecks, setSafetyChecks] = useState<boolean[]>(new Array(SAFETY_CHECKLIST.length).fill(false));
-  
-  const [newJob, setNewJob] = useState({
-    ampMake: '',
-    ampModel: '',
-    ampYear: '',
-    circuitFamily: '',
-    ownerSymptoms: '',
-    techNotes: '',
-    priorWork: '',
-    knownMods: '',
-  });
+  const [activeChat, setActiveChat] = useState<Chat | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [newTitle, setNewTitle] = useState('');
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    fetchJobs();
+    fetchChats();
   }, []);
 
-  const fetchJobs = async () => {
+  useEffect(() => {
+    if (showChatModal) {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }
+  }, [messages, showChatModal]);
+
+  const fetchChats = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/bench-jobs`);
-      setJobs(response.data);
+      const response = await axios.get(`${API_URL}/api/chats`);
+      setChats(response.data);
     } catch (error) {
-      console.error('Error fetching jobs:', error);
+      console.error('Error fetching chats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const createJob = async () => {
-    if (!newJob.ampMake && !newJob.ampModel) {
-      Alert.alert('Required', 'Please enter at least amp make or model');
-      return;
-    }
-
+  const createNewChat = async () => {
     try {
-      const response = await axios.post(`${API_URL}/api/bench-jobs`, newJob);
-      setJobs([response.data.benchJob, ...jobs]);
-      setShowNewJobModal(false);
-      setCurrentJobId(response.data.benchJob.id);
-      setNewJob({
-        ampMake: '',
-        ampModel: '',
-        ampYear: '',
-        circuitFamily: '',
-        ownerSymptoms: '',
-        techNotes: '',
-        priorWork: '',
-        knownMods: '',
+      const response = await axios.post(`${API_URL}/api/chats`, {
+        title: 'New Chat',
       });
-      setSafetyChecks(new Array(SAFETY_CHECKLIST.length).fill(false));
-      setShowSafetyModal(true);
+      const newChat = response.data;
+      setChats([newChat, ...chats]);
+      openChat(newChat);
     } catch (error) {
-      console.error('Error creating job:', error);
-      Alert.alert('Error', 'Failed to create bench job');
+      console.error('Error creating chat:', error);
+      Alert.alert('Error', 'Failed to create new chat');
     }
   };
 
-  const completeSafetyChecklist = async () => {
-    if (!safetyChecks.every(check => check)) {
-      Alert.alert('Safety First', 'Please confirm all safety checks before proceeding');
-      return;
+  const openChat = async (chat: Chat) => {
+    setActiveChat(chat);
+    setShowChatModal(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/chats/${chat.id}`);
+      setMessages(response.data.messages);
+    } catch (error) {
+      console.error('Error fetching chat messages:', error);
     }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || !activeChat || sending) return;
+
+    const messageText = input.trim();
+    setInput('');
+    setSending(true);
+
+    const tempUserMessage: ChatMessage = {
+      id: 'temp-user',
+      chatId: activeChat.id,
+      role: 'user',
+      content: messageText,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMessage]);
 
     try {
-      await axios.patch(`${API_URL}/api/bench-jobs/${currentJobId}/safety-checklist`);
-      setShowSafetyModal(false);
-      fetchJobs();
-      Alert.alert('Ready to Proceed', 'Safety checklist completed. You may now begin troubleshooting.');
+      const response = await axios.post(`${API_URL}/api/chats/${activeChat.id}/messages`, {
+        content: messageText,
+      });
+      
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== 'temp-user'),
+        response.data.userMessage,
+        response.data.assistantMessage,
+      ]);
+
+      if (messages.length === 0 && messageText.length > 30) {
+        const autoTitle = messageText.substring(0, 30) + '...';
+        await renameChat(activeChat.id, autoTitle);
+      }
     } catch (error) {
-      console.error('Error completing safety checklist:', error);
+      console.error('Error sending message:', error);
+      setMessages((prev) => prev.filter((m) => m.id !== 'temp-user'));
+      Alert.alert('Error', 'Failed to send message');
+    } finally {
+      setSending(false);
     }
   };
 
-  const toggleSafetyCheck = (index: number) => {
-    const newChecks = [...safetyChecks];
-    newChecks[index] = !newChecks[index];
-    setSafetyChecks(newChecks);
+  const renameChat = async (chatId: string, title: string) => {
+    try {
+      await axios.patch(`${API_URL}/api/chats/${chatId}`, { title });
+      setChats((prev) =>
+        prev.map((c) => (c.id === chatId ? { ...c, title } : c))
+      );
+      if (activeChat?.id === chatId) {
+        setActiveChat({ ...activeChat, title });
+      }
+    } catch (error) {
+      console.error('Error renaming chat:', error);
+    }
+  };
+
+  const deleteChat = async (chatId: string) => {
+    Alert.alert('Delete Chat', 'Are you sure you want to delete this chat?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await axios.delete(`${API_URL}/api/chats/${chatId}`);
+            setChats((prev) => prev.filter((c) => c.id !== chatId));
+            setShowOptionsModal(false);
+            if (activeChat?.id === chatId) {
+              setShowChatModal(false);
+              setActiveChat(null);
+            }
+          } catch (error) {
+            console.error('Error deleting chat:', error);
+            Alert.alert('Error', 'Failed to delete chat');
+          }
+        },
+      },
+    ]);
+  };
+
+  const convertToJob = async (chat: Chat) => {
+    try {
+      const response = await axios.post(`${API_URL}/api/chats/${chat.id}/convert-to-job`);
+      Alert.alert(
+        'Job Created',
+        'This chat has been converted to a bench job. You can now fill in the amp details.',
+        [{ text: 'OK' }]
+      );
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === chat.id ? { ...c, benchJobId: response.data.benchJob.id, isStandalone: false } : c
+        )
+      );
+      setShowOptionsModal(false);
+    } catch (error: any) {
+      console.error('Error converting to job:', error);
+      Alert.alert('Error', error.response?.data?.error || 'Failed to convert chat to job');
+    }
+  };
+
+  const handleLongPress = (chat: Chat) => {
+    setSelectedChat(chat);
+    setShowOptionsModal(true);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#f59e0b" />
-        <Text style={styles.loadingText}>Loading bench jobs...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
@@ -144,189 +238,244 @@ export default function JobsScreen() {
           <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
         </View>
 
-        {jobs.length === 0 ? (
+        <TouchableOpacity style={styles.newChatButton} onPress={createNewChat}>
+          <Ionicons name="chatbubble-ellipses" size={24} color="#1f2937" />
+          <Text style={styles.newChatButtonText}>Start New Chat</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Recent Chats</Text>
+
+        {chats.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="build-outline" size={64} color="#6b7280" />
-            <Text style={styles.emptyText}>No bench jobs yet</Text>
-            <Text style={styles.emptySubtext}>Start a new job to begin troubleshooting</Text>
+            <Ionicons name="chatbubbles-outline" size={64} color="#6b7280" />
+            <Text style={styles.emptyText}>No chats yet</Text>
+            <Text style={styles.emptySubtext}>
+              Start a new chat to ask questions about amp repair
+            </Text>
           </View>
         ) : (
-          jobs.map((job) => (
-            <TouchableOpacity key={job.id} style={styles.jobCard}>
-              <View style={styles.jobHeader}>
-                <View style={[styles.statusBadge, job.status === 'active' ? styles.statusActive : styles.statusComplete]}>
-                  <Text style={styles.statusText}>{job.status}</Text>
-                </View>
-                {job.safetyChecklistCompleted && (
-                  <Ionicons name="shield-checkmark" size={20} color="#22c55e" />
-                )}
+          chats.map((chat) => (
+            <TouchableOpacity
+              key={chat.id}
+              style={styles.chatCard}
+              onPress={() => openChat(chat)}
+              onLongPress={() => handleLongPress(chat)}
+            >
+              <View style={styles.chatCardHeader}>
+                <Ionicons
+                  name={chat.benchJobId ? 'briefcase' : 'chatbubble-ellipses'}
+                  size={20}
+                  color="#f59e0b"
+                />
+                <Text style={styles.chatTitle} numberOfLines={1}>
+                  {chat.title}
+                </Text>
               </View>
-              <Text style={styles.jobSymptoms} numberOfLines={2}>
-                {job.ownerSymptoms || 'No symptoms recorded'}
-              </Text>
-              <Text style={styles.jobDate}>
-                {new Date(job.createdAt).toLocaleDateString()}
-              </Text>
+              <Text style={styles.chatDate}>{formatDate(chat.updatedAt)}</Text>
+              {chat.benchJobId && (
+                <View style={styles.linkedBadge}>
+                  <Text style={styles.linkedBadgeText}>Linked to Job</Text>
+                </View>
+              )}
             </TouchableOpacity>
           ))
         )}
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setShowNewJobModal(true)}
-      >
-        <Ionicons name="add" size={32} color="#1f2937" />
-      </TouchableOpacity>
+      <Modal visible={showChatModal} animationType="slide">
+        <KeyboardAvoidingView
+          style={styles.chatModalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.chatModalHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowChatModal(false);
+                setActiveChat(null);
+                setMessages([]);
+                fetchChats();
+              }}
+            >
+              <Ionicons name="arrow-back" size={28} color="#f59e0b" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.chatTitleButton}
+              onPress={() => {
+                setNewTitle(activeChat?.title || '');
+                setShowRenameModal(true);
+              }}
+            >
+              <Text style={styles.chatModalTitle} numberOfLines={1}>
+                {activeChat?.title}
+              </Text>
+              <Ionicons name="pencil" size={16} color="#9ca3af" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                if (activeChat) {
+                  setSelectedChat(activeChat);
+                  setShowOptionsModal(true);
+                }
+              }}
+            >
+              <Ionicons name="ellipsis-vertical" size={24} color="#9ca3af" />
+            </TouchableOpacity>
+          </View>
 
-      <Modal visible={showNewJobModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Bench Job</Text>
-              <TouchableOpacity onPress={() => setShowNewJobModal(false)}>
-                <Ionicons name="close" size={28} color="#9ca3af" />
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
+          >
+            {messages.length === 0 && (
+              <View style={styles.welcomeContainer}>
+                <Ionicons name="hardware-chip" size={48} color="#f59e0b" />
+                <Text style={styles.welcomeTitle}>Bench Assistant</Text>
+                <Text style={styles.welcomeText}>
+                  Ask me anything about guitar amp repair, troubleshooting, or your past jobs and schematics.
+                </Text>
+                <View style={styles.exampleQuestions}>
+                  <Text style={styles.exampleTitle}>Try asking:</Text>
+                  <Text style={styles.exampleText}>• "How do I test for leaky caps?"</Text>
+                  <Text style={styles.exampleText}>• "What causes red plating on tubes?"</Text>
+                  <Text style={styles.exampleText}>• "Have I worked on a Fender amp before?"</Text>
+                  <Text style={styles.exampleText}>• "Show me schematics for Vox AC30"</Text>
+                </View>
+              </View>
+            )}
+
+            {messages.map((message) => (
+              <View
+                key={message.id}
+                style={[
+                  styles.messageBubble,
+                  message.role === 'user' ? styles.userMessage : styles.assistantMessage,
+                ]}
+              >
+                {message.role === 'assistant' && (
+                  <View style={styles.assistantHeader}>
+                    <Ionicons name="hardware-chip" size={18} color="#f59e0b" />
+                    <Text style={styles.assistantLabel}>Bench Assistant</Text>
+                  </View>
+                )}
+                <Text
+                  style={[
+                    styles.messageText,
+                    message.role === 'user' && styles.userMessageText,
+                  ]}
+                >
+                  {message.content}
+                </Text>
+              </View>
+            ))}
+
+            {sending && (
+              <View style={styles.typingIndicator}>
+                <ActivityIndicator size="small" color="#f59e0b" />
+                <Text style={styles.typingText}>Thinking...</Text>
+              </View>
+            )}
+          </ScrollView>
+
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Ask about amp repair..."
+              placeholderTextColor="#6b7280"
+              multiline
+              maxLength={2000}
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!input.trim() || sending) && styles.sendButtonDisabled]}
+              onPress={sendMessage}
+              disabled={!input.trim() || sending}
+            >
+              <Ionicons name="send" size={22} color="#1f2937" />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={showRenameModal} transparent animationType="fade">
+        <View style={styles.renameModalOverlay}>
+          <View style={styles.renameModalContent}>
+            <Text style={styles.renameModalTitle}>Rename Chat</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={newTitle}
+              onChangeText={setNewTitle}
+              placeholder="Enter chat name"
+              placeholderTextColor="#6b7280"
+              autoFocus
+            />
+            <View style={styles.renameModalButtons}>
+              <TouchableOpacity
+                style={styles.renameModalCancel}
+                onPress={() => setShowRenameModal(false)}
+              >
+                <Text style={styles.renameModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.renameModalSave}
+                onPress={() => {
+                  if (activeChat && newTitle.trim()) {
+                    renameChat(activeChat.id, newTitle.trim());
+                    setShowRenameModal(false);
+                  }
+                }}
+              >
+                <Text style={styles.renameModalSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
-
-            <ScrollView style={styles.modalScroll}>
-              <Text style={styles.sectionTitle}>Amp Identification</Text>
-              
-              <Text style={styles.inputLabel}>Make</Text>
-              <TextInput
-                style={styles.input}
-                value={newJob.ampMake}
-                onChangeText={(text) => setNewJob({ ...newJob, ampMake: text })}
-                placeholder="e.g., Fender, Marshall, Vox"
-                placeholderTextColor="#6b7280"
-              />
-
-              <Text style={styles.inputLabel}>Model</Text>
-              <TextInput
-                style={styles.input}
-                value={newJob.ampModel}
-                onChangeText={(text) => setNewJob({ ...newJob, ampModel: text })}
-                placeholder="e.g., Deluxe Reverb, JCM800"
-                placeholderTextColor="#6b7280"
-              />
-
-              <Text style={styles.inputLabel}>Year (if known)</Text>
-              <TextInput
-                style={styles.input}
-                value={newJob.ampYear}
-                onChangeText={(text) => setNewJob({ ...newJob, ampYear: text })}
-                placeholder="e.g., 1965, 1970s"
-                placeholderTextColor="#6b7280"
-              />
-
-              <Text style={styles.inputLabel}>Circuit Family</Text>
-              <TextInput
-                style={styles.input}
-                value={newJob.circuitFamily}
-                onChangeText={(text) => setNewJob({ ...newJob, circuitFamily: text })}
-                placeholder="e.g., AB763, 5E3, JTM45"
-                placeholderTextColor="#6b7280"
-              />
-
-              <Text style={styles.sectionTitle}>Problem Description</Text>
-
-              <Text style={styles.inputLabel}>Owner Symptoms</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={newJob.ownerSymptoms}
-                onChangeText={(text) => setNewJob({ ...newJob, ownerSymptoms: text })}
-                placeholder="What is the owner experiencing? e.g., Hum after recap, no sound, volume drop..."
-                placeholderTextColor="#6b7280"
-                multiline
-                numberOfLines={3}
-              />
-
-              <Text style={styles.inputLabel}>Known Mods</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={newJob.knownMods}
-                onChangeText={(text) => setNewJob({ ...newJob, knownMods: text })}
-                placeholder="Any modifications to the original circuit?"
-                placeholderTextColor="#6b7280"
-                multiline
-                numberOfLines={2}
-              />
-
-              <Text style={styles.inputLabel}>Prior Tech Work</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={newJob.priorWork}
-                onChangeText={(text) => setNewJob({ ...newJob, priorWork: text })}
-                placeholder="Any previous repair attempts?"
-                placeholderTextColor="#6b7280"
-                multiline
-                numberOfLines={2}
-              />
-
-              <Text style={styles.inputLabel}>Tech Notes</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={newJob.techNotes}
-                onChangeText={(text) => setNewJob({ ...newJob, techNotes: text })}
-                placeholder="Initial observations..."
-                placeholderTextColor="#6b7280"
-                multiline
-                numberOfLines={2}
-              />
-            </ScrollView>
-
-            <TouchableOpacity style={styles.createButton} onPress={createJob}>
-              <Text style={styles.createButtonText}>Create Job & Safety Check</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={showSafetyModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="warning" size={28} color="#f59e0b" />
-              <Text style={styles.modalTitle}>Safety Checklist</Text>
-            </View>
+      <Modal visible={showOptionsModal} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.optionsModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowOptionsModal(false)}
+        >
+          <View style={styles.optionsModalContent}>
+            <TouchableOpacity
+              style={styles.optionItem}
+              onPress={() => {
+                if (selectedChat) {
+                  setNewTitle(selectedChat.title);
+                  setShowOptionsModal(false);
+                  setShowRenameModal(true);
+                  if (!activeChat) {
+                    setActiveChat(selectedChat);
+                  }
+                }
+              }}
+            >
+              <Ionicons name="pencil" size={22} color="#e5e7eb" />
+              <Text style={styles.optionText}>Rename</Text>
+            </TouchableOpacity>
 
-            <Text style={styles.safetyWarning}>
-              HIGH VOLTAGE WARNING: Guitar amplifiers contain lethal voltages. Confirm each safety measure before proceeding.
-            </Text>
-
-            <ScrollView style={styles.modalScroll}>
-              {SAFETY_CHECKLIST.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.checklistItem}
-                  onPress={() => toggleSafetyCheck(index)}
-                >
-                  <View style={[styles.checkbox, safetyChecks[index] && styles.checkboxChecked]}>
-                    {safetyChecks[index] && (
-                      <Ionicons name="checkmark" size={18} color="#1f2937" />
-                    )}
-                  </View>
-                  <Text style={styles.checklistText}>{item}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={styles.safetyButtons}>
+            {selectedChat && !selectedChat.benchJobId && (
               <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowSafetyModal(false)}
+                style={styles.optionItem}
+                onPress={() => selectedChat && convertToJob(selectedChat)}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Ionicons name="briefcase" size={22} color="#e5e7eb" />
+                <Text style={styles.optionText}>Convert to Job</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmButton, !safetyChecks.every(c => c) && styles.buttonDisabled]}
-                onPress={completeSafetyChecklist}
-              >
-                <Text style={styles.confirmButtonText}>Confirm & Proceed</Text>
-              </TouchableOpacity>
-            </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.optionItem, styles.optionItemDanger]}
+              onPress={() => selectedChat && deleteChat(selectedChat.id)}
+            >
+              <Ionicons name="trash" size={22} color="#ef4444" />
+              <Text style={[styles.optionText, styles.optionTextDanger]}>Delete</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -366,6 +515,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#9ca3af',
   },
+  newChatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f59e0b',
+    padding: 16,
+    borderRadius: 12,
+    gap: 10,
+    marginBottom: 24,
+  },
+  newChatButtonText: {
+    color: '#1f2937',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#e5e7eb',
+    marginBottom: 12,
+  },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -380,8 +550,9 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 14,
     marginTop: 8,
+    textAlign: 'center',
   },
-  jobCard: {
+  chatCard: {
     backgroundColor: '#1f2937',
     borderRadius: 12,
     padding: 16,
@@ -389,181 +560,264 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#f59e0b',
   },
-  jobHeader: {
+  chatCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 6,
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusActive: {
-    backgroundColor: '#065f46',
-  },
-  statusComplete: {
-    backgroundColor: '#374151',
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  jobSymptoms: {
+  chatTitle: {
     color: '#e5e7eb',
     fontSize: 16,
-    marginBottom: 8,
+    fontWeight: '500',
+    flex: 1,
   },
-  jobDate: {
+  chatDate: {
     color: '#6b7280',
     fontSize: 12,
   },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  linkedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#065f46',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  linkedBadgeText: {
+    color: '#a7f3d0',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  chatModalContainer: {
+    flex: 1,
+    backgroundColor: '#111827',
+  },
+  chatModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingTop: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+    backgroundColor: '#1f2937',
+  },
+  chatTitleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+  },
+  chatModalTitle: {
+    color: '#e5e7eb',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  messagesContainer: {
+    flex: 1,
+  },
+  messagesContent: {
+    padding: 16,
+  },
+  welcomeContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#f59e0b',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  welcomeText: {
+    color: '#9ca3af',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  exampleQuestions: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+  },
+  exampleTitle: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  exampleText: {
+    color: '#9ca3af',
+    fontSize: 14,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  messageBubble: {
+    maxWidth: '85%',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  userMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#f59e0b',
+    borderBottomRightRadius: 4,
+  },
+  assistantMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1f2937',
+    borderBottomLeftRadius: 4,
+  },
+  assistantHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  assistantLabel: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  messageText: {
+    color: '#e5e7eb',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  userMessageText: {
+    color: '#1f2937',
+  },
+  typingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  typingText: {
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 12,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+    backgroundColor: '#1f2937',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#374151',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#fff',
+    fontSize: 16,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#f59e0b',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
-  modalOverlay: {
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+  renameModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#1f2937',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '90%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
+  },
+  renameModalContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+  },
+  renameModalTitle: {
+    color: '#f59e0b',
+    fontSize: 20,
+    fontWeight: '600',
     marginBottom: 16,
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-  },
-  modalScroll: {
-    maxHeight: 400,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#e5e7eb',
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  inputLabel: {
-    color: '#9ca3af',
-    fontSize: 14,
-    marginBottom: 6,
-  },
-  input: {
+  renameInput: {
     backgroundColor: '#374151',
     borderRadius: 8,
     padding: 14,
     color: '#fff',
     fontSize: 16,
-    marginBottom: 12,
+    marginBottom: 20,
   },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
+  renameModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  createButton: {
-    backgroundColor: '#f59e0b',
-    borderRadius: 12,
-    padding: 16,
+  renameModalCancel: {
+    flex: 1,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 14,
     alignItems: 'center',
-    marginTop: 16,
   },
-  createButtonText: {
+  renameModalCancelText: {
+    color: '#e5e7eb',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  renameModalSave: {
+    flex: 1,
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+  },
+  renameModalSaveText: {
     color: '#1f2937',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
-  safetyWarning: {
-    backgroundColor: '#7c2d12',
-    padding: 12,
-    borderRadius: 8,
-    color: '#fef3c7',
-    fontSize: 14,
-    marginBottom: 16,
-    lineHeight: 20,
+  optionsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
-  checklistItem: {
+  optionsModalContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 300,
+    overflow: 'hidden',
+  },
+  optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    gap: 14,
+    padding: 18,
     borderBottomWidth: 1,
     borderBottomColor: '#374151',
   },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#6b7280',
-    marginRight: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+  optionItemDanger: {
+    borderBottomWidth: 0,
   },
-  checkboxChecked: {
-    backgroundColor: '#22c55e',
-    borderColor: '#22c55e',
-  },
-  checklistText: {
-    color: '#e5e7eb',
-    fontSize: 15,
-    flex: 1,
-  },
-  safetyButtons: {
-    flexDirection: 'row',
-    marginTop: 20,
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: '#374151',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
+  optionText: {
     color: '#e5e7eb',
     fontSize: 16,
-    fontWeight: '600',
   },
-  confirmButton: {
-    flex: 1,
-    backgroundColor: '#22c55e',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
+  optionTextDanger: {
+    color: '#ef4444',
   },
 });

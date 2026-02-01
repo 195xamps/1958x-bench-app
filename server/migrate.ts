@@ -141,6 +141,23 @@ async function migrate() {
         caption TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS chats (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title TEXT DEFAULT 'New Chat',
+        bench_job_id UUID REFERENCES bench_jobs(id),
+        is_standalone BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        chat_id UUID REFERENCES chats(id) NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     
     console.log('Migration completed successfully!');
