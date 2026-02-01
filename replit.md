@@ -143,6 +143,10 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Reference Tab** - New tab with technician reference tools
+  - Troubleshooting Flowcharts: 4 interactive decision trees (No Output, Hum, Distortion, Intermittent)
+  - Voltage Reference Cards: 9 circuit families with expandable voltage tables
+  - Component Calculator: Filter RC, Bypass Cap, Plate Dissipation, Cathode Resistor
 - Feb 2026: **Media Gallery** - View all attachments shared in a chat
   - Gallery button with count badge in chat header
   - Grid view of images and PDFs
