@@ -149,6 +149,7 @@ The app emphasizes safety for high-voltage work:
   - Images stored in Replit Object Storage
   - GPT-4o Vision integration for image analysis
   - Attachments displayed in chat messages
+  - **Expert amp identification from chassis photos** - AI confidently identifies make, model, circuit family, and year from gut shots
 - Feb 2026: **Major Feature** - Persistent AI chatbot as primary feature
   - Dashboard with recent chats list
   - Chat rename, delete, convert to job functionality
