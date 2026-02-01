@@ -17,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 const API_URL = '';
 
@@ -127,14 +128,32 @@ export default function DashboardScreen() {
       });
       const { uploadURL, objectPath } = urlResponse.data;
 
-      const imageResponse = await fetch(uri);
-      const blob = await imageResponse.blob();
+      let uploadBody: Blob | Uint8Array;
+      
+      if (Platform.OS === 'web') {
+        const imageResponse = await fetch(uri);
+        uploadBody = await imageResponse.blob();
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        uploadBody = bytes;
+      }
 
-      await fetch(uploadURL, {
+      const uploadResponse = await fetch(uploadURL, {
         method: 'PUT',
-        body: blob,
+        body: uploadBody,
         headers: { 'Content-Type': 'image/jpeg' },
       });
+      
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
 
       const publicUrl = `${API_URL}${objectPath}`;
       return publicUrl;
