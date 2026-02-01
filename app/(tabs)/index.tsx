@@ -255,29 +255,35 @@ export default function DashboardScreen() {
           </View>
         ) : (
           chats.map((chat) => (
-            <TouchableOpacity
-              key={chat.id}
-              style={styles.chatCard}
-              onPress={() => openChat(chat)}
-              onLongPress={() => handleLongPress(chat)}
-            >
-              <View style={styles.chatCardHeader}>
-                <Ionicons
-                  name={chat.benchJobId ? 'briefcase' : 'chatbubble-ellipses'}
-                  size={20}
-                  color="#f59e0b"
-                />
-                <Text style={styles.chatTitle} numberOfLines={1}>
-                  {chat.title}
-                </Text>
-              </View>
-              <Text style={styles.chatDate}>{formatDate(chat.updatedAt)}</Text>
-              {chat.benchJobId && (
-                <View style={styles.linkedBadge}>
-                  <Text style={styles.linkedBadgeText}>Linked to Job</Text>
+            <View key={chat.id} style={styles.chatCard}>
+              <TouchableOpacity
+                style={styles.chatCardContent}
+                onPress={() => openChat(chat)}
+              >
+                <View style={styles.chatCardHeader}>
+                  <Ionicons
+                    name={chat.benchJobId ? 'briefcase' : 'chatbubble-ellipses'}
+                    size={20}
+                    color="#f59e0b"
+                  />
+                  <Text style={styles.chatTitle} numberOfLines={1}>
+                    {chat.title}
+                  </Text>
                 </View>
-              )}
-            </TouchableOpacity>
+                <Text style={styles.chatDate}>{formatDate(chat.updatedAt)}</Text>
+                {chat.benchJobId && (
+                  <View style={styles.linkedBadge}>
+                    <Text style={styles.linkedBadgeText}>Linked to Job</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.chatOptionsButton}
+                onPress={() => handleLongPress(chat)}
+              >
+                <Ionicons name="ellipsis-vertical" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
           ))
         )}
       </ScrollView>
@@ -555,10 +561,20 @@ const styles = StyleSheet.create({
   chatCard: {
     backgroundColor: '#1f2937',
     borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#f59e0b',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  chatCardContent: {
+    flex: 1,
+    padding: 16,
+  },
+  chatOptionsButton: {
+    padding: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chatCardHeader: {
     flexDirection: 'row',
