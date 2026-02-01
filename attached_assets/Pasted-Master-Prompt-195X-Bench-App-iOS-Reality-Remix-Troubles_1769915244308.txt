@@ -1,0 +1,131 @@
+Master Prompt: 195X Bench App (iOS) — Reality + Remix Troubleshooting Assistant
+You are a senior product + mobile engineer + guitar amplifier technician. You will design a production-grade iOS app called 195X Bench App for guitar amp technicians. The app’s purpose is to guide a technician step-by-step through troubleshooting, servicing, validation, and safe power-up of guitar amplifiers (vintage and modern), including blackface/silverface Fender-style circuits and beyond.
+1) Core concept: “Reality + Remix”
+Reality = the tech’s actual bench situation: symptoms, measurements, photos, known mods, parts condition, voltages, noise behavior, environment, tools available.
+Remix = trusted guidance assembled from:
+a curated schematic repository
+structured troubleshooting playbooks
+open-source community knowledge (forums, videos, podcasts, writeups), distilled into repeatable diagnostic steps
+but the app must always prioritize safety + verified service practices over internet lore.
+The app must behave like a calm, methodical bench mentor:
+Ask for only the info required to choose the next test.
+Provide step order, exact meter settings, where to place probes, what “normal” looks like, what anomalies suggest, and what to do next.
+Require explicit safety confirmations during high-voltage steps.
+2) Target platform and stack
+Runs on iOS (assume iPhone first; iPad later).
+The first release is a native iOS app.
+Use an architecture that supports:
+local-first job logs
+cloud sync (optional)
+modular knowledge updates
+3) Main user workflows
+Design these as first-class flows with screens and state transitions:
+A. Start a new bench job
+Amp identification: make/model/year (if known), photo upload, notes, owner symptoms, history (recap, mods, prior tech work).
+“Safety + Setup” checklist: isolation transformer note, discharge steps, PPE reminders, one-hand rule, meter checks.
+B. Guided troubleshooting session
+The tech can describe a problem in plain language (e.g., “hum after recap,” “no sound,” “red plating,” “motorboating,” “volume drop,” “reverb not working,” “tremolo weak,” “fuse blows,” “scratchy pots,” “pops when toggling standby,” etc.)
+The assistant turns that into a diagnostic plan:
+quick triage questions
+minimal-risk tests first
+decision-tree branching based on results
+measurement capture (structured fields + optional photos)
+conclusion hypotheses with confidence level
+recommended corrective actions and validation tests
+C. Measurement capture
+Structured measurement entries:
+node name (B+1/B+2/etc, plate, screen, cathode, heater, bias, ripple)
+expected range (with references)
+recorded value
+tool used (e.g., Fluke model)
+meter mode and range
+notes + photo
+The app should automatically generate a “red/yellow/green” indicator based on expected ranges and context.
+D. Schematic library
+Store, view, and annotate schematics.
+Tag by amp model/circuit family (e.g., AB763, AA763, 5E3, JTM45, etc.).
+Allow linking a schematic to a bench job.
+Support user-uploaded schematics and a curated “official” library.
+E. Repair actions + parts log
+Track replaced parts, values, voltage ratings, brands, date codes, and install notes.
+Maintain a “before/after” measurement comparison.
+F. Validation + sign-off
+After repairs, guide through validation:
+safe power-up procedure
+bias set procedure (when applicable)
+noise floor checks
+function checks (channels, tone stack, reverb, trem)
+soak test checklist
+Generate a printable/shareable service report (PDF).
+4) Knowledge system: open-source “Reality Remix” ingestion
+The app will utilize open-source sources such as:
+Reddit (amp repair subreddits)
+YouTube
+The Gear Page (TGP)
+TDPRI
+Amp Garage
+“Truth About Vintage Amps” podcast
+other reputable sources you discover
+Important constraints
+Do not quote long passages.
+Treat internet sources as supporting evidence, not final authority.
+Prefer primary sources: schematics, service manuals, reputable tech channels, and established community experts.
+Implement a source quality scoring model:
+primary docs (manuals/schematics) highest
+recognized expert tech content next
+forum anecdotes lowest unless corroborated
+Provide citations inside the app (source link + date + short excerpt summary).
+5) AI assistant behavior requirements
+The assistant must:
+Always start with a safety gate for any high voltage procedure.
+Ask clarifying questions only when needed; otherwise proceed with best next step.
+Provide instructions with:
+exact meter mode (AC/DC, V, mV, ohms, diode test)
+probe placement guidance
+what could go wrong and how to avoid it
+normal ranges and what deviations imply
+Never recommend unsafe procedures.
+Include “stop conditions” (when to halt and reassess).
+Offer two modes:
+Guided Mode (strict step-by-step, checklist gates)
+Expert Mode (condensed, but still safe)
+6) Data model and storage
+Define entities and relationships:
+User
+BenchJob
+AmpProfile
+Symptom
+TestStep
+Measurement
+Media (photos, audio clips)
+Schematic
+RepairAction
+Part
+ReferenceSource (url, title, author, date, excerpt summary, reliability score)
+Report
+Local-first storage, encrypted at rest. Cloud sync optional.
+7) UI/UX requirements
+Technician-friendly: big tap targets, fast entry, dark mode, offline-capable baseline.
+“Bench-friendly” capture: one-handed flows, quick add measurement, voice-to-text notes.
+Provide templates for common amps and common failure modes.
+8) Safety and liability
+Include disclaimers and safety onboarding.
+Require the user to confirm competency and acceptance.
+Provide “Emergency stop” guidance (power down, discharge, safe handling).
+Make clear it’s assistance, not a guarantee.
+9) Deliverables you must produce now
+Produce, in this order:
+Product Requirements Doc (PRD) with MVP scope and V1.1/V2 roadmap
+User stories (at least 30) with acceptance criteria
+System architecture (on-device modules, backend services if any, knowledge ingestion pipeline)
+Data schema (tables/collections + key fields)
+Screen list + navigation map
+Core troubleshooting engine design (decision-tree + rules + measurement evaluation)
+RAG/knowledge approach: how sources are ingested, scored, and cited; how hallucinations are controlled
+Privacy + security design (encryption, permissions, data retention)
+Testing plan (unit, integration, UX, safety edge cases)
+Build plan: milestones for a 6–10 week MVP with tasks per week
+10) Style constraints
+Use clear headings, bullet lists, and checklists.
+Use no em-dashes.
+Be precise and practical, like a senior bench tech writing procedures.
