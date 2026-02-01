@@ -450,7 +450,10 @@ EVIDENCE-BASED ANALYSIS
 - If you need more information, explain what and why
 
 DATABASE CONTEXT
-When the app provides job history or schematic data, incorporate it naturally into your response. Reference past work when relevant.
+When the app provides database context (schematics, jobs, measurements), you MUST reference this data in your response:
+- If schematics matching the query are found, tell the user they have them in their library and what's available
+- If past jobs are found, reference the relevant history
+- Always let the user know what resources they already have before suggesting they find more
 
 Remember: Be the kind of mentor who gives thorough, educational responses that help the technician learn, not just quick answers. Provide context, explain reasoning, and share the expertise that comes from decades of bench experience.`;
 
@@ -504,39 +507,49 @@ async function getRelevantDatabaseContext(message: string): Promise<string | nul
       }
     }
     
-    const ampKeywords = ['fender', 'marshall', 'vox', 'mesa', 'boogie', 'twin', 'deluxe', 'princeton', 'bassman', 'ac30', 'ac15', 'jcm', 'plexi'];
-    const foundKeyword = ampKeywords.find(kw => lowerMessage.includes(kw));
+    const ampKeywords = ['fender', 'marshall', 'vox', 'mesa', 'boogie', 'twin', 'deluxe', 'princeton', 'bassman', 'ac30', 'ac15', 'jcm', 'plexi', 'champ', 'super', 'reverb', 'tremolux', 'bandmaster', 'showman', 'vibroverb', 'vibrolux'];
+    const circuitKeywords = ['5f1', '5e3', '5f6', '5e1', '5c1', 'aa763', 'ab763', 'aa864', 'ab568', 'bf', 'sf', 'tweed', 'blackface', 'silverface', 'brownface'];
     
-    if (foundKeyword) {
+    const allKeywords = [...ampKeywords, ...circuitKeywords];
+    const foundKeywords = allKeywords.filter(kw => lowerMessage.includes(kw));
+    
+    if (foundKeywords.length > 0) {
       const jobs = await db.select({
         job: schema.benchJobs,
         amp: schema.ampProfiles
       }).from(schema.benchJobs)
         .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id));
       
-      const matchingJobs = jobs.filter(({ amp }) => 
-        amp?.make?.toLowerCase().includes(foundKeyword) || 
-        amp?.model?.toLowerCase().includes(foundKeyword)
-      );
-      
-      if (matchingJobs.length > 0) {
-        context += `\n\nJOBS MATCHING "${foundKeyword.toUpperCase()}":\n`;
-        matchingJobs.forEach(({ job, amp }) => {
-          context += `- ${amp?.make} ${amp?.model} (${amp?.year || 'Unknown year'}) - ${job.status}\n`;
-        });
+      for (const foundKeyword of foundKeywords) {
+        const matchingJobs = jobs.filter(({ amp }) => 
+          amp?.make?.toLowerCase().includes(foundKeyword) || 
+          amp?.model?.toLowerCase().includes(foundKeyword) ||
+          amp?.circuitFamily?.toLowerCase().includes(foundKeyword)
+        );
+        
+        if (matchingJobs.length > 0) {
+          context += `\n\nJOBS MATCHING "${foundKeyword.toUpperCase()}":\n`;
+          matchingJobs.forEach(({ job, amp }) => {
+            context += `- ${amp?.make} ${amp?.model} (${amp?.year || 'Unknown year'}) - ${job.status}\n`;
+          });
+        }
       }
       
-      const matchingSchematics = await db.select().from(schema.schematics);
-      const filtered = matchingSchematics.filter(s => 
-        s.name?.toLowerCase().includes(foundKeyword) ||
-        s.ampModel?.toLowerCase().includes(foundKeyword)
-      );
-      
-      if (filtered.length > 0) {
-        context += `\n\nSCHEMATICS MATCHING "${foundKeyword.toUpperCase()}":\n`;
-        filtered.forEach(s => {
-          context += `- ${s.name} (${s.circuitFamily || 'Unknown family'})\n`;
-        });
+      const allSchematics = await db.select().from(schema.schematics);
+      for (const foundKeyword of foundKeywords) {
+        const filtered = allSchematics.filter(s => 
+          s.name?.toLowerCase().includes(foundKeyword) ||
+          s.ampModel?.toLowerCase().includes(foundKeyword) ||
+          s.circuitFamily?.toLowerCase().includes(foundKeyword) ||
+          s.tags?.toLowerCase().includes(foundKeyword)
+        );
+        
+        if (filtered.length > 0) {
+          context += `\n\nSCHEMATICS MATCHING "${foundKeyword.toUpperCase()}":\n`;
+          filtered.forEach(s => {
+            context += `- ${s.name} (${s.circuitFamily || 'Unknown family'}) - File: ${s.fileUrl ? 'Available in library' : 'No file'}\n`;
+          });
+        }
       }
     }
     
