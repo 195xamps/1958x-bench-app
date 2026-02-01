@@ -427,127 +427,126 @@ export default function MeasurementScreen() {
 
       <Modal visible={showAddModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={styles.modalContentWide}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Measurement</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
+              <TouchableOpacity onPress={() => { setShowAddModal(false); setShowDiagnosticMode(false); }}>
                 <Ionicons name="close" size={28} color="#9ca3af" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScroll}>
-              {showDiagnosticMode && (
-                <View style={styles.diagnosticBanner}>
-                  <View style={styles.diagnosticProgress}>
-                    <Ionicons name="navigate" size={20} color="#f59e0b" />
-                    <Text style={styles.diagnosticText}>
-                      Diagnostic Step {diagnosticStep + 1} of {DEFAULT_DIAGNOSTIC_SEQUENCE.length}
-                    </Text>
-                  </View>
-                  <TouchableOpacity 
-                    onPress={() => { setShowDiagnosticMode(false); setShowAddModal(false); }}
-                    style={styles.diagnosticExit}
-                  >
-                    <Text style={styles.diagnosticExitText}>Exit</Text>
-                  </TouchableOpacity>
+            {showDiagnosticMode && (
+              <View style={styles.diagnosticBanner}>
+                <View style={styles.diagnosticProgress}>
+                  <Ionicons name="navigate" size={20} color="#f59e0b" />
+                  <Text style={styles.diagnosticText}>
+                    Diagnostic Step {diagnosticStep + 1} of {DEFAULT_DIAGNOSTIC_SEQUENCE.length}
+                  </Text>
                 </View>
-              )}
-
-              <Text style={styles.sectionTitle}>Select Measurement Node</Text>
-              
-              {MEASUREMENT_CATEGORIES.map((category) => (
-                <View key={category.id} style={styles.categoryContainer}>
-                  <TouchableOpacity 
-                    style={styles.categoryHeader}
-                    onPress={() => toggleCategory(category.id)}
-                  >
-                    <View style={styles.categoryTitleRow}>
-                      <Ionicons name={category.icon as any} size={20} color="#f59e0b" />
-                      <Text style={styles.categoryTitle}>{category.title}</Text>
-                    </View>
-                    <Ionicons 
-                      name={expandedCategories[category.id] ? 'chevron-up' : 'chevron-down'} 
-                      size={20} 
-                      color="#9ca3af" 
-                    />
-                  </TouchableOpacity>
-                  
-                  {expandedCategories[category.id] && (
-                    <View style={styles.categoryNodes}>
-                      <Text style={styles.categoryDescription}>{category.description}</Text>
-                      <View style={styles.nodeGrid}>
-                        {category.nodes.map((node) => (
-                          <TouchableOpacity
-                            key={node.name}
-                            style={[
-                              styles.nodeChip,
-                              newMeasurement.nodeName === node.name && styles.nodeChipSelected,
-                            ]}
-                            onPress={() => selectNode(node)}
-                          >
-                            <Text style={[
-                              styles.nodeChipText,
-                              newMeasurement.nodeName === node.name && styles.nodeChipTextSelected,
-                            ]}>
-                              {node.name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                </View>
-              ))}
-
-              <Text style={styles.inputLabel}>Node Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={newMeasurement.nodeName}
-                onChangeText={(text) => setNewMeasurement({ ...newMeasurement, nodeName: text })}
-                placeholder="e.g., B+1, V1 Plate, Cathode"
-                placeholderTextColor="#6b7280"
-              />
-
-              <View style={styles.row}>
-                <View style={styles.halfInput}>
-                  <Text style={styles.inputLabel}>Expected Min</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newMeasurement.expectedMin}
-                    onChangeText={(text) => setNewMeasurement({ ...newMeasurement, expectedMin: text })}
-                    placeholder="e.g., 380"
-                    placeholderTextColor="#6b7280"
-                    keyboardType="numeric"
-                  />
-                </View>
-                <View style={styles.halfInput}>
-                  <Text style={styles.inputLabel}>Expected Max</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newMeasurement.expectedMax}
-                    onChangeText={(text) => setNewMeasurement({ ...newMeasurement, expectedMax: text })}
-                    placeholder="e.g., 420"
-                    placeholderTextColor="#6b7280"
-                    keyboardType="numeric"
-                  />
-                </View>
+                <TouchableOpacity 
+                  onPress={() => { setShowDiagnosticMode(false); setShowAddModal(false); }}
+                  style={styles.diagnosticExit}
+                >
+                  <Text style={styles.diagnosticExitText}>Exit Sequence</Text>
+                </TouchableOpacity>
               </View>
+            )}
 
-              <View style={styles.row}>
-                <View style={styles.halfInput}>
+            <View style={styles.twoColumnLayout}>
+              <ScrollView style={styles.leftColumn}>
+                <Text style={styles.sectionTitle}>Select Node</Text>
+                {MEASUREMENT_CATEGORIES.map((category) => (
+                  <View key={category.id} style={styles.categoryContainer}>
+                    <TouchableOpacity 
+                      style={styles.categoryHeader}
+                      onPress={() => toggleCategory(category.id)}
+                    >
+                      <View style={styles.categoryTitleRow}>
+                        <Ionicons name={category.icon as any} size={18} color="#f59e0b" />
+                        <Text style={styles.categoryTitleCompact}>{category.title}</Text>
+                      </View>
+                      <Ionicons 
+                        name={expandedCategories[category.id] ? 'chevron-up' : 'chevron-down'} 
+                        size={18} 
+                        color="#9ca3af" 
+                      />
+                    </TouchableOpacity>
+                    
+                    {expandedCategories[category.id] && (
+                      <View style={styles.categoryNodes}>
+                        <View style={styles.nodeGrid}>
+                          {category.nodes.map((node) => (
+                            <TouchableOpacity
+                              key={node.name}
+                              style={[
+                                styles.nodeChipCompact,
+                                newMeasurement.nodeName === node.name && styles.nodeChipSelected,
+                              ]}
+                              onPress={() => selectNode(node)}
+                            >
+                              <Text style={[
+                                styles.nodeChipTextCompact,
+                                newMeasurement.nodeName === node.name && styles.nodeChipTextSelected,
+                              ]}>
+                                {node.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+
+              <View style={styles.rightColumn}>
+                <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={styles.inputLabel}>Node Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newMeasurement.nodeName}
+                    onChangeText={(text) => setNewMeasurement({ ...newMeasurement, nodeName: text })}
+                    placeholder="Select from left or type"
+                    placeholderTextColor="#6b7280"
+                  />
+
                   <Text style={styles.inputLabel}>Recorded Value *</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, styles.recordedValueInput]}
                     value={newMeasurement.recordedValue}
                     onChangeText={(text) => setNewMeasurement({ ...newMeasurement, recordedValue: text })}
-                    placeholder="e.g., 405"
+                    placeholder="Enter value"
                     placeholderTextColor="#6b7280"
                     keyboardType="numeric"
                   />
-                </View>
-                <View style={styles.halfInput}>
+
+                  <View style={styles.row}>
+                    <View style={styles.halfInput}>
+                      <Text style={styles.inputLabel}>Expected Min</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={newMeasurement.expectedMin}
+                        onChangeText={(text) => setNewMeasurement({ ...newMeasurement, expectedMin: text })}
+                        placeholder="Min"
+                        placeholderTextColor="#6b7280"
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={styles.halfInput}>
+                      <Text style={styles.inputLabel}>Expected Max</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={newMeasurement.expectedMax}
+                        onChangeText={(text) => setNewMeasurement({ ...newMeasurement, expectedMax: text })}
+                        placeholder="Max"
+                        placeholderTextColor="#6b7280"
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+
                   <Text style={styles.inputLabel}>Unit</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.chipRow}>
                     {UNITS.map((unit) => (
                       <TouchableOpacity
                         key={unit}
@@ -565,63 +564,56 @@ export default function MeasurementScreen() {
                         </Text>
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
-                </View>
-              </View>
+                  </View>
 
-              <Text style={styles.inputLabel}>Meter Mode</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.meterModesScroll}>
-                {METER_MODES.map((mode) => (
-                  <TouchableOpacity
-                    key={mode}
-                    style={[
-                      styles.modeChip,
-                      newMeasurement.meterMode === mode && styles.modeChipSelected,
-                    ]}
-                    onPress={() => setNewMeasurement({ ...newMeasurement, meterMode: mode })}
-                  >
-                    <Text style={[
-                      styles.modeChipText,
-                      newMeasurement.meterMode === mode && styles.modeChipTextSelected,
-                    ]}>
-                      {mode}
+                  <Text style={styles.inputLabel}>Meter Mode</Text>
+                  <View style={styles.chipRow}>
+                    {METER_MODES.map((mode) => (
+                      <TouchableOpacity
+                        key={mode}
+                        style={[
+                          styles.modeChip,
+                          newMeasurement.meterMode === mode && styles.modeChipSelected,
+                        ]}
+                        onPress={() => setNewMeasurement({ ...newMeasurement, meterMode: mode })}
+                      >
+                        <Text style={[
+                          styles.modeChipText,
+                          newMeasurement.meterMode === mode && styles.modeChipTextSelected,
+                        ]}>
+                          {mode}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <Text style={styles.inputLabel}>Notes</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={newMeasurement.notes}
+                    onChangeText={(text) => setNewMeasurement({ ...newMeasurement, notes: text })}
+                    placeholder="Optional observations..."
+                    placeholderTextColor="#6b7280"
+                    multiline
+                    numberOfLines={2}
+                  />
+                </ScrollView>
+
+                <TouchableOpacity
+                  style={[styles.saveButton, saving && styles.buttonDisabled]}
+                  onPress={saveMeasurement}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#1f2937" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>
+                      {showDiagnosticMode ? 'Save & Next' : 'Save Measurement'}
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <Text style={styles.inputLabel}>Meter Tool</Text>
-              <TextInput
-                style={styles.input}
-                value={newMeasurement.meterTool}
-                onChangeText={(text) => setNewMeasurement({ ...newMeasurement, meterTool: text })}
-                placeholder="e.g., Fluke 87V"
-                placeholderTextColor="#6b7280"
-              />
-
-              <Text style={styles.inputLabel}>Notes</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={newMeasurement.notes}
-                onChangeText={(text) => setNewMeasurement({ ...newMeasurement, notes: text })}
-                placeholder="Any observations about this measurement..."
-                placeholderTextColor="#6b7280"
-                multiline
-                numberOfLines={2}
-              />
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[styles.saveButton, saving && styles.buttonDisabled]}
-              onPress={saveMeasurement}
-              disabled={saving}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color="#1f2937" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save Measurement</Text>
-              )}
-            </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </View>
       </Modal>
@@ -985,5 +977,53 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalContentWide: {
+    backgroundColor: '#1f2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    height: '95%',
+  },
+  twoColumnLayout: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 16,
+  },
+  leftColumn: {
+    flex: 1,
+    maxWidth: '45%',
+  },
+  rightColumn: {
+    flex: 1,
+    maxWidth: '55%',
+  },
+  formScroll: {
+    flex: 1,
+  },
+  categoryTitleCompact: {
+    color: '#e5e7eb',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  nodeChipCompact: {
+    backgroundColor: '#4b5563',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  nodeChipTextCompact: {
+    color: '#d1d5db',
+    fontSize: 12,
+  },
+  recordedValueInput: {
+    fontSize: 20,
+    fontWeight: '600',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
   },
 });
