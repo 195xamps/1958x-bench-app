@@ -143,6 +143,12 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Enhanced Measurements Workflow** - Redesigned for real tech workflows
+  - 8 categorized measurement sections organized by diagnostic sequence
+  - Safety & Baseline, PT Secondaries, B+ Rail & Ripple, Output Stage, Phase Inverter, Preamp Triodes, Power-Off Resistance, Output Performance
+  - Smart defaults: auto-fills unit, meter mode, and expected ranges when selecting nodes
+  - "Start Diagnostic Sequence" guided 20-step diagnostic routine
+  - Collapsible accordion UI for easy node browsing
 - Feb 2026: **Reference Tab** - New tab with technician reference tools
   - Troubleshooting Flowcharts: 4 interactive decision trees (No Output, Hum, Distortion, Intermittent)
   - Voltage Reference Cards: 9 circuit families with expandable voltage tables
