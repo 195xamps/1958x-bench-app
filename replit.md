@@ -143,6 +143,11 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Media Gallery** - View all attachments shared in a chat
+  - Gallery button with count badge in chat header
+  - Grid view of images and PDFs
+  - Tap to open in full viewer
+  - Available in both dashboard chats and job-specific chats
 - Feb 2026: **PDF Upload Support** - Users can now upload PDF documents
   - PDF uploads in chat (alongside images)
   - PDF uploads in schematics library
