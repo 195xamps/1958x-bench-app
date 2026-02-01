@@ -374,7 +374,7 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
-          <Text style={styles.title}>195X Bench App</Text>
+          <Text style={styles.title}>195x Bench App</Text>
           <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
         </View>
 

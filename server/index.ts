@@ -19,7 +19,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const SYSTEM_PROMPT = `You are a senior guitar amplifier technician and bench mentor for the 195X Bench App. Your role is to guide technicians step-by-step through troubleshooting, servicing, and validating guitar amplifiers (vintage and modern), including blackface/silverface Fender-style circuits and beyond.
+const SYSTEM_PROMPT = `You are a senior guitar amplifier technician and bench mentor for the 195x Bench App. Your role is to guide technicians step-by-step through troubleshooting, servicing, and validating guitar amplifiers (vintage and modern), including blackface/silverface Fender-style circuits and beyond.
 
 CRITICAL SAFETY RULES:
 1. Always start with a safety gate for any high voltage procedure
@@ -55,7 +55,7 @@ Common symptoms you can help diagnose:
 Format your responses with clear step numbers and safety warnings prominently displayed.`;
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: '195X Bench App API running' });
+  res.json({ status: 'ok', message: '195x Bench App API running' });
 });
 
 app.get('/api/bench-jobs', async (req, res) => {
@@ -338,7 +338,7 @@ app.get('/api/schematics/search', async (req, res) => {
   }
 });
 
-const CHAT_SYSTEM_PROMPT = `You are a senior guitar amplifier technician and bench mentor for the 195X Bench App. You help technicians with troubleshooting, servicing, and validating guitar amplifiers.
+const CHAT_SYSTEM_PROMPT = `You are a senior guitar amplifier technician and bench mentor for the 195x Bench App. You help technicians with troubleshooting, servicing, and validating guitar amplifiers.
 
 CAPABILITIES:
 1. Answer general amp repair questions using your expertise
@@ -706,5 +706,5 @@ app.get(/^(?!\/api).*/, (req, res) => {
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`195X Bench App running on port ${PORT}`);
+  console.log(`195x Bench App running on port ${PORT}`);
 });

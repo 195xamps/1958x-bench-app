@@ -1,10 +1,10 @@
-# 195X Bench App
+# 195x Bench App
 
 A production-grade iOS app for guitar amplifier technicians. The app guides technicians step-by-step through troubleshooting, servicing, validation, and safe power-up of guitar amplifiers (vintage and modern), including blackface/silverface Fender-style circuits and beyond.
 
 ## Overview
 
-The 195X Bench App implements the "Reality + Remix" concept:
+The 195x Bench App implements the "Reality + Remix" concept:
 - **Reality**: The technician's actual bench situation (symptoms, measurements, photos, known mods, voltages, noise behavior)
 - **Remix**: Trusted guidance assembled from curated schematics, structured troubleshooting playbooks, and open-source community knowledge
 

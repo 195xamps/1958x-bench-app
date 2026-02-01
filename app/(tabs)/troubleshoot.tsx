@@ -69,7 +69,7 @@ export default function TroubleshootScreen() {
       } else {
         setMessages([{
           role: 'assistant',
-          content: `I'm your troubleshooting assistant for the 195X Bench App. I'll guide you through diagnosing and repairing guitar amplifiers safely and methodically.\n\n**SAFETY FIRST**: Before we begin any high-voltage work, please confirm:\n- Isolation transformer is connected\n- Capacitors are discharged\n- PPE is available\n\nDescribe the symptom you're experiencing, or select one from the common issues above to get started.`
+          content: `I'm your troubleshooting assistant for the 195x Bench App. I'll guide you through diagnosing and repairing guitar amplifiers safely and methodically.\n\n**SAFETY FIRST**: Before we begin any high-voltage work, please confirm:\n- Isolation transformer is connected\n- Capacitors are discharged\n- PPE is available\n\nDescribe the symptom you're experiencing, or select one from the common issues above to get started.`
         }]);
       }
     } catch (error) {
