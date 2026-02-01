@@ -1,0 +1,83 @@
+Here’s a practical, “what a real bench tech measures” set you can turn directly into Quick Select nodes and workflows. I’m grouping it by when it’s used, because that’s how techs think.
+1) Safety + baseline electrical
+These are the first things that prevent dumb/expensive mistakes.
+Mains / wall voltage (VAC)
+Earth to chassis continuity (ohms) (3-prong cord integrity)
+Speaker load present + impedance sanity (cab impedance label + speaker DCR with meter)
+Fuse value verification (not a measurement, but belongs in the same “gate”)
+Quick Select ideas: Mains VAC, Earth→Chassis Ω, Speaker DCR
+2) Power transformer secondaries (VAC) — power ON, before chasing ghosts
+These tell you whether the amp is “being fed correctly.”
+Heaters (VAC): 6.3VAC nominal (under load)
+HT secondary (VAC): before rectifier (or rectifier plates)
+5VAC rectifier heater (if tube rectifier)
+Bias tap / bias secondary (VAC) (if fixed bias amp)
+Quick Select ideas: Heater VAC, PT HT VAC, PT Bias VAC, 5VAC Rectifier
+3) B+ rail and ripple (VDC + mV AC) — your power quality map
+You already have B+1/2/3 and ripple — keep that, and add a couple missing pieces.
+B+0 (rectifier output / first DC after rectifier)
+B+1, B+2, B+3… (nodes by schematic)
+Ripple at each node (mV AC) (especially B+0/B+1)
+Voltage drop across choke / dropping resistor (helps find open/overcurrent)
+Quick Select ideas: B+0, B+1, B+2, B+3, Ripple B+1, Ripple B+2, Dropper ΔV
+4) Output stage operating point (this is where failures hide)
+Power tubes are where “sounds bad” becomes measurable.
+Measure per power tube (or per socket):
+Plate voltage (VDC)
+Screen voltage (VDC)
+Control grid bias voltage (VDC) (fixed bias amps; negative voltage)
+Cathode voltage (VDC) (cathode biased amps)
+Bias current (mA) (via probe, 1Ω resistor, or transformer shunt methods)
+Plate dissipation (W) (calculated: (Plate V) × (Plate current estimate))
+Quick Select ideas: Power Plate V, Power Screen V, Power Grid V, Power Cathode V, Bias mA, Dissipation W
+5) Phase inverter (PI) operating point (super diagnostic)
+A ton of “thin/weak/distorted” problems show up here.
+PI plate 1 voltage (VDC)
+PI plate 2 voltage (VDC)
+PI cathode voltage (VDC) (or tail node depending on topology)
+Quick Select ideas: PI Plate 1, PI Plate 2, PI Cathode
+6) Preamp triode DC checks (fast way to localize stage issues)
+For each preamp tube section (V1A/V1B/etc):
+Plate voltage (VDC)
+Cathode voltage (VDC)
+Optional but useful:
+Grid DC (VDC) (should be near 0V on most stages; not always, but a great “leaky coupling cap?” clue)
+Quick Select ideas: V1A Plate, V1A Cathode, V1B Plate, V1B Cathode, (optional) Preamp Grid DC
+7) Power-off resistance checks (safe and high yield)
+These catch opens/shorts and wiring mistakes without powering up.
+Transformers:
+OT primary DCR (each half to CT)
+OT secondary DCR
+PT primary DCR
+PT HV secondary DCR
+Heater winding DCR (optional)
+Core circuit:
+Bleeder resistor value
+B+ dropping resistors (especially if a node is low)
+Cathode resistor value (power + preamp)
+Grid leak resistors (if bias issues/noise)
+Input jack switching continuity (common “no sound” culprit)
+Quick Select ideas: OT Pri DCR A-CT, OT Pri DCR B-CT, OT Sec DCR, PT HV DCR, Bleeder Ω, Input Jack Switch
+8) Output performance checks (simple, tube-only, no scope required)
+Even without a scope, you can quantify “is it healthy?”
+Output idle hum (mV AC) at speaker jack (with load connected)
+Output Vrms with a steady test tone (e.g., 1 kHz into dummy load)
+Approx. output power (W) (calculated: Vrms² / load ohms)
+Quick Select ideas: Output Hum mV, Output Vrms @1kHz, Output Power W
+A clean “default measurement set” your app can suggest
+If the tech doesn’t know what to record, recommend this sequence:
+Mains VAC, Speaker DCR, Earth→Chassis Ω
+Heater VAC
+B+0, B+1, B+2, B+3 + Ripple at B+1
+Power tube: Plate V, Screen V, Grid V (or Cathode V), Bias mA
+PI Plate 1/2 + PI Cathode
+V1A Plate/Cathode, V2A Plate/Cathode (minimum preamp snapshot)
+UI suggestion based on your screenshot
+Your current “Quick Select Node” chips are great. For tube-only, I’d add chips for:
+B+0
+PI Plate 1 / PI Plate 2 / PI Cathode
+Power Plate / Power Screen / Power Grid / Power Cathode
+Speaker DCR
+Earth→Chassis
+Output Hum
+Output Vrms @1kHz
