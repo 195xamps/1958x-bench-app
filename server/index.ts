@@ -1350,7 +1350,7 @@ app.post('/api/podcast/sync', async (req, res) => {
       .from(schema.podcastEpisodes);
     const existingNumbers = new Set(existingEpisodes.map(e => e.episodeNumber));
 
-    const episodePattern = /<a[^>]+href="(https?:\/\/[^"]*fretboardjournal\.com\/podcasts\/[^"]+)"[^>]*>Episode\s+(\d+)<\/a>/gi;
+    const episodePattern = /<a[^>]+href="(https?:\/\/[^"]*fretboardjournal\.com\/podcasts\/[^"]+)"[^>]*>(?:Episode|Ep\.?)\s*(\d+)\s*<\/a>/gi;
     const episodes: { number: number; url: string; topics: { text: string; timestamp: string | null; seconds: number | null }[] }[] = [];
 
     let match;
