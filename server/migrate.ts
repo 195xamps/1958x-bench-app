@@ -9,13 +9,49 @@ async function migrate() {
   const client = await pool.connect();
   
   try {
+    // Create sessions table for authentication
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        sid VARCHAR PRIMARY KEY,
+        sess JSONB NOT NULL,
+        expire TIMESTAMP NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON sessions(expire);
+    `);
+    
+    // Alter existing users table to add new columns for OAuth
+    await client.query(`
+      DO $$ 
+      BEGIN
+        -- Add new columns if they don't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='first_name') THEN
+          ALTER TABLE users ADD COLUMN first_name TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_name') THEN
+          ALTER TABLE users ADD COLUMN last_name TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='profile_image_url') THEN
+          ALTER TABLE users ADD COLUMN profile_image_url TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_admin') THEN
+          ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='updated_at') THEN
+          ALTER TABLE users ADD COLUMN updated_at TIMESTAMP DEFAULT NOW();
+        END IF;
+      END $$;
+    `);
+    
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        name TEXT NOT NULL,
-        email TEXT,
-        competency_confirmed BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW()
+        id VARCHAR PRIMARY KEY,
+        email TEXT UNIQUE,
+        first_name TEXT,
+        last_name TEXT,
+        profile_image_url TEXT,
+        is_admin BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS amp_profiles (

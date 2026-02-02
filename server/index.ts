@@ -6,15 +6,21 @@ import { db, schema } from './db';
 import { eq, desc, ilike, or, and } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
+import { setupAuth, registerAuthRoutes, isAuthenticated } from './replit_integrations/auth';
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
-registerObjectStorageRoutes(app);
+async function initServer() {
+  // Setup authentication BEFORE other routes
+  await setupAuth(app);
+  registerAuthRoutes(app);
 
-app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));
-app.use(express.static(path.join(__dirname, '..', 'dist', 'server')));
+  registerObjectStorageRoutes(app);
+
+  app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));
+  app.use(express.static(path.join(__dirname, '..', 'dist', 'server')));
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -1519,7 +1525,11 @@ app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'dist', 'server', '(tabs)', 'index.html'));
 });
 
-const PORT = parseInt(process.env.PORT || '5000', 10);
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`195x Bench App running on port ${PORT}`);
-});
+  const PORT = parseInt(process.env.PORT || '5000', 10);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`195x Bench App running on port ${PORT}`);
+  });
+}
+
+// Initialize the server
+initServer().catch(console.error);

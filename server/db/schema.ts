@@ -1,11 +1,26 @@
-import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, real } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, integer, boolean, jsonb, real, varchar, index } from 'drizzle-orm/pg-core';
 
+// Session storage table for authentication
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)]
+);
+
+// User storage table - updated for Google OAuth
 export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
-  email: text('email'),
-  competencyConfirmed: boolean('competency_confirmed').default(false),
+  id: varchar('id').primaryKey(),
+  email: text('email').unique(),
+  firstName: text('first_name'),
+  lastName: text('last_name'),
+  profileImageUrl: text('profile_image_url'),
+  isAdmin: boolean('is_admin').default(false),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 export const ampProfiles = pgTable('amp_profiles', {
@@ -22,7 +37,7 @@ export const ampProfiles = pgTable('amp_profiles', {
 
 export const benchJobs = pgTable('bench_jobs', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id),
+  userId: varchar('user_id').references(() => users.id),
   ampProfileId: uuid('amp_profile_id').references(() => ampProfiles.id),
   status: text('status').default('active'),
   ownerSymptoms: text('owner_symptoms'),
