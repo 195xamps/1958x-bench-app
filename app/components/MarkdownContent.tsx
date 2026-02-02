@@ -149,10 +149,16 @@ const markdownStyles = StyleSheet.create({
   },
 });
 
-export function MarkdownContent({ content }: MarkdownContentProps) {
+function MarkdownContent({ content }: MarkdownContentProps) {
+  if (!content || typeof content !== 'string') {
+    return null;
+  }
   return (
     <Markdown style={markdownStyles}>
       {content}
     </Markdown>
   );
 }
+
+export { MarkdownContent };
+export default MarkdownContent;
