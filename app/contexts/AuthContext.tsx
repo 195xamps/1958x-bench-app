@@ -2,7 +2,14 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
+const getApiUrl = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.EXPO_PUBLIC_API_URL || '';
+};
+
+const API_URL = getApiUrl();
 
 interface User {
   id: string;
