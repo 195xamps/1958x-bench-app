@@ -94,6 +94,14 @@ export const schematics = pgTable('schematics', {
   isUserUploaded: boolean('is_user_uploaded').default(false),
   tags: text('tags'),
   notes: text('notes'),
+  externalLinks: jsonb('external_links'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const jobSchematics = pgTable('job_schematics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  benchJobId: uuid('bench_job_id').references(() => benchJobs.id).notNull(),
+  schematicId: uuid('schematic_id').references(() => schematics.id).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

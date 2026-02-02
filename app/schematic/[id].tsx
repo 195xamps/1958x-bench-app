@@ -18,6 +18,11 @@ import axios from 'axios';
 
 const API_URL = '';
 
+interface ExternalLink {
+  label: string;
+  url: string;
+}
+
 interface Schematic {
   id: string;
   name: string;
@@ -27,6 +32,7 @@ interface Schematic {
   isUserUploaded: boolean;
   tags: string;
   notes: string;
+  externalLinks: ExternalLink[] | null;
   createdAt: string;
 }
 
@@ -222,6 +228,23 @@ export default function SchematicDetailScreen() {
             textAlignVertical="top"
           />
         </View>
+
+        {schematic.externalLinks && schematic.externalLinks.length > 0 && (
+          <View style={styles.linksSection}>
+            <Text style={styles.linksLabel}>External Links</Text>
+            {schematic.externalLinks.map((link, index) => (
+              <TouchableOpacity 
+                key={index}
+                style={styles.linkRow}
+                onPress={() => Linking.openURL(link.url)}
+              >
+                <Ionicons name="link" size={18} color="#f59e0b" />
+                <Text style={styles.linkText}>{link.label}</Text>
+                <Ionicons name="open-outline" size={16} color="#6b7280" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -427,5 +450,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 150,
     textAlignVertical: 'top',
+  },
+  linksSection: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 32,
+  },
+  linksLabel: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    gap: 10,
+  },
+  linkText: {
+    flex: 1,
+    color: '#f59e0b',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

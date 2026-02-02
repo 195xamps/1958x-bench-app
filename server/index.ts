@@ -462,12 +462,64 @@ app.delete('/api/schematics/:id', async (req, res) => {
       return res.status(404).json({ error: 'Schematic not found' });
     }
     
+    await db.delete(schema.jobSchematics).where(eq(schema.jobSchematics.schematicId, schematicId));
     await db.delete(schema.schematics).where(eq(schema.schematics.id, schematicId));
     
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting schematic:', error);
     res.status(500).json({ error: 'Failed to delete schematic' });
+  }
+});
+
+app.get('/api/bench-jobs/:id/schematics', async (req, res) => {
+  try {
+    const jobSchematics = await db
+      .select({ schematic: schema.schematics })
+      .from(schema.jobSchematics)
+      .innerJoin(schema.schematics, eq(schema.jobSchematics.schematicId, schema.schematics.id))
+      .where(eq(schema.jobSchematics.benchJobId, req.params.id));
+    res.json(jobSchematics.map(js => js.schematic));
+  } catch (error) {
+    console.error('Error fetching job schematics:', error);
+    res.status(500).json({ error: 'Failed to fetch job schematics' });
+  }
+});
+
+app.post('/api/bench-jobs/:id/schematics', async (req, res) => {
+  try {
+    const { schematicId } = req.body;
+    const existing = await db.select()
+      .from(schema.jobSchematics)
+      .where(and(
+        eq(schema.jobSchematics.benchJobId, req.params.id),
+        eq(schema.jobSchematics.schematicId, schematicId)
+      ));
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Schematic already attached' });
+    }
+    const [link] = await db.insert(schema.jobSchematics).values({
+      benchJobId: req.params.id,
+      schematicId,
+    }).returning();
+    res.json(link);
+  } catch (error) {
+    console.error('Error attaching schematic:', error);
+    res.status(500).json({ error: 'Failed to attach schematic' });
+  }
+});
+
+app.delete('/api/bench-jobs/:id/schematics/:schematicId', async (req, res) => {
+  try {
+    await db.delete(schema.jobSchematics)
+      .where(and(
+        eq(schema.jobSchematics.benchJobId, req.params.id),
+        eq(schema.jobSchematics.schematicId, req.params.schematicId)
+      ));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error detaching schematic:', error);
+    res.status(500).json({ error: 'Failed to detach schematic' });
   }
 });
 

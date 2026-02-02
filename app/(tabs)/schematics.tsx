@@ -20,6 +20,11 @@ import axios from 'axios';
 
 const API_URL = '';
 
+interface ExternalLink {
+  label: string;
+  url: string;
+}
+
 interface Schematic {
   id: string;
   name: string;
@@ -29,6 +34,7 @@ interface Schematic {
   isUserUploaded: boolean;
   tags: string;
   notes: string;
+  externalLinks: ExternalLink[] | null;
   createdAt: string;
 }
 
@@ -61,7 +67,10 @@ export default function SchematicsScreen() {
     tags: '',
     notes: '',
     fileUrl: '',
+    externalLinks: [] as ExternalLink[],
   });
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
 
   useEffect(() => {
     fetchSchematics();
@@ -289,7 +298,10 @@ export default function SchematicsScreen() {
         tags: '',
         notes: '',
         fileUrl: '',
+        externalLinks: [],
       });
+      setNewLinkLabel('');
+      setNewLinkUrl('');
       setFileName('');
       if (Platform.OS === 'web') {
         window.alert('Schematic added to library');
@@ -515,6 +527,58 @@ export default function SchematicsScreen() {
                 multiline
                 numberOfLines={3}
               />
+
+              <Text style={styles.inputLabel}>External Links</Text>
+              {newSchematic.externalLinks.map((link, index) => (
+                <View key={index} style={styles.linkItem}>
+                  <View style={styles.linkItemContent}>
+                    <Text style={styles.linkLabel}>{link.label}</Text>
+                    <Text style={styles.linkUrl} numberOfLines={1}>{link.url}</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const updated = [...newSchematic.externalLinks];
+                      updated.splice(index, 1);
+                      setNewSchematic({ ...newSchematic, externalLinks: updated });
+                    }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <View style={styles.addLinkRow}>
+                <TextInput
+                  style={[styles.input, styles.linkLabelInput]}
+                  value={newLinkLabel}
+                  onChangeText={setNewLinkLabel}
+                  placeholder="Label"
+                  placeholderTextColor="#6b7280"
+                />
+                <TextInput
+                  style={[styles.input, styles.linkUrlInput]}
+                  value={newLinkUrl}
+                  onChangeText={setNewLinkUrl}
+                  placeholder="https://..."
+                  placeholderTextColor="#6b7280"
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+                <TouchableOpacity
+                  style={styles.addLinkButton}
+                  onPress={() => {
+                    if (newLinkLabel && newLinkUrl) {
+                      setNewSchematic({
+                        ...newSchematic,
+                        externalLinks: [...newSchematic.externalLinks, { label: newLinkLabel, url: newLinkUrl }],
+                      });
+                      setNewLinkLabel('');
+                      setNewLinkUrl('');
+                    }
+                  }}
+                >
+                  <Ionicons name="add" size={20} color="#f59e0b" />
+                </TouchableOpacity>
+              </View>
 
               <Text style={styles.inputLabel}>Schematic File *</Text>
               
@@ -790,6 +854,48 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 80,
     textAlignVertical: 'top',
+  },
+  linkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  linkItemContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  linkLabel: {
+    color: '#e5e7eb',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  linkUrl: {
+    color: '#6b7280',
+    fontSize: 12,
+  },
+  addLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  linkLabelInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  linkUrlInput: {
+    flex: 2,
+    marginBottom: 0,
+  },
+  addLinkButton: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   circuitScroll: {
     marginVertical: 8,
