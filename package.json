@@ -43,6 +43,7 @@
     "concurrently": "^9.2.1",
     "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.6",
+    "drizzle-kit": "^0.31.8",
     "drizzle-orm": "^0.45.1",
     "drizzle-zod": "^0.8.3",
     "expo": "^54.0.9",
