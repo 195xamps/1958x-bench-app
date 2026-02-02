@@ -1236,6 +1236,105 @@ app.delete('/api/reference-articles/:id', async (req, res) => {
   }
 });
 
+// TAVA Podcast endpoints
+app.get('/api/podcast/episodes', async (req, res) => {
+  try {
+    const episodes = await db.select().from(schema.podcastEpisodes).orderBy(schema.podcastEpisodes.episodeNumber);
+    res.json(episodes);
+  } catch (error) {
+    console.error('Error fetching episodes:', error);
+    res.status(500).json({ error: 'Failed to fetch episodes' });
+  }
+});
+
+app.get('/api/podcast/topics', async (req, res) => {
+  try {
+    const topics = await db
+      .select({
+        id: schema.podcastTopics.id,
+        topic: schema.podcastTopics.topic,
+        timestamp: schema.podcastTopics.timestamp,
+        timestampSeconds: schema.podcastTopics.timestampSeconds,
+        circuitFamily: schema.podcastTopics.circuitFamily,
+        episodeNumber: schema.podcastEpisodes.episodeNumber,
+        episodeTitle: schema.podcastEpisodes.title,
+        episodeUrl: schema.podcastEpisodes.sourceUrl,
+      })
+      .from(schema.podcastTopics)
+      .leftJoin(schema.podcastEpisodes, eq(schema.podcastTopics.episodeId, schema.podcastEpisodes.id))
+      .orderBy(schema.podcastEpisodes.episodeNumber);
+    res.json(topics);
+  } catch (error) {
+    console.error('Error fetching topics:', error);
+    res.status(500).json({ error: 'Failed to fetch topics' });
+  }
+});
+
+app.get('/api/podcast/search', async (req, res) => {
+  try {
+    const query = (req.query.q as string || '').toLowerCase();
+    if (!query) {
+      return res.json([]);
+    }
+    const topics = await db
+      .select({
+        id: schema.podcastTopics.id,
+        topic: schema.podcastTopics.topic,
+        timestamp: schema.podcastTopics.timestamp,
+        timestampSeconds: schema.podcastTopics.timestampSeconds,
+        circuitFamily: schema.podcastTopics.circuitFamily,
+        episodeNumber: schema.podcastEpisodes.episodeNumber,
+        episodeTitle: schema.podcastEpisodes.title,
+        episodeUrl: schema.podcastEpisodes.sourceUrl,
+      })
+      .from(schema.podcastTopics)
+      .leftJoin(schema.podcastEpisodes, eq(schema.podcastTopics.episodeId, schema.podcastEpisodes.id))
+      .where(ilike(schema.podcastTopics.topic, `%${query}%`))
+      .orderBy(schema.podcastEpisodes.episodeNumber);
+    res.json(topics);
+  } catch (error) {
+    console.error('Error searching topics:', error);
+    res.status(500).json({ error: 'Failed to search topics' });
+  }
+});
+
+app.post('/api/podcast/import', async (req, res) => {
+  try {
+    const { episodes } = req.body;
+    if (!episodes || !Array.isArray(episodes)) {
+      return res.status(400).json({ error: 'Episodes array is required' });
+    }
+
+    let importedCount = 0;
+    for (const ep of episodes) {
+      const [episode] = await db.insert(schema.podcastEpisodes).values({
+        episodeNumber: ep.number,
+        title: ep.title,
+        sourceUrl: ep.url,
+        description: ep.description || null,
+      }).returning();
+
+      if (ep.topics && Array.isArray(ep.topics)) {
+        for (const topic of ep.topics) {
+          await db.insert(schema.podcastTopics).values({
+            episodeId: episode.id,
+            topic: topic.text,
+            timestamp: topic.timestamp || null,
+            timestampSeconds: topic.seconds || null,
+            circuitFamily: topic.circuitFamily || null,
+          });
+        }
+      }
+      importedCount++;
+    }
+
+    res.json({ success: true, imported: importedCount });
+  } catch (error) {
+    console.error('Error importing podcast data:', error);
+    res.status(500).json({ error: 'Failed to import podcast data' });
+  }
+});
+
 app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'dist', 'server', '(tabs)', 'index.html'));
 });

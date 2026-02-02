@@ -18,7 +18,7 @@ import axios from 'axios';
 
 const API_URL = '';
 
-type SubTab = 'flowcharts' | 'voltages' | 'calculator' | 'articles';
+type SubTab = 'flowcharts' | 'voltages' | 'calculator' | 'articles' | 'tava';
 
 interface ReferenceArticle {
   id: string;
@@ -27,6 +27,17 @@ interface ReferenceArticle {
   sourceName: string;
   circuitFamily: string | null;
   createdAt: string;
+}
+
+interface PodcastTopic {
+  id: string;
+  topic: string;
+  timestamp: string | null;
+  timestampSeconds: number | null;
+  circuitFamily: string | null;
+  episodeNumber: number;
+  episodeTitle: string;
+  episodeUrl: string;
 }
 
 interface FlowchartNode {
@@ -443,9 +454,18 @@ export default function ReferenceScreen() {
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
 
+  const [podcastTopics, setPodcastTopics] = useState<PodcastTopic[]>([]);
+  const [loadingPodcast, setLoadingPodcast] = useState(false);
+  const [podcastSearch, setPodcastSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<PodcastTopic[]>([]);
+  const [searching, setSearching] = useState(false);
+
   useEffect(() => {
     if (activeTab === 'articles') {
       fetchArticles();
+    }
+    if (activeTab === 'tava') {
+      fetchPodcastTopics();
     }
   }, [activeTab]);
 
@@ -497,6 +517,39 @@ export default function ReferenceScreen() {
     } catch (error) {
       console.error('Error deleting article:', error);
     }
+  };
+
+  const fetchPodcastTopics = async () => {
+    setLoadingPodcast(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/podcast/topics`);
+      setPodcastTopics(response.data);
+    } catch (error) {
+      console.error('Error fetching podcast topics:', error);
+    } finally {
+      setLoadingPodcast(false);
+    }
+  };
+
+  const handlePodcastSearch = async (query: string) => {
+    setPodcastSearch(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/podcast/search?q=${encodeURIComponent(query)}`);
+      setSearchResults(response.data);
+    } catch (error) {
+      console.error('Error searching podcast:', error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const openPodcastEpisode = (url: string) => {
+    Linking.openURL(url);
   };
 
   const startFlowchart = (flowchart: Flowchart) => {
@@ -914,6 +967,118 @@ export default function ReferenceScreen() {
     </ScrollView>
   );
 
+  const renderTavaTab = () => {
+    const topicsToShow = podcastSearch.trim() ? searchResults : podcastTopics;
+    const groupedByEpisode = topicsToShow.reduce((acc, topic) => {
+      const epKey = `${topic.episodeNumber}-${topic.episodeTitle}`;
+      if (!acc[epKey]) {
+        acc[epKey] = {
+          episodeNumber: topic.episodeNumber,
+          episodeTitle: topic.episodeTitle,
+          episodeUrl: topic.episodeUrl,
+          topics: [],
+        };
+      }
+      acc[epKey].topics.push(topic);
+      return acc;
+    }, {} as Record<string, { episodeNumber: number; episodeTitle: string; episodeUrl: string; topics: PodcastTopic[] }>);
+
+    const episodes = Object.values(groupedByEpisode).sort((a, b) => a.episodeNumber - b.episodeNumber);
+
+    return (
+      <ScrollView style={styles.tavaContainer}>
+        <View style={styles.tavaHeader}>
+          <Text style={styles.sectionTitle}>TAVA Podcast Index</Text>
+          <Text style={styles.sectionSubtitle}>The Truth About Vintage Amps</Text>
+        </View>
+
+        <View style={styles.podcastSearchContainer}>
+          <Ionicons name="search" size={20} color="#9ca3af" />
+          <TextInput
+            style={styles.podcastSearchInput}
+            placeholder="Search topics..."
+            placeholderTextColor="#6b7280"
+            value={podcastSearch}
+            onChangeText={handlePodcastSearch}
+          />
+          {searching && <ActivityIndicator size="small" color="#f59e0b" />}
+          {podcastSearch.length > 0 && (
+            <TouchableOpacity onPress={() => { setPodcastSearch(''); setSearchResults([]); }}>
+              <Ionicons name="close-circle" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {loadingPodcast ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#f59e0b" />
+            <Text style={styles.loadingText}>Loading podcast topics...</Text>
+          </View>
+        ) : episodes.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="mic-outline" size={64} color="#374151" />
+            <Text style={styles.emptyTitle}>
+              {podcastSearch.trim() ? 'No Results' : 'No Episodes Yet'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {podcastSearch.trim() 
+                ? `No topics match "${podcastSearch}"` 
+                : 'Podcast topic index will appear here'
+              }
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.episodesList}>
+            {episodes.map((ep) => (
+              <View key={`ep-${ep.episodeNumber}`} style={styles.episodeCard}>
+                <TouchableOpacity 
+                  style={styles.episodeHeader}
+                  onPress={() => openPodcastEpisode(ep.episodeUrl)}
+                >
+                  <View style={styles.episodeNumberBadge}>
+                    <Text style={styles.episodeNumberText}>#{ep.episodeNumber}</Text>
+                  </View>
+                  <Text style={styles.episodeTitleText} numberOfLines={2}>
+                    {ep.episodeTitle}
+                  </Text>
+                  <Ionicons name="open-outline" size={16} color="#9ca3af" />
+                </TouchableOpacity>
+                <View style={styles.topicsList}>
+                  {ep.topics.map((topic) => (
+                    <View key={topic.id} style={styles.topicItem}>
+                      {topic.timestamp && (
+                        <Text style={styles.topicTimestamp}>{topic.timestamp}</Text>
+                      )}
+                      <Text style={styles.topicText}>{topic.topic}</Text>
+                      {topic.circuitFamily && (
+                        <View style={styles.circuitBadge}>
+                          <Text style={styles.circuitBadgeText}>{topic.circuitFamily}</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.creditSection}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL('https://fretboardjournal.com/the-truth-about-vintage-amps-podcast/')}
+          >
+            <Text style={styles.creditText}>
+              Podcast from{' '}
+              <Text style={styles.creditLink}>The Fretboard Journal</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.tabBar}>
@@ -969,6 +1134,19 @@ export default function ReferenceScreen() {
             Articles
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'tava' && styles.activeTab]}
+          onPress={() => setActiveTab('tava')}
+        >
+          <Ionicons 
+            name="mic" 
+            size={20} 
+            color={activeTab === 'tava' ? '#f59e0b' : '#9ca3af'} 
+          />
+          <Text style={[styles.tabText, activeTab === 'tava' && styles.activeTabText]}>
+            TAVA
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
@@ -976,6 +1154,7 @@ export default function ReferenceScreen() {
         {activeTab === 'voltages' && <ScrollView>{renderVoltages()}</ScrollView>}
         {activeTab === 'calculator' && renderCalculator()}
         {activeTab === 'articles' && renderArticles()}
+        {activeTab === 'tava' && renderTavaTab()}
       </View>
 
       <Modal
@@ -1505,5 +1684,83 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     fontSize: 16,
     fontWeight: '600',
+  },
+  tavaContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  tavaHeader: {
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  podcastSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+    gap: 10,
+  },
+  podcastSearchInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+  },
+  episodesList: {
+    gap: 16,
+  },
+  episodeCard: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  episodeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    backgroundColor: '#374151',
+    gap: 12,
+  },
+  episodeNumberBadge: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  episodeNumberText: {
+    color: '#1f2937',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  episodeTitleText: {
+    flex: 1,
+    color: '#e5e7eb',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  topicsList: {
+    padding: 12,
+    gap: 8,
+  },
+  topicItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  topicTimestamp: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    minWidth: 50,
+  },
+  topicText: {
+    flex: 1,
+    color: '#d1d5db',
+    fontSize: 14,
   },
 });

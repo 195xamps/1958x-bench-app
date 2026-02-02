@@ -170,6 +170,25 @@ async function migrate() {
         tags TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS podcast_episodes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        episode_number INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS podcast_topics (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        episode_id UUID REFERENCES podcast_episodes(id),
+        topic TEXT NOT NULL,
+        timestamp TEXT,
+        timestamp_seconds INTEGER,
+        circuit_family TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     
     console.log('Migration completed successfully!');

@@ -169,3 +169,22 @@ export const referenceArticles = pgTable('reference_articles', {
   tags: text('tags'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+export const podcastEpisodes = pgTable('podcast_episodes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  episodeNumber: integer('episode_number').notNull(),
+  title: text('title').notNull(),
+  sourceUrl: text('source_url').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const podcastTopics = pgTable('podcast_topics', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  episodeId: uuid('episode_id').references(() => podcastEpisodes.id),
+  topic: text('topic').notNull(),
+  timestamp: text('timestamp'),
+  timestampSeconds: integer('timestamp_seconds'),
+  circuitFamily: text('circuit_family'),
+  createdAt: timestamp('created_at').defaultNow(),
+});

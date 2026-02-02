@@ -143,6 +143,13 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **TAVA Podcast Index** - Searchable topic index for "The Truth About Vintage Amps" podcast
+  - New TAVA sub-tab in Reference screen
+  - Searchable topic index with episode grouping
+  - Timestamps displayed for manual seeking in podcast episodes
+  - Tap episode header to open in podcast player
+  - Database tables: podcast_episodes, podcast_topics
+  - API endpoints: GET /api/podcast/episodes, GET /api/podcast/topics, GET /api/podcast/search, POST /api/podcast/import
 - Feb 2026: **Job Status Workflow & Search** - Enhanced job management workflow
   - 5 job statuses: Active (blue), In Progress (amber), Waiting Parts (purple), Completed (green), Archived (gray)
   - Status picker modal in job detail header - tap status badge to change
