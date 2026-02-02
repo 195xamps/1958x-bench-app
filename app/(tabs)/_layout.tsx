@@ -1,7 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const isAdmin = user?.isAdmin === true;
+
   return (
     <Tabs
       screenOptions={{
@@ -57,6 +61,16 @@ export default function TabLayout() {
           title: 'Reference',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="book" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Admin',
+          href: isAdmin ? '/admin' : null,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="shield-checkmark" size={size} color={color} />
           ),
         }}
       />

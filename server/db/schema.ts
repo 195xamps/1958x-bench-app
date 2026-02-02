@@ -166,6 +166,7 @@ export const media = pgTable('media', {
 
 export const chats = pgTable('chats', {
   id: uuid('id').primaryKey().defaultRandom(),
+  userId: varchar('user_id').references(() => users.id),
   title: text('title').default('New Chat'),
   benchJobId: uuid('bench_job_id').references(() => benchJobs.id),
   isStandalone: boolean('is_standalone').default(true),

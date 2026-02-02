@@ -30,16 +30,22 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: '195x Bench App API running' });
 });
 
-app.get('/api/bench-jobs', async (req, res) => {
+app.get('/api/bench-jobs', async (req: any, res) => {
   try {
     const { status, search } = req.query;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
     let query = db.select({
       job: schema.benchJobs,
       ampProfile: schema.ampProfiles,
     }).from(schema.benchJobs)
       .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id));
     
-    const conditions = [];
+    const conditions = [eq(schema.benchJobs.userId, userId)];
     if (status && status !== 'all') {
       conditions.push(eq(schema.benchJobs.status, status as string));
     }
@@ -55,9 +61,7 @@ app.get('/api/bench-jobs', async (req, res) => {
       );
     }
     
-    const results = conditions.length > 0 
-      ? await query.where(and(...conditions)).orderBy(desc(schema.benchJobs.createdAt))
-      : await query.orderBy(desc(schema.benchJobs.createdAt));
+    const results = await query.where(and(...conditions)).orderBy(desc(schema.benchJobs.createdAt));
     
     res.json(results);
   } catch (error) {
@@ -66,8 +70,13 @@ app.get('/api/bench-jobs', async (req, res) => {
   }
 });
 
-app.post('/api/bench-jobs', async (req, res) => {
+app.post('/api/bench-jobs', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
     const { ampMake, ampModel, ampYear, ownerSymptoms, techNotes, priorWork, knownMods, circuitFamily, serialNumber, photoUrl } = req.body;
     
     if (!ampMake || !ampModel) {
@@ -84,6 +93,7 @@ app.post('/api/bench-jobs', async (req, res) => {
     }).returning();
 
     const [benchJob] = await db.insert(schema.benchJobs).values({
+      userId,
       ampProfileId: ampProfile.id,
       ownerSymptoms,
       techNotes,
@@ -98,11 +108,18 @@ app.post('/api/bench-jobs', async (req, res) => {
   }
 });
 
-app.get('/api/bench-jobs/:id', async (req, res) => {
+app.get('/api/bench-jobs/:id', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
     const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
     if (!job) {
       return res.status(404).json({ error: 'Bench job not found' });
+    }
+    
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     
     const [ampProfile] = job.ampProfileId 
@@ -119,8 +136,19 @@ app.get('/api/bench-jobs/:id', async (req, res) => {
   }
 });
 
-app.patch('/api/bench-jobs/:id/safety-checklist', async (req, res) => {
+app.patch('/api/bench-jobs/:id/safety-checklist', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const [updated] = await db.update(schema.benchJobs)
       .set({ safetyChecklistCompleted: true, updatedAt: new Date() })
       .where(eq(schema.benchJobs.id, req.params.id))
@@ -132,17 +160,25 @@ app.patch('/api/bench-jobs/:id/safety-checklist', async (req, res) => {
   }
 });
 
-app.patch('/api/bench-jobs/:id/notes', async (req, res) => {
+app.patch('/api/bench-jobs/:id/notes', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const { techNotes } = req.body;
     const [updated] = await db
       .update(schema.benchJobs)
       .set({ techNotes, updatedAt: new Date() })
       .where(eq(schema.benchJobs.id, req.params.id))
       .returning();
-    if (!updated) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
     res.json(updated);
   } catch (error) {
     console.error('Error updating notes:', error);
@@ -150,8 +186,19 @@ app.patch('/api/bench-jobs/:id/notes', async (req, res) => {
   }
 });
 
-app.patch('/api/bench-jobs/:id/status', async (req, res) => {
+app.patch('/api/bench-jobs/:id/status', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const { status } = req.body;
     const validStatuses = ['active', 'in_progress', 'waiting_parts', 'completed', 'archived'];
     if (!validStatuses.includes(status)) {
@@ -162,9 +209,6 @@ app.patch('/api/bench-jobs/:id/status', async (req, res) => {
       .set({ status, updatedAt: new Date() })
       .where(eq(schema.benchJobs.id, req.params.id))
       .returning();
-    if (!updated) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
     res.json(updated);
   } catch (error) {
     console.error('Error updating status:', error);
@@ -172,13 +216,20 @@ app.patch('/api/bench-jobs/:id/status', async (req, res) => {
   }
 });
 
-app.patch('/api/bench-jobs/:id/amp-profile', async (req, res) => {
+app.patch('/api/bench-jobs/:id/amp-profile', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
     const { make, model, year, circuitFamily } = req.body;
     const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
     if (!job || !job.ampProfileId) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const [updated] = await db
       .update(schema.ampProfiles)
       .set({ make, model, year, circuitFamily })
@@ -192,13 +243,18 @@ app.patch('/api/bench-jobs/:id/amp-profile', async (req, res) => {
   }
 });
 
-app.delete('/api/bench-jobs/:id', async (req, res) => {
+app.delete('/api/bench-jobs/:id', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
     const jobId = req.params.id;
     
     const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, jobId));
     if (!job) {
       return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     
     await db.delete(schema.chatMessages)
@@ -220,8 +276,10 @@ app.delete('/api/bench-jobs/:id', async (req, res) => {
   }
 });
 
-app.post('/api/troubleshooting/start', async (req, res) => {
+app.post('/api/troubleshooting/start', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
     const { benchJobId, mode = 'guided' } = req.body;
     
     if (!benchJobId) {
@@ -231,6 +289,9 @@ app.post('/api/troubleshooting/start', async (req, res) => {
     const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, benchJobId));
     if (!benchJob) {
       return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (benchJob.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     
     if (!benchJob.safetyChecklistCompleted) {
@@ -253,13 +314,22 @@ app.post('/api/troubleshooting/start', async (req, res) => {
   }
 });
 
-app.post('/api/troubleshooting/chat', async (req, res) => {
+app.post('/api/troubleshooting/chat', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
     const { sessionId, message, benchJobContext } = req.body;
     
     const [session] = await db.select().from(schema.troubleshootingSessions).where(eq(schema.troubleshootingSessions.id, sessionId));
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.benchJobId) {
+      const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, session.benchJobId));
+      if (benchJob && benchJob.userId !== userId && !isAdmin) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
     }
     
     const history = (session.aiConversationHistory as any[]) || [];
@@ -301,8 +371,10 @@ app.post('/api/troubleshooting/chat', async (req, res) => {
   }
 });
 
-app.post('/api/measurements', async (req, res) => {
+app.post('/api/measurements', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
     const { benchJobId, nodeName, expectedMin, expectedMax, recordedValue, unit, meterTool, meterMode, notes, testStepId } = req.body;
     
     if (!benchJobId) {
@@ -316,6 +388,9 @@ app.post('/api/measurements', async (req, res) => {
     const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, benchJobId));
     if (!benchJob) {
       return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (benchJob.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     
     if (!benchJob.safetyChecklistCompleted) {
@@ -359,8 +434,19 @@ app.post('/api/measurements', async (req, res) => {
   }
 });
 
-app.get('/api/measurements/:benchJobId', async (req, res) => {
+app.get('/api/measurements/:benchJobId', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
+    const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.benchJobId));
+    if (!benchJob) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (benchJob.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const measurements = await db.select().from(schema.measurements).where(eq(schema.measurements.benchJobId, req.params.benchJobId));
     res.json(measurements);
   } catch (error) {
@@ -531,8 +617,19 @@ app.delete('/api/schematics/:id', async (req, res) => {
   }
 });
 
-app.get('/api/bench-jobs/:id/schematics', async (req, res) => {
+app.get('/api/bench-jobs/:id/schematics', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const jobSchematics = await db
       .select({ schematic: schema.schematics })
       .from(schema.jobSchematics)
@@ -545,8 +642,19 @@ app.get('/api/bench-jobs/:id/schematics', async (req, res) => {
   }
 });
 
-app.post('/api/bench-jobs/:id/schematics', async (req, res) => {
+app.post('/api/bench-jobs/:id/schematics', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const { schematicId } = req.body;
     const existing = await db.select()
       .from(schema.jobSchematics)
@@ -568,8 +676,19 @@ app.post('/api/bench-jobs/:id/schematics', async (req, res) => {
   }
 });
 
-app.delete('/api/bench-jobs/:id/schematics/:schematicId', async (req, res) => {
+app.delete('/api/bench-jobs/:id/schematics/:schematicId', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     await db.delete(schema.jobSchematics)
       .where(and(
         eq(schema.jobSchematics.benchJobId, req.params.id),
@@ -654,7 +773,7 @@ When the app provides database context (schematics, jobs, measurements), you MUS
 
 Remember: Be the kind of mentor who gives thorough, educational responses that help the technician learn, not just quick answers. Provide context, explain reasoning, and share the expertise that comes from decades of bench experience.`;
 
-async function getRelevantDatabaseContext(message: string): Promise<string | null> {
+async function getRelevantDatabaseContext(message: string, userId?: string): Promise<string | null> {
   const lowerMessage = message.toLowerCase();
   let context = '';
   
@@ -686,12 +805,16 @@ async function getRelevantDatabaseContext(message: string): Promise<string | nul
     }
     
     if (lowerMessage.includes('job') || lowerMessage.includes('worked on') || lowerMessage.includes('have i') || lowerMessage.includes('past') || lowerMessage.includes('history')) {
-      const jobs = await db.select({
+      let jobQuery = db.select({
         job: schema.benchJobs,
         amp: schema.ampProfiles
       }).from(schema.benchJobs)
         .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
         .orderBy(desc(schema.benchJobs.createdAt));
+      
+      const jobs = userId 
+        ? await jobQuery.where(eq(schema.benchJobs.userId, userId))
+        : await jobQuery;
       
       if (jobs.length > 0) {
         context += `\n\nPAST BENCH JOBS (${jobs.length} total):\n`;
@@ -711,11 +834,15 @@ async function getRelevantDatabaseContext(message: string): Promise<string | nul
     const foundKeywords = allKeywords.filter(kw => lowerMessage.includes(kw));
     
     if (foundKeywords.length > 0) {
-      const jobs = await db.select({
+      let kwJobQuery = db.select({
         job: schema.benchJobs,
         amp: schema.ampProfiles
       }).from(schema.benchJobs)
         .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id));
+      
+      const jobs = userId 
+        ? await kwJobQuery.where(eq(schema.benchJobs.userId, userId))
+        : await kwJobQuery;
       
       for (const foundKeyword of foundKeywords) {
         const matchingJobs = jobs.filter(({ amp }) => 
@@ -757,9 +884,16 @@ async function getRelevantDatabaseContext(message: string): Promise<string | nul
   }
 }
 
-app.get('/api/chats', async (req, res) => {
+app.get('/api/chats', async (req: any, res) => {
   try {
-    const allChats = await db.select().from(schema.chats).orderBy(desc(schema.chats.updatedAt));
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
+    const allChats = await db.select().from(schema.chats)
+      .where(eq(schema.chats.userId, userId))
+      .orderBy(desc(schema.chats.updatedAt));
     res.json(allChats);
   } catch (error) {
     console.error('Error fetching chats:', error);
@@ -767,11 +901,17 @@ app.get('/api/chats', async (req, res) => {
   }
 });
 
-app.post('/api/chats', async (req, res) => {
+app.post('/api/chats', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
     const { title, benchJobId } = req.body;
     
     const [chat] = await db.insert(schema.chats).values({
+      userId,
       title: title || 'New Chat',
       benchJobId: benchJobId || null,
       isStandalone: !benchJobId,
@@ -784,11 +924,17 @@ app.post('/api/chats', async (req, res) => {
   }
 });
 
-app.get('/api/chats/:id', async (req, res) => {
+app.get('/api/chats/:id', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, req.params.id));
     if (!chat) {
       return res.status(404).json({ error: 'Chat not found' });
+    }
+    if (chat.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     
     const messages = await db.select().from(schema.chatMessages)
@@ -802,18 +948,24 @@ app.get('/api/chats/:id', async (req, res) => {
   }
 });
 
-app.patch('/api/chats/:id', async (req, res) => {
+app.patch('/api/chats/:id', async (req: any, res) => {
   try {
-    const { title } = req.body;
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
     
+    const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, req.params.id));
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found' });
+    }
+    if (chat.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const { title } = req.body;
     const [updated] = await db.update(schema.chats)
       .set({ title, updatedAt: new Date() })
       .where(eq(schema.chats.id, req.params.id))
       .returning();
-    
-    if (!updated) {
-      return res.status(404).json({ error: 'Chat not found' });
-    }
     
     res.json(updated);
   } catch (error) {
@@ -822,17 +974,21 @@ app.patch('/api/chats/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/chats/:id', async (req, res) => {
+app.delete('/api/chats/:id', async (req: any, res) => {
   try {
-    await db.delete(schema.chatMessages).where(eq(schema.chatMessages.chatId, req.params.id));
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
     
-    const [deleted] = await db.delete(schema.chats)
-      .where(eq(schema.chats.id, req.params.id))
-      .returning();
-    
-    if (!deleted) {
+    const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, req.params.id));
+    if (!chat) {
       return res.status(404).json({ error: 'Chat not found' });
     }
+    if (chat.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    await db.delete(schema.chatMessages).where(eq(schema.chatMessages.chatId, req.params.id));
+    await db.delete(schema.chats).where(eq(schema.chats.id, req.params.id));
     
     res.json({ success: true });
   } catch (error) {
@@ -841,14 +997,19 @@ app.delete('/api/chats/:id', async (req, res) => {
   }
 });
 
-app.post('/api/chats/:id/messages', async (req, res) => {
+app.post('/api/chats/:id/messages', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
     const { content, attachments } = req.body;
     const chatId = req.params.id;
     
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
     if (!chat) {
       return res.status(404).json({ error: 'Chat not found' });
+    }
+    if (chat.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     
     let validatedAttachments = null;
@@ -888,7 +1049,7 @@ app.post('/api/chats/:id/messages', async (req, res) => {
       }
     }
     
-    const dbContext = await getRelevantDatabaseContext(content);
+    const dbContext = await getRelevantDatabaseContext(content, userId);
     if (dbContext) {
       contextInfo += dbContext;
     }
@@ -958,13 +1119,22 @@ app.post('/api/chats/:id/messages', async (req, res) => {
   }
 });
 
-app.post('/api/chats/:id/convert-to-job', async (req, res) => {
+app.post('/api/chats/:id/convert-to-job', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
     const chatId = req.params.id;
     
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
     if (!chat) {
       return res.status(404).json({ error: 'Chat not found' });
+    }
+    if (chat.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
     }
     
     if (chat.benchJobId) {
@@ -977,6 +1147,7 @@ app.post('/api/chats/:id/convert-to-job', async (req, res) => {
     }).returning();
     
     const [benchJob] = await db.insert(schema.benchJobs).values({
+      userId,
       ampProfileId: ampProfile.id,
       techNotes: `Converted from chat: ${chat.title}`,
     }).returning();
@@ -993,14 +1164,29 @@ app.post('/api/chats/:id/convert-to-job', async (req, res) => {
   }
 });
 
-app.get('/api/bench-jobs/:id/chat', async (req, res) => {
+app.get('/api/bench-jobs/:id/chat', async (req: any, res) => {
   try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    
     const benchJobId = req.params.id;
+    
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, benchJobId));
+    if (!job) {
+      return res.status(404).json({ error: 'Bench job not found' });
+    }
+    if (job.userId !== userId && !isAdmin) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     
     let [chat] = await db.select().from(schema.chats).where(eq(schema.chats.benchJobId, benchJobId));
     
     if (!chat) {
       [chat] = await db.insert(schema.chats).values({
+        userId,
         title: 'Job Chat',
         benchJobId,
         isStandalone: false,
@@ -1518,6 +1704,104 @@ app.post('/api/podcast/sync', async (req, res) => {
   } catch (error) {
     console.error('Error syncing podcast data:', error);
     res.status(500).json({ error: 'Failed to sync podcast data' });
+  }
+});
+
+// Admin API Endpoints
+app.get('/api/admin/users', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const allUsers = await db.select().from(schema.users).orderBy(desc(schema.users.createdAt));
+    res.json(allUsers);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.get('/api/admin/users/:userId/chats', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const { userId } = req.params;
+    const userChats = await db.select().from(schema.chats)
+      .where(eq(schema.chats.userId, userId))
+      .orderBy(desc(schema.chats.updatedAt));
+    res.json(userChats);
+  } catch (error) {
+    console.error('Error fetching user chats:', error);
+    res.status(500).json({ error: 'Failed to fetch user chats' });
+  }
+});
+
+app.get('/api/admin/users/:userId/jobs', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const { userId } = req.params;
+    const userJobs = await db.select({
+      job: schema.benchJobs,
+      ampProfile: schema.ampProfiles,
+    }).from(schema.benchJobs)
+      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+      .where(eq(schema.benchJobs.userId, userId))
+      .orderBy(desc(schema.benchJobs.createdAt));
+    res.json(userJobs);
+  } catch (error) {
+    console.error('Error fetching user jobs:', error);
+    res.status(500).json({ error: 'Failed to fetch user jobs' });
+  }
+});
+
+app.get('/api/admin/all-chats', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const allChats = await db.select({
+      chat: schema.chats,
+      user: schema.users,
+    }).from(schema.chats)
+      .leftJoin(schema.users, eq(schema.chats.userId, schema.users.id))
+      .orderBy(desc(schema.chats.updatedAt));
+    res.json(allChats);
+  } catch (error) {
+    console.error('Error fetching all chats:', error);
+    res.status(500).json({ error: 'Failed to fetch all chats' });
+  }
+});
+
+app.get('/api/admin/all-jobs', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    const allJobs = await db.select({
+      job: schema.benchJobs,
+      ampProfile: schema.ampProfiles,
+      user: schema.users,
+    }).from(schema.benchJobs)
+      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+      .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
+      .orderBy(desc(schema.benchJobs.createdAt));
+    res.json(allJobs);
+  } catch (error) {
+    console.error('Error fetching all jobs:', error);
+    res.status(500).json({ error: 'Failed to fetch all jobs' });
   }
 });
 

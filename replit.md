@@ -143,6 +143,13 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **User Isolation & Admin Dashboard** - Multi-user support with data isolation
+  - Each user only sees their own chats and bench jobs
+  - Schematics and references remain shared for all users
+  - Admin tab (visible only for admin) with user management dashboard
+  - Admin can view all users, chats, and jobs across the system
+  - Ownership verification on all read/write/delete operations
+  - API endpoints: GET /api/admin/users, /api/admin/all-chats, /api/admin/all-jobs
 - Feb 2026: **Google Authentication** - User accounts with Google OAuth
   - Login screen with "Sign in with Google" button
   - Only Google accounts supported (no other auth methods)
