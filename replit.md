@@ -143,6 +143,21 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Comprehensive Tube Amp Calculators** - Expanded calculator section with 12 essential bench tools
+  - Organized into 5 collapsible categories: Bias & Power Tube Health, Output Power & Load Matching, Power Supply & Safety, Frequency & Coupling, General Bench Math
+  - Fixed-Bias Target Calculator: Calculate target plate current for % of max dissipation (6V6, 6L6GC, EL34, EL84, 6550)
+  - Cathode-Bias Resistor Sizing: Size resistor and wattage for target bias voltage
+  - Current from Vk/Rk: Estimate plate current from cathode voltage and resistor measurements
+  - Plate Dissipation: Calculate tube power dissipation from voltage and current
+  - Output Power from Vrms: Measure power at speaker jack with dummy load
+  - Speaker Impedance Calculator: Series/parallel/series-parallel speaker combinations with recommended OT tap
+  - Dropping Resistor Calculator: B+ voltage drop and power rating for resistor selection
+  - Capacitor Discharge Time: Safety calculator with danger level (Low/Dangerous/LETHAL) and discharge time estimate
+  - Filter RC Time Constant: Ripple filter effectiveness calculation
+  - Coupling Cap High-Pass Cutoff: Why does it sound thin after a cap change?
+  - Cathode Bypass Capacitor: Size bypass cap for bass boost
+  - Ohm's Law + Power: Enter any 2 values to calculate the others
+  - Voltage Divider: For bias feeds, NFB tweaks, etc.
 - Feb 2026: **TAVA Podcast Index** - Searchable topic index for "The Truth About Vintage Amps" podcast
   - New TAVA sub-tab in Reference screen
   - "Check Updates" button auto-scrapes fretboardjournal.com index page for new episodes

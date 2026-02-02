@@ -1,0 +1,68 @@
+Bias and power-tube health
+These will get used constantly.
+Fixed-bias target calculator (% of max dissipation)
+Inputs: tube type (6V6, 6L6GC, EL34, EL84), plate voltage, target % (e.g., 60–70%)
+Outputs: target plate current (mA), target cathode current estimate, dissipation (W)
+Cathode-biased resistor sizing (for target current)
+Inputs: desired cathode current, desired cathode voltage (or target dissipation + plate V), number of tubes
+Outputs: recommended cathode resistor (Ω), resistor wattage, expected Vk
+Plate current estimate from cathode resistor
+Inputs: cathode resistor value, measured Vk
+Outputs: cathode current (mA), estimated plate current (optionally subtract screen current)
+Screen resistor dissipation + safe wattage
+Inputs: measured screen current (or estimate), screen resistor value
+Outputs: watts dissipated, suggested minimum rating
+Output power and load matching
+Great for “it works but feels weak” and for sanity checks after repairs.
+Output power from Vrms into known load
+Inputs: Vrms at speaker jack (with dummy load), load ohms
+Outputs: watts, plus “typical range” hints by amp class
+Speaker impedance combinations (series/parallel)
+Inputs: speaker impedances and wiring
+Outputs: total load, recommended OT tap
+OT reflected load (turns ratio calculator)
+Inputs: OT turns ratio (or primary/secondary impedance), connected speaker load
+Outputs: reflected primary load (helps when mismatched tap/load causes weirdness)
+Power supply and filter performance
+You already have RC time constant; add the pieces that help find hum and overheating parts.
+Dropping resistor value + wattage (for B+ string design and repairs)
+Inputs: desired voltage drop, measured current through node (or estimate), resistor value
+Outputs: actual drop, watts dissipated, suggested rating
+Bleeder/discharge time estimate + discharge resistor wattage
+Inputs: capacitance (µF), initial voltage, target safe voltage, discharge resistor (Ω)
+Outputs: time to reach target, resistor power at start, suggested wattage
+(Techs love this because it turns “how long do I wait?” into a number.)
+Capacitor stored energy (Joules)
+Inputs: capacitance, voltage
+Output: energy (and a warning threshold)
+This is a great “safety education” tool and helps justify caution.
+Expected B+ estimate from HV secondary (rough)
+Inputs: HV secondary RMS (e.g., 325-0-325), rectifier type (SS, GZ34, 5U4, 5Y3), load class
+Output: ballpark B+ range
+(Not perfect, but useful for “is my B+ crazy high/low?”)
+Frequency and coupling behavior (quick “why is it thin/muddy?”)
+These are simple but super useful when someone changes a cap and the amp’s voice changes.
+Coupling cap high-pass cutoff
+Inputs: coupling cap value, grid leak (or next stage input resistance)
+Output: cutoff frequency (Hz)
+Cathode bypass cutoff (you already partially have this)
+Inputs: cathode resistor, bypass cap
+Output: cutoff frequency (Hz), plus “bass boost feel” guidance
+Grid stopper / Miller effect quick guidance (optional lite version)
+Not a full engineering model — just “bigger grid stopper tends to tame fizz/oscillation”.
+General bench math (you’ll use everywhere)
+These make the app feel complete and remove friction.
+Ohm’s law (V/I/R) + power (W)
+Parallel/series resistor calculator (including “what resistor do I add to reach X?”)
+Voltage divider calculator (for bias feeds, NFB tweaks, etc.)
+Resistor color code helper (optional, but handy on the bench)
+My “top 8” to add first (highest ROI)
+If you want to keep it tight:
+Fixed-bias target (% dissipation → mA)
+Cathode-biased resistor sizing + wattage
+Plate/cathode current from Vk/Rk
+Dropping resistor wattage
+Discharge time + discharge resistor wattage
+Output power from Vrms/load
+Speaker series/parallel impedance
+Coupling cap cutoff (high-pass)

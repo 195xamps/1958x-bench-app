@@ -447,6 +447,49 @@ export default function ReferenceScreen() {
   const [plateVoltage, setPlateVoltage] = useState('');
   const [plateCurrent, setPlateCurrent] = useState('');
   const [screenCurrent, setScreenCurrent] = useState('');
+  
+  const [expandedCalcCategory, setExpandedCalcCategory] = useState<string | null>('bias');
+  
+  const [biasPlateV, setBiasPlateV] = useState('');
+  const [biasTubeType, setBiasTubeType] = useState<'6V6' | '6L6GC' | 'EL34' | 'EL84' | '6550'>('6L6GC');
+  const [biasTargetPercent, setBiasTargetPercent] = useState('65');
+  
+  const [cathBiasDesiredCurrent, setCathBiasDesiredCurrent] = useState('');
+  const [cathBiasDesiredVk, setCathBiasDesiredVk] = useState('');
+  const [cathBiasNumTubes, setCathBiasNumTubes] = useState('2');
+  
+  const [vkRkVk, setVkRkVk] = useState('');
+  const [vkRkRk, setVkRkRk] = useState('');
+  const [vkRkScreenCurrent, setVkRkScreenCurrent] = useState('');
+  
+  const [dropResVdrop, setDropResVdrop] = useState('');
+  const [dropResCurrent, setDropResCurrent] = useState('');
+  const [dropResValue, setDropResValue] = useState('');
+  
+  const [dischargeCap, setDischargeCap] = useState('');
+  const [dischargeVstart, setDischargeVstart] = useState('');
+  const [dischargeVtarget, setDischargeVtarget] = useState('');
+  const [dischargeRes, setDischargeRes] = useState('');
+  
+  const [outputVrms, setOutputVrms] = useState('');
+  const [outputLoad, setOutputLoad] = useState('');
+  
+  const [speaker1, setSpeaker1] = useState('');
+  const [speaker2, setSpeaker2] = useState('');
+  const [speaker3, setSpeaker3] = useState('');
+  const [speaker4, setSpeaker4] = useState('');
+  const [speakerWiring, setSpeakerWiring] = useState<'series' | 'parallel' | 'series-parallel'>('parallel');
+  
+  const [couplingCapValue, setCouplingCapValue] = useState('');
+  const [couplingGridLeak, setCouplingGridLeak] = useState('');
+  
+  const [ohmV, setOhmV] = useState('');
+  const [ohmI, setOhmI] = useState('');
+  const [ohmR, setOhmR] = useState('');
+  
+  const [dividerR1, setDividerR1] = useState('');
+  const [dividerR2, setDividerR2] = useState('');
+  const [dividerVin, setDividerVin] = useState('');
 
   const [articles, setArticles] = useState<ReferenceArticle[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(false);
@@ -657,6 +700,199 @@ export default function ReferenceScreen() {
     return results;
   };
 
+  const TUBE_MAX_DISSIPATION: Record<string, number> = {
+    '6V6': 14,
+    '6L6GC': 30,
+    'EL34': 25,
+    'EL84': 12,
+    '6550': 35,
+  };
+
+  const calculateFixedBiasTarget = () => {
+    const vPlate = parseFloat(biasPlateV);
+    const targetPct = parseFloat(biasTargetPercent);
+    if (isNaN(vPlate) || isNaN(targetPct) || vPlate <= 0 || targetPct <= 0) return null;
+    const maxWatts = TUBE_MAX_DISSIPATION[biasTubeType] || 25;
+    const targetWatts = (maxWatts * targetPct) / 100;
+    const targetMa = (targetWatts / vPlate) * 1000;
+    const screenEstimate = targetMa * 0.12;
+    return {
+      maxWatts,
+      targetWatts: targetWatts.toFixed(1),
+      targetMa: targetMa.toFixed(1),
+      cathodeMa: (targetMa + screenEstimate).toFixed(1),
+    };
+  };
+
+  const calculateCathodeBiasResistor = () => {
+    const desiredCurrent = parseFloat(cathBiasDesiredCurrent);
+    const desiredVk = parseFloat(cathBiasDesiredVk);
+    const numTubes = parseInt(cathBiasNumTubes) || 1;
+    if (isNaN(desiredCurrent) || isNaN(desiredVk) || desiredCurrent <= 0 || desiredVk <= 0) return null;
+    const totalCurrent = desiredCurrent * numTubes;
+    const resistance = (desiredVk / totalCurrent) * 1000;
+    const power = (desiredVk * totalCurrent) / 1000;
+    const safeWattage = Math.ceil(power * 2);
+    return {
+      resistance: resistance.toFixed(0),
+      power: power.toFixed(1),
+      safeWattage: safeWattage > 25 ? 25 : (safeWattage < 5 ? 5 : safeWattage),
+      totalCurrent: totalCurrent.toFixed(1),
+    };
+  };
+
+  const calculateCurrentFromVkRk = () => {
+    const vk = parseFloat(vkRkVk);
+    const rk = parseFloat(vkRkRk);
+    const screenI = parseFloat(vkRkScreenCurrent) || 0;
+    if (isNaN(vk) || isNaN(rk) || vk <= 0 || rk <= 0) return null;
+    const cathodeCurrent = (vk / rk) * 1000;
+    const plateCurrent = Math.max(0, cathodeCurrent - screenI);
+    const warning = screenI > cathodeCurrent ? 'Screen current exceeds cathode current!' : null;
+    return {
+      cathodeCurrent: cathodeCurrent.toFixed(1),
+      plateCurrent: plateCurrent.toFixed(1),
+      warning,
+    };
+  };
+
+  const calculateDroppingResistor = () => {
+    const vDrop = parseFloat(dropResVdrop);
+    const current = parseFloat(dropResCurrent);
+    const resistance = parseFloat(dropResValue);
+    if (resistance > 0 && current > 0) {
+      const actualDrop = (resistance * current) / 1000;
+      const power = (actualDrop * current) / 1000;
+      return {
+        mode: 'fromRes',
+        actualDrop: actualDrop.toFixed(1),
+        power: power.toFixed(2),
+        safeWattage: Math.ceil(power * 2),
+      };
+    }
+    if (vDrop > 0 && current > 0) {
+      const neededRes = (vDrop / current) * 1000;
+      const power = (vDrop * current) / 1000;
+      return {
+        mode: 'fromDrop',
+        neededRes: neededRes.toFixed(0),
+        power: power.toFixed(2),
+        safeWattage: Math.ceil(power * 2),
+      };
+    }
+    return null;
+  };
+
+  const calculateDischargeTime = () => {
+    const cap = parseFloat(dischargeCap);
+    const vStart = parseFloat(dischargeVstart);
+    const vTarget = parseFloat(dischargeVtarget);
+    const res = parseFloat(dischargeRes);
+    if (isNaN(cap) || isNaN(vStart) || isNaN(vTarget) || isNaN(res)) return null;
+    if (cap <= 0 || vStart <= 0 || vTarget <= 0 || res <= 0 || vTarget >= vStart) return null;
+    const tauSeconds = (res * cap) / 1000000;
+    const timeToTarget = tauSeconds * Math.log(vStart / vTarget);
+    const initialPower = (vStart * vStart) / res;
+    const energy = 0.5 * (cap / 1000000) * (vStart * vStart);
+    return {
+      tau: tauSeconds.toFixed(2),
+      timeToTarget: timeToTarget.toFixed(1),
+      initialPower: initialPower.toFixed(2),
+      safeWattage: Math.ceil(initialPower * 1.5),
+      energy: energy.toFixed(2),
+      dangerLevel: energy > 10 ? 'LETHAL' : energy > 1 ? 'Dangerous' : 'Low',
+    };
+  };
+
+  const calculateOutputPower = () => {
+    const vrms = parseFloat(outputVrms);
+    const load = parseFloat(outputLoad);
+    if (isNaN(vrms) || isNaN(load) || vrms <= 0 || load <= 0) return null;
+    const watts = (vrms * vrms) / load;
+    const vpeak = vrms * Math.sqrt(2);
+    return {
+      watts: watts.toFixed(1),
+      vpeak: vpeak.toFixed(1),
+    };
+  };
+
+  const calculateSpeakerImpedance = () => {
+    const spk1 = parseFloat(speaker1) || 0;
+    const spk2 = parseFloat(speaker2) || 0;
+    const spk3 = parseFloat(speaker3) || 0;
+    const spk4 = parseFloat(speaker4) || 0;
+    const speakers = [spk1, spk2, spk3, spk4].filter(s => s > 0);
+    if (speakers.length === 0) return null;
+    if (speakers.length === 1) return { total: speakers[0].toFixed(1), tap: `${speakers[0]}Ω` };
+    let total = 0;
+    if (speakerWiring === 'series') {
+      total = speakers.reduce((a, b) => a + b, 0);
+    } else if (speakerWiring === 'parallel') {
+      total = 1 / speakers.reduce((a, b) => a + 1/b, 0);
+    } else {
+      if (speakers.length === 4) {
+        const pair1 = speakers[0] + speakers[1];
+        const pair2 = speakers[2] + speakers[3];
+        total = 1 / (1/pair1 + 1/pair2);
+      } else {
+        total = 1 / speakers.reduce((a, b) => a + 1/b, 0);
+      }
+    }
+    const nearestTaps = [2, 4, 8, 16];
+    const recommendedTap = nearestTaps.reduce((prev, curr) => 
+      Math.abs(curr - total) < Math.abs(prev - total) ? curr : prev
+    );
+    return {
+      total: total.toFixed(1),
+      tap: `${recommendedTap}Ω`,
+    };
+  };
+
+  const calculateCouplingCutoff = () => {
+    const cap = parseFloat(couplingCapValue);
+    const gridLeak = parseFloat(couplingGridLeak);
+    if (isNaN(cap) || isNaN(gridLeak) || cap <= 0 || gridLeak <= 0) return null;
+    const capFarads = cap / 1000000000;
+    const cutoff = 1 / (2 * Math.PI * gridLeak * 1000 * capFarads);
+    return {
+      cutoff: cutoff.toFixed(1),
+      bassNote: cutoff < 82 ? 'Below low E' : cutoff < 110 ? 'Around low A' : cutoff < 165 ? 'Around low E octave' : 'Mid-range',
+    };
+  };
+
+  const calculateOhmsLaw = () => {
+    const v = parseFloat(ohmV);
+    const i = parseFloat(ohmI);
+    const r = parseFloat(ohmR);
+    const known = [!isNaN(v) && v > 0, !isNaN(i) && i > 0, !isNaN(r) && r > 0].filter(Boolean).length;
+    if (known < 2) return null;
+    let result: any = {};
+    if (!isNaN(v) && v > 0 && !isNaN(i) && i > 0) {
+      result.r = (v / (i / 1000)).toFixed(1);
+      result.p = (v * (i / 1000)).toFixed(2);
+    } else if (!isNaN(v) && v > 0 && !isNaN(r) && r > 0) {
+      result.i = ((v / r) * 1000).toFixed(2);
+      result.p = ((v * v) / r).toFixed(2);
+    } else if (!isNaN(i) && i > 0 && !isNaN(r) && r > 0) {
+      result.v = ((i / 1000) * r).toFixed(1);
+      result.p = (((i / 1000) * (i / 1000)) * r).toFixed(2);
+    }
+    return result;
+  };
+
+  const calculateVoltageDivider = () => {
+    const r1 = parseFloat(dividerR1);
+    const r2 = parseFloat(dividerR2);
+    const vin = parseFloat(dividerVin);
+    if (isNaN(r1) || isNaN(r2) || isNaN(vin) || r1 <= 0 || r2 <= 0 || vin <= 0) return null;
+    const vout = (vin * r2) / (r1 + r2);
+    const ratio = r2 / (r1 + r2);
+    return {
+      vout: vout.toFixed(2),
+      ratio: (ratio * 100).toFixed(1),
+    };
+  };
+
   const renderFlowcharts = () => {
     if (selectedFlowchart) {
       const node = selectedFlowchart.nodes[currentNode];
@@ -774,154 +1010,437 @@ export default function ReferenceScreen() {
     </View>
   );
 
-  const renderCalculator = () => (
-    <ScrollView style={styles.calculatorContainer}>
-      <Text style={styles.sectionTitle}>Component Calculator</Text>
-      <Text style={styles.sectionSubtitle}>Common amp calculations</Text>
-      
-      <View style={styles.calcCard}>
-        <Text style={styles.calcTitle}>Filter RC Time Constant</Text>
-        <Text style={styles.calcDesc}>Calculate ripple filter effectiveness</Text>
-        <View style={styles.calcInputRow}>
-          <View style={styles.calcInputGroup}>
-            <Text style={styles.calcLabel}>Capacitance (uF)</Text>
-            <TextInput
-              style={styles.calcInput}
-              value={filterCapValue}
-              onChangeText={setFilterCapValue}
-              keyboardType="numeric"
-              placeholder="e.g. 47"
-              placeholderTextColor="#6b7280"
-            />
-          </View>
-          <View style={styles.calcInputGroup}>
-            <Text style={styles.calcLabel}>Resistance (ohms)</Text>
-            <TextInput
-              style={styles.calcInput}
-              value={filterResValue}
-              onChangeText={setFilterResValue}
-              keyboardType="numeric"
-              placeholder="e.g. 1000"
-              placeholderTextColor="#6b7280"
-            />
-          </View>
-        </View>
-        {calculateFilterRC() && (
-          <View style={styles.calcResult}>
-            <Text style={styles.calcResultText}>
-              Time Constant: <Text style={styles.calcResultValue}>{calculateFilterRC()?.tau} ms</Text>
-            </Text>
-            <Text style={styles.calcResultText}>
-              -3dB Cutoff: <Text style={styles.calcResultValue}>{calculateFilterRC()?.cutoff} Hz</Text>
-            </Text>
-          </View>
-        )}
-      </View>
+  const renderCalculator = () => {
+    const toggleCategory = (cat: string) => {
+      setExpandedCalcCategory(expandedCalcCategory === cat ? null : cat);
+    };
 
-      <View style={styles.calcCard}>
-        <Text style={styles.calcTitle}>Cathode Bypass Capacitor</Text>
-        <Text style={styles.calcDesc}>Size bypass cap for cathode resistor</Text>
-        <View style={styles.calcInputGroup}>
-          <Text style={styles.calcLabel}>Cathode Resistor (ohms)</Text>
-          <TextInput
-            style={styles.calcInput}
-            value={cathodeResValue}
-            onChangeText={setCathodeResValue}
-            keyboardType="numeric"
-            placeholder="e.g. 1500"
-            placeholderTextColor="#6b7280"
-          />
-        </View>
-        {calculateBypassCap() && (
-          <View style={styles.calcResult}>
-            <Text style={styles.calcResultText}>
-              Full bypass (25Hz): <Text style={styles.calcResultValue}>{calculateBypassCap()?.full} uF</Text>
-            </Text>
-            <Text style={styles.calcResultText}>
-              Partial bypass (100Hz): <Text style={styles.calcResultValue}>{calculateBypassCap()?.partial} uF</Text>
-            </Text>
-          </View>
-        )}
-      </View>
+    const tubeTypes = ['6V6', '6L6GC', 'EL34', 'EL84', '6550'] as const;
 
-      <View style={styles.calcCard}>
-        <Text style={styles.calcTitle}>Plate Dissipation</Text>
-        <Text style={styles.calcDesc}>Calculate tube power dissipation</Text>
-        <View style={styles.calcInputRow}>
-          <View style={styles.calcInputGroup}>
-            <Text style={styles.calcLabel}>Plate Voltage (V)</Text>
-            <TextInput
-              style={styles.calcInput}
-              value={plateVoltage}
-              onChangeText={setPlateVoltage}
-              keyboardType="numeric"
-              placeholder="e.g. 400"
-              placeholderTextColor="#6b7280"
-            />
-          </View>
-          <View style={styles.calcInputGroup}>
-            <Text style={styles.calcLabel}>Plate Current (mA)</Text>
-            <TextInput
-              style={styles.calcInput}
-              value={plateCurrent}
-              onChangeText={setPlateCurrent}
-              keyboardType="numeric"
-              placeholder="e.g. 35"
-              placeholderTextColor="#6b7280"
-            />
-          </View>
-        </View>
-        <View style={styles.calcInputGroup}>
-          <Text style={styles.calcLabel}>Screen Current (mA, optional)</Text>
-          <TextInput
-            style={styles.calcInput}
-            value={screenCurrent}
-            onChangeText={setScreenCurrent}
-            keyboardType="numeric"
-            placeholder="e.g. 5"
-            placeholderTextColor="#6b7280"
-          />
-        </View>
-        {calculatePlateDissipation() && (
-          <View style={styles.calcResult}>
-            <Text style={styles.calcResultText}>
-              Plate Dissipation: <Text style={styles.calcResultValue}>{calculatePlateDissipation()?.plate} W</Text>
-            </Text>
-            <Text style={styles.calcResultText}>
-              Total (with screen): <Text style={styles.calcResultValue}>{calculatePlateDissipation()?.total} W</Text>
-            </Text>
-          </View>
-        )}
-      </View>
+    return (
+      <ScrollView style={styles.calculatorContainer}>
+        <Text style={styles.sectionTitle}>Tube Amp Calculators</Text>
+        <Text style={styles.sectionSubtitle}>Essential bench calculations</Text>
 
-      <View style={styles.calcCard}>
-        <Text style={styles.calcTitle}>Cathode Bias Resistor</Text>
-        <Text style={styles.calcDesc}>Calculate resistor for desired bias voltage</Text>
-        <View style={styles.calcInputGroup}>
-          <Text style={styles.calcLabel}>Total Cathode Current (mA)</Text>
-          <TextInput
-            style={styles.calcInput}
-            value={cathodeCurrent}
-            onChangeText={setCathodeCurrent}
-            keyboardType="numeric"
-            placeholder="e.g. 40"
-            placeholderTextColor="#6b7280"
-          />
-        </View>
-        {calculateCathodeRes() && (
-          <View style={styles.calcResult}>
-            {calculateCathodeRes()?.map((item, idx) => (
-              <Text key={idx} style={styles.calcResultText}>
-                For {item.bias}V bias: <Text style={styles.calcResultValue}>{item.r} ohms</Text>
-              </Text>
-            ))}
+        <TouchableOpacity style={styles.calcCategoryHeader} onPress={() => toggleCategory('bias')}>
+          <View style={styles.calcCategoryTitle}>
+            <Ionicons name="flash" size={20} color="#f59e0b" />
+            <Text style={styles.calcCategoryText}>Bias and Power Tube Health</Text>
+          </View>
+          <Ionicons name={expandedCalcCategory === 'bias' ? 'chevron-up' : 'chevron-down'} size={20} color="#6b7280" />
+        </TouchableOpacity>
+        {expandedCalcCategory === 'bias' && (
+          <View style={styles.calcCategoryContent}>
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Fixed-Bias Target Calculator</Text>
+              <Text style={styles.calcDesc}>Calculate target plate current for % of max dissipation</Text>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Tube Type</Text>
+                <View style={styles.tubeTypeRow}>
+                  {tubeTypes.map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.tubeTypeBtn, biasTubeType === t && styles.tubeTypeBtnActive]}
+                      onPress={() => setBiasTubeType(t)}
+                    >
+                      <Text style={[styles.tubeTypeBtnText, biasTubeType === t && styles.tubeTypeBtnTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Plate Voltage (V)</Text>
+                  <TextInput style={styles.calcInput} value={biasPlateV} onChangeText={setBiasPlateV} keyboardType="numeric" placeholder="e.g. 420" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Target % (60-70 typical)</Text>
+                  <TextInput style={styles.calcInput} value={biasTargetPercent} onChangeText={setBiasTargetPercent} keyboardType="numeric" placeholder="65" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              {calculateFixedBiasTarget() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Max Dissipation: <Text style={styles.calcResultValue}>{calculateFixedBiasTarget()?.maxWatts}W</Text></Text>
+                  <Text style={styles.calcResultText}>Target Dissipation: <Text style={styles.calcResultValue}>{calculateFixedBiasTarget()?.targetWatts}W</Text></Text>
+                  <Text style={styles.calcResultText}>Target Plate Current: <Text style={styles.calcResultValue}>{calculateFixedBiasTarget()?.targetMa} mA</Text></Text>
+                  <Text style={styles.calcResultText}>Est. Cathode Current: <Text style={styles.calcResultValue}>{calculateFixedBiasTarget()?.cathodeMa} mA</Text></Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Cathode-Bias Resistor Sizing</Text>
+              <Text style={styles.calcDesc}>Size cathode resistor for target bias voltage</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Desired Ik per tube (mA)</Text>
+                  <TextInput style={styles.calcInput} value={cathBiasDesiredCurrent} onChangeText={setCathBiasDesiredCurrent} keyboardType="numeric" placeholder="e.g. 35" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Desired Vk (V)</Text>
+                  <TextInput style={styles.calcInput} value={cathBiasDesiredVk} onChangeText={setCathBiasDesiredVk} keyboardType="numeric" placeholder="e.g. 18" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Number of Tubes</Text>
+                <View style={styles.tubeTypeRow}>
+                  {['1', '2', '4'].map((n) => (
+                    <TouchableOpacity key={n} style={[styles.tubeTypeBtn, cathBiasNumTubes === n && styles.tubeTypeBtnActive]} onPress={() => setCathBiasNumTubes(n)}>
+                      <Text style={[styles.tubeTypeBtnText, cathBiasNumTubes === n && styles.tubeTypeBtnTextActive]}>{n}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              {calculateCathodeBiasResistor() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Total Cathode Current: <Text style={styles.calcResultValue}>{calculateCathodeBiasResistor()?.totalCurrent} mA</Text></Text>
+                  <Text style={styles.calcResultText}>Cathode Resistor: <Text style={styles.calcResultValue}>{calculateCathodeBiasResistor()?.resistance} ohms</Text></Text>
+                  <Text style={styles.calcResultText}>Power Dissipation: <Text style={styles.calcResultValue}>{calculateCathodeBiasResistor()?.power} W</Text></Text>
+                  <Text style={styles.calcResultText}>Use at least: <Text style={styles.calcResultValue}>{calculateCathodeBiasResistor()?.safeWattage}W resistor</Text></Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Current from Vk/Rk</Text>
+              <Text style={styles.calcDesc}>Estimate plate current from cathode measurements</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Measured Vk (V)</Text>
+                  <TextInput style={styles.calcInput} value={vkRkVk} onChangeText={setVkRkVk} keyboardType="numeric" placeholder="e.g. 18" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Cathode R (ohms)</Text>
+                  <TextInput style={styles.calcInput} value={vkRkRk} onChangeText={setVkRkRk} keyboardType="numeric" placeholder="e.g. 470" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Screen Current (mA, optional)</Text>
+                <TextInput style={styles.calcInput} value={vkRkScreenCurrent} onChangeText={setVkRkScreenCurrent} keyboardType="numeric" placeholder="e.g. 5" placeholderTextColor="#6b7280" />
+              </View>
+              {calculateCurrentFromVkRk() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Cathode Current: <Text style={styles.calcResultValue}>{calculateCurrentFromVkRk()?.cathodeCurrent} mA</Text></Text>
+                  <Text style={styles.calcResultText}>Est. Plate Current: <Text style={styles.calcResultValue}>{calculateCurrentFromVkRk()?.plateCurrent} mA</Text></Text>
+                  {calculateCurrentFromVkRk()?.warning && (
+                    <Text style={[styles.calcResultText, { color: '#ef4444' }]}>{calculateCurrentFromVkRk()?.warning}</Text>
+                  )}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Plate Dissipation</Text>
+              <Text style={styles.calcDesc}>Calculate tube power dissipation from V and I</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Plate Voltage (V)</Text>
+                  <TextInput style={styles.calcInput} value={plateVoltage} onChangeText={setPlateVoltage} keyboardType="numeric" placeholder="e.g. 400" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Plate Current (mA)</Text>
+                  <TextInput style={styles.calcInput} value={plateCurrent} onChangeText={setPlateCurrent} keyboardType="numeric" placeholder="e.g. 35" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Screen Current (mA, optional)</Text>
+                <TextInput style={styles.calcInput} value={screenCurrent} onChangeText={setScreenCurrent} keyboardType="numeric" placeholder="e.g. 5" placeholderTextColor="#6b7280" />
+              </View>
+              {calculatePlateDissipation() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Plate Dissipation: <Text style={styles.calcResultValue}>{calculatePlateDissipation()?.plate} W</Text></Text>
+                  <Text style={styles.calcResultText}>Total (with screen): <Text style={styles.calcResultValue}>{calculatePlateDissipation()?.total} W</Text></Text>
+                </View>
+              )}
+            </View>
           </View>
         )}
-      </View>
-      
-      <View style={{ height: 40 }} />
-    </ScrollView>
-  );
+
+        <TouchableOpacity style={styles.calcCategoryHeader} onPress={() => toggleCategory('output')}>
+          <View style={styles.calcCategoryTitle}>
+            <Ionicons name="volume-high" size={20} color="#f59e0b" />
+            <Text style={styles.calcCategoryText}>Output Power and Load Matching</Text>
+          </View>
+          <Ionicons name={expandedCalcCategory === 'output' ? 'chevron-up' : 'chevron-down'} size={20} color="#6b7280" />
+        </TouchableOpacity>
+        {expandedCalcCategory === 'output' && (
+          <View style={styles.calcCategoryContent}>
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Output Power from Vrms</Text>
+              <Text style={styles.calcDesc}>Measure Vrms at speaker jack with dummy load</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Vrms at Output</Text>
+                  <TextInput style={styles.calcInput} value={outputVrms} onChangeText={setOutputVrms} keyboardType="numeric" placeholder="e.g. 20" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Load Impedance (ohms)</Text>
+                  <TextInput style={styles.calcInput} value={outputLoad} onChangeText={setOutputLoad} keyboardType="numeric" placeholder="e.g. 8" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              {calculateOutputPower() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Output Power: <Text style={styles.calcResultValue}>{calculateOutputPower()?.watts} W</Text></Text>
+                  <Text style={styles.calcResultText}>Peak Voltage: <Text style={styles.calcResultValue}>{calculateOutputPower()?.vpeak} V</Text></Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Speaker Impedance Calculator</Text>
+              <Text style={styles.calcDesc}>Series/parallel speaker combinations</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Speaker 1 (ohms)</Text>
+                  <TextInput style={styles.calcInput} value={speaker1} onChangeText={setSpeaker1} keyboardType="numeric" placeholder="8" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Speaker 2 (ohms)</Text>
+                  <TextInput style={styles.calcInput} value={speaker2} onChangeText={setSpeaker2} keyboardType="numeric" placeholder="8" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Speaker 3 (optional)</Text>
+                  <TextInput style={styles.calcInput} value={speaker3} onChangeText={setSpeaker3} keyboardType="numeric" placeholder="" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Speaker 4 (optional)</Text>
+                  <TextInput style={styles.calcInput} value={speaker4} onChangeText={setSpeaker4} keyboardType="numeric" placeholder="" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Wiring</Text>
+                <View style={styles.tubeTypeRow}>
+                  {(['series', 'parallel', 'series-parallel'] as const).map((w) => (
+                    <TouchableOpacity key={w} style={[styles.tubeTypeBtn, speakerWiring === w && styles.tubeTypeBtnActive]} onPress={() => setSpeakerWiring(w)}>
+                      <Text style={[styles.tubeTypeBtnText, speakerWiring === w && styles.tubeTypeBtnTextActive]}>{w === 'series-parallel' ? 'S/P' : w.charAt(0).toUpperCase() + w.slice(1)}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              {calculateSpeakerImpedance() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Total Load: <Text style={styles.calcResultValue}>{calculateSpeakerImpedance()?.total} ohms</Text></Text>
+                  <Text style={styles.calcResultText}>Recommended Tap: <Text style={styles.calcResultValue}>{calculateSpeakerImpedance()?.tap}</Text></Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.calcCategoryHeader} onPress={() => toggleCategory('power')}>
+          <View style={styles.calcCategoryTitle}>
+            <Ionicons name="battery-charging" size={20} color="#f59e0b" />
+            <Text style={styles.calcCategoryText}>Power Supply and Safety</Text>
+          </View>
+          <Ionicons name={expandedCalcCategory === 'power' ? 'chevron-up' : 'chevron-down'} size={20} color="#6b7280" />
+        </TouchableOpacity>
+        {expandedCalcCategory === 'power' && (
+          <View style={styles.calcCategoryContent}>
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Dropping Resistor Calculator</Text>
+              <Text style={styles.calcDesc}>B+ voltage drop and power rating</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Desired Vdrop (V)</Text>
+                  <TextInput style={styles.calcInput} value={dropResVdrop} onChangeText={setDropResVdrop} keyboardType="numeric" placeholder="e.g. 50" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Current (mA)</Text>
+                  <TextInput style={styles.calcInput} value={dropResCurrent} onChangeText={setDropResCurrent} keyboardType="numeric" placeholder="e.g. 10" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Or enter resistor value (ohms)</Text>
+                <TextInput style={styles.calcInput} value={dropResValue} onChangeText={setDropResValue} keyboardType="numeric" placeholder="e.g. 10000" placeholderTextColor="#6b7280" />
+              </View>
+              {calculateDroppingResistor() && (
+                <View style={styles.calcResult}>
+                  {calculateDroppingResistor()?.mode === 'fromDrop' && (
+                    <Text style={styles.calcResultText}>Needed Resistor: <Text style={styles.calcResultValue}>{calculateDroppingResistor()?.neededRes} ohms</Text></Text>
+                  )}
+                  {calculateDroppingResistor()?.mode === 'fromRes' && (
+                    <Text style={styles.calcResultText}>Voltage Drop: <Text style={styles.calcResultValue}>{calculateDroppingResistor()?.actualDrop} V</Text></Text>
+                  )}
+                  <Text style={styles.calcResultText}>Power: <Text style={styles.calcResultValue}>{calculateDroppingResistor()?.power} W</Text></Text>
+                  <Text style={styles.calcResultText}>Use at least: <Text style={styles.calcResultValue}>{calculateDroppingResistor()?.safeWattage}W resistor</Text></Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Capacitor Discharge Time</Text>
+              <Text style={styles.calcDesc}>How long to wait before it's safe</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Capacitance (uF)</Text>
+                  <TextInput style={styles.calcInput} value={dischargeCap} onChangeText={setDischargeCap} keyboardType="numeric" placeholder="e.g. 47" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Start Voltage (V)</Text>
+                  <TextInput style={styles.calcInput} value={dischargeVstart} onChangeText={setDischargeVstart} keyboardType="numeric" placeholder="e.g. 450" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Target Voltage (V)</Text>
+                  <TextInput style={styles.calcInput} value={dischargeVtarget} onChangeText={setDischargeVtarget} keyboardType="numeric" placeholder="e.g. 50" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Discharge R (ohms)</Text>
+                  <TextInput style={styles.calcInput} value={dischargeRes} onChangeText={setDischargeRes} keyboardType="numeric" placeholder="e.g. 220000" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              {calculateDischargeTime() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Time to Target: <Text style={styles.calcResultValue}>{calculateDischargeTime()?.timeToTarget} sec</Text></Text>
+                  <Text style={styles.calcResultText}>Initial Power: <Text style={styles.calcResultValue}>{calculateDischargeTime()?.initialPower} W</Text></Text>
+                  <Text style={styles.calcResultText}>Stored Energy: <Text style={styles.calcResultValue}>{calculateDischargeTime()?.energy} J</Text></Text>
+                  <Text style={[styles.calcResultText, { color: calculateDischargeTime()?.dangerLevel === 'LETHAL' ? '#ef4444' : calculateDischargeTime()?.dangerLevel === 'Dangerous' ? '#f59e0b' : '#22c55e' }]}>
+                    Danger Level: <Text style={styles.calcResultValue}>{calculateDischargeTime()?.dangerLevel}</Text>
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Filter RC Time Constant</Text>
+              <Text style={styles.calcDesc}>Calculate ripple filter effectiveness</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Capacitance (uF)</Text>
+                  <TextInput style={styles.calcInput} value={filterCapValue} onChangeText={setFilterCapValue} keyboardType="numeric" placeholder="e.g. 47" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Resistance (ohms)</Text>
+                  <TextInput style={styles.calcInput} value={filterResValue} onChangeText={setFilterResValue} keyboardType="numeric" placeholder="e.g. 1000" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              {calculateFilterRC() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Time Constant: <Text style={styles.calcResultValue}>{calculateFilterRC()?.tau} ms</Text></Text>
+                  <Text style={styles.calcResultText}>-3dB Cutoff: <Text style={styles.calcResultValue}>{calculateFilterRC()?.cutoff} Hz</Text></Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.calcCategoryHeader} onPress={() => toggleCategory('frequency')}>
+          <View style={styles.calcCategoryTitle}>
+            <Ionicons name="pulse" size={20} color="#f59e0b" />
+            <Text style={styles.calcCategoryText}>Frequency and Coupling</Text>
+          </View>
+          <Ionicons name={expandedCalcCategory === 'frequency' ? 'chevron-up' : 'chevron-down'} size={20} color="#6b7280" />
+        </TouchableOpacity>
+        {expandedCalcCategory === 'frequency' && (
+          <View style={styles.calcCategoryContent}>
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Coupling Cap High-Pass Cutoff</Text>
+              <Text style={styles.calcDesc}>Why does it sound thin after a cap change?</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Coupling Cap (nF)</Text>
+                  <TextInput style={styles.calcInput} value={couplingCapValue} onChangeText={setCouplingCapValue} keyboardType="numeric" placeholder="e.g. 22" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Grid Leak (kohms)</Text>
+                  <TextInput style={styles.calcInput} value={couplingGridLeak} onChangeText={setCouplingGridLeak} keyboardType="numeric" placeholder="e.g. 1000" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              {calculateCouplingCutoff() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>-3dB Cutoff: <Text style={styles.calcResultValue}>{calculateCouplingCutoff()?.cutoff} Hz</Text></Text>
+                  <Text style={styles.calcResultText}>Bass Reference: <Text style={styles.calcResultValue}>{calculateCouplingCutoff()?.bassNote}</Text></Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Cathode Bypass Capacitor</Text>
+              <Text style={styles.calcDesc}>Size bypass cap for bass boost</Text>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Cathode Resistor (ohms)</Text>
+                <TextInput style={styles.calcInput} value={cathodeResValue} onChangeText={setCathodeResValue} keyboardType="numeric" placeholder="e.g. 1500" placeholderTextColor="#6b7280" />
+              </View>
+              {calculateBypassCap() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Full bypass (25Hz): <Text style={styles.calcResultValue}>{calculateBypassCap()?.full} uF</Text></Text>
+                  <Text style={styles.calcResultText}>Partial bypass (100Hz): <Text style={styles.calcResultValue}>{calculateBypassCap()?.partial} uF</Text></Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.calcCategoryHeader} onPress={() => toggleCategory('general')}>
+          <View style={styles.calcCategoryTitle}>
+            <Ionicons name="calculator" size={20} color="#f59e0b" />
+            <Text style={styles.calcCategoryText}>General Bench Math</Text>
+          </View>
+          <Ionicons name={expandedCalcCategory === 'general' ? 'chevron-up' : 'chevron-down'} size={20} color="#6b7280" />
+        </TouchableOpacity>
+        {expandedCalcCategory === 'general' && (
+          <View style={styles.calcCategoryContent}>
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Ohm's Law + Power</Text>
+              <Text style={styles.calcDesc}>Enter any 2 values to calculate the others</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Voltage (V)</Text>
+                  <TextInput style={styles.calcInput} value={ohmV} onChangeText={setOhmV} keyboardType="numeric" placeholder="" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>Current (mA)</Text>
+                  <TextInput style={styles.calcInput} value={ohmI} onChangeText={setOhmI} keyboardType="numeric" placeholder="" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Resistance (ohms)</Text>
+                <TextInput style={styles.calcInput} value={ohmR} onChangeText={setOhmR} keyboardType="numeric" placeholder="" placeholderTextColor="#6b7280" />
+              </View>
+              {calculateOhmsLaw() && (
+                <View style={styles.calcResult}>
+                  {calculateOhmsLaw()?.v && <Text style={styles.calcResultText}>Voltage: <Text style={styles.calcResultValue}>{calculateOhmsLaw()?.v} V</Text></Text>}
+                  {calculateOhmsLaw()?.i && <Text style={styles.calcResultText}>Current: <Text style={styles.calcResultValue}>{calculateOhmsLaw()?.i} mA</Text></Text>}
+                  {calculateOhmsLaw()?.r && <Text style={styles.calcResultText}>Resistance: <Text style={styles.calcResultValue}>{calculateOhmsLaw()?.r} ohms</Text></Text>}
+                  {calculateOhmsLaw()?.p && <Text style={styles.calcResultText}>Power: <Text style={styles.calcResultValue}>{calculateOhmsLaw()?.p} W</Text></Text>}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.calcCard}>
+              <Text style={styles.calcTitle}>Voltage Divider</Text>
+              <Text style={styles.calcDesc}>For bias feeds, NFB tweaks, etc.</Text>
+              <View style={styles.calcInputRow}>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>R1 (kohms)</Text>
+                  <TextInput style={styles.calcInput} value={dividerR1} onChangeText={setDividerR1} keyboardType="numeric" placeholder="e.g. 100" placeholderTextColor="#6b7280" />
+                </View>
+                <View style={styles.calcInputGroup}>
+                  <Text style={styles.calcLabel}>R2 (kohms)</Text>
+                  <TextInput style={styles.calcInput} value={dividerR2} onChangeText={setDividerR2} keyboardType="numeric" placeholder="e.g. 47" placeholderTextColor="#6b7280" />
+                </View>
+              </View>
+              <View style={styles.calcInputGroup}>
+                <Text style={styles.calcLabel}>Input Voltage (V)</Text>
+                <TextInput style={styles.calcInput} value={dividerVin} onChangeText={setDividerVin} keyboardType="numeric" placeholder="e.g. 400" placeholderTextColor="#6b7280" />
+              </View>
+              {calculateVoltageDivider() && (
+                <View style={styles.calcResult}>
+                  <Text style={styles.calcResultText}>Output Voltage: <Text style={styles.calcResultValue}>{calculateVoltageDivider()?.vout} V</Text></Text>
+                  <Text style={styles.calcResultText}>Ratio: <Text style={styles.calcResultValue}>{calculateVoltageDivider()?.ratio}%</Text></Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    );
+  };
 
   const renderArticles = () => (
     <ScrollView style={styles.articlesContainer}>
@@ -1585,6 +2104,53 @@ const styles = StyleSheet.create({
   calcResultValue: {
     color: '#22c55e',
     fontWeight: '600',
+  },
+  calcCategoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  calcCategoryTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  calcCategoryText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#e5e7eb',
+  },
+  calcCategoryContent: {
+    marginBottom: 8,
+  },
+  tubeTypeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tubeTypeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#374151',
+    borderWidth: 1,
+    borderColor: '#4b5563',
+  },
+  tubeTypeBtnActive: {
+    backgroundColor: '#f59e0b',
+    borderColor: '#f59e0b',
+  },
+  tubeTypeBtnText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  tubeTypeBtnTextActive: {
+    color: '#1f2937',
   },
   articlesContainer: {
     flex: 1,
