@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,28 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Modal,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import axios from 'axios';
 
-type SubTab = 'flowcharts' | 'voltages' | 'calculator';
+const API_URL = '';
+
+type SubTab = 'flowcharts' | 'voltages' | 'calculator' | 'articles';
+
+interface ReferenceArticle {
+  id: string;
+  title: string;
+  sourceUrl: string;
+  sourceName: string;
+  circuitFamily: string | null;
+  createdAt: string;
+}
 
 interface FlowchartNode {
   id: string;
@@ -405,6 +423,7 @@ const VOLTAGE_CARDS: VoltageCard[] = [
 ];
 
 export default function ReferenceScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<SubTab>('flowcharts');
   const [selectedFlowchart, setSelectedFlowchart] = useState<Flowchart | null>(null);
   const [currentNode, setCurrentNode] = useState<string>('');
@@ -417,6 +436,68 @@ export default function ReferenceScreen() {
   const [plateVoltage, setPlateVoltage] = useState('');
   const [plateCurrent, setPlateCurrent] = useState('');
   const [screenCurrent, setScreenCurrent] = useState('');
+
+  const [articles, setArticles] = useState<ReferenceArticle[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'articles') {
+      fetchArticles();
+    }
+  }, [activeTab]);
+
+  const fetchArticles = async () => {
+    setLoadingArticles(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/reference-articles`);
+      setArticles(response.data);
+    } catch (error) {
+      console.error('Error fetching articles:', error);
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  const handleImportArticle = async () => {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/reference-articles/import`, {
+        url: importUrl.trim(),
+      });
+      setArticles([response.data, ...articles]);
+      setShowImportModal(false);
+      setImportUrl('');
+      const msg = `Imported: ${response.data.title}`;
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Success', msg);
+      }
+    } catch (error: any) {
+      console.error('Error importing article:', error);
+      const msg = error.response?.data?.error || 'Failed to import article';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Error', msg);
+      }
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDeleteArticle = async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/api/reference-articles/${id}`);
+      setArticles(articles.filter(a => a.id !== id));
+    } catch (error) {
+      console.error('Error deleting article:', error);
+    }
+  };
 
   const startFlowchart = (flowchart: Flowchart) => {
     setSelectedFlowchart(flowchart);
@@ -748,6 +829,91 @@ export default function ReferenceScreen() {
     </ScrollView>
   );
 
+  const renderArticles = () => (
+    <ScrollView style={styles.articlesContainer}>
+      <View style={styles.articlesHeader}>
+        <View>
+          <Text style={styles.sectionTitle}>Reference Articles</Text>
+          <Text style={styles.sectionSubtitle}>Imported from robrobinette.com</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.importButton}
+          onPress={() => setShowImportModal(true)}
+        >
+          <Ionicons name="add" size={20} color="#1f2937" />
+          <Text style={styles.importButtonText}>Import</Text>
+        </TouchableOpacity>
+      </View>
+
+      {loadingArticles ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#f59e0b" />
+          <Text style={styles.loadingText}>Loading articles...</Text>
+        </View>
+      ) : articles.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="document-text-outline" size={64} color="#374151" />
+          <Text style={styles.emptyTitle}>No Articles Yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Import technical articles from robrobinette.com
+          </Text>
+          <TouchableOpacity
+            style={styles.emptyImportButton}
+            onPress={() => setShowImportModal(true)}
+          >
+            <Ionicons name="cloud-download-outline" size={20} color="#f59e0b" />
+            <Text style={styles.emptyImportText}>Import Your First Article</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.articlesList}>
+          {articles.map((article) => (
+            <TouchableOpacity
+              key={article.id}
+              style={styles.articleCard}
+              onPress={() => router.push(`/article/${article.id}` as any)}
+            >
+              <View style={styles.articleContent}>
+                <Text style={styles.articleTitle} numberOfLines={2}>
+                  {article.title}
+                </Text>
+                <View style={styles.articleMeta}>
+                  {article.circuitFamily && (
+                    <View style={styles.circuitBadge}>
+                      <Text style={styles.circuitBadgeText}>{article.circuitFamily}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.articleSource}>
+                    via {article.sourceName}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteArticle(article.id)}
+              >
+                <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      <View style={styles.creditSection}>
+        <TouchableOpacity
+          onPress={() => Linking.openURL('https://robrobinette.com')}
+        >
+          <Text style={styles.creditText}>
+            Content sourced from{' '}
+            <Text style={styles.creditLink}>robrobinette.com</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.tabBar}>
@@ -787,7 +953,20 @@ export default function ReferenceScreen() {
             color={activeTab === 'calculator' ? '#f59e0b' : '#9ca3af'} 
           />
           <Text style={[styles.tabText, activeTab === 'calculator' && styles.activeTabText]}>
-            Calculator
+            Calc
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'articles' && styles.activeTab]}
+          onPress={() => setActiveTab('articles')}
+        >
+          <Ionicons 
+            name="document-text" 
+            size={20} 
+            color={activeTab === 'articles' ? '#f59e0b' : '#9ca3af'} 
+          />
+          <Text style={[styles.tabText, activeTab === 'articles' && styles.activeTabText]}>
+            Articles
           </Text>
         </TouchableOpacity>
       </View>
@@ -796,7 +975,56 @@ export default function ReferenceScreen() {
         {activeTab === 'flowcharts' && <ScrollView>{renderFlowcharts()}</ScrollView>}
         {activeTab === 'voltages' && <ScrollView>{renderVoltages()}</ScrollView>}
         {activeTab === 'calculator' && renderCalculator()}
+        {activeTab === 'articles' && renderArticles()}
       </View>
+
+      <Modal
+        visible={showImportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Import Article</Text>
+              <TouchableOpacity onPress={() => setShowImportModal(false)}>
+                <Ionicons name="close" size={24} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>Paste URL from robrobinette.com</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={importUrl}
+              onChangeText={setImportUrl}
+              placeholder="https://robrobinette.com/..."
+              placeholderTextColor="#6b7280"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+
+            <Text style={styles.modalHint}>
+              Example: https://robrobinette.com/How_The_AB763_Deluxe_Reverb_Works.htm
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.modalButton, importing && styles.modalButtonDisabled]}
+              onPress={handleImportArticle}
+              disabled={importing || !importUrl.trim()}
+            >
+              {importing ? (
+                <ActivityIndicator size="small" color="#1f2937" />
+              ) : (
+                <>
+                  <Ionicons name="cloud-download" size={20} color="#1f2937" />
+                  <Text style={styles.modalButtonText}>Import Article</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1098,6 +1326,184 @@ const styles = StyleSheet.create({
   },
   calcResultValue: {
     color: '#22c55e',
+    fontWeight: '600',
+  },
+  articlesContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  articlesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  importButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  importButtonText: {
+    color: '#1f2937',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    color: '#9ca3af',
+    marginTop: 12,
+    fontSize: 14,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    color: '#e5e7eb',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    color: '#6b7280',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyImportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f2937',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  emptyImportText: {
+    color: '#f59e0b',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  articlesList: {
+    gap: 12,
+  },
+  articleCard: {
+    flexDirection: 'row',
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  articleContent: {
+    flex: 1,
+  },
+  articleTitle: {
+    color: '#e5e7eb',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  articleMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  circuitBadge: {
+    backgroundColor: '#374151',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  circuitBadgeText: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  articleSource: {
+    color: '#6b7280',
+    fontSize: 12,
+  },
+  deleteButton: {
+    padding: 8,
+  },
+  creditSection: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  creditText: {
+    color: '#6b7280',
+    fontSize: 12,
+  },
+  creditLink: {
+    color: '#f59e0b',
+    textDecorationLine: 'underline',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: '#f59e0b',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalLabel: {
+    color: '#9ca3af',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  modalInput: {
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    padding: 14,
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  modalHint: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginBottom: 20,
+  },
+  modalButton: {
+    flexDirection: 'row',
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modalButtonDisabled: {
+    opacity: 0.6,
+  },
+  modalButtonText: {
+    color: '#1f2937',
+    fontSize: 16,
     fontWeight: '600',
   },
 });
