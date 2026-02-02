@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -55,6 +56,7 @@ type TabType = 'users' | 'chats' | 'jobs';
 
 export default function AdminScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [users, setUsers] = useState<User[]>([]);
   const [allChats, setAllChats] = useState<{ chat: Chat; user: User | null }[]>([]);
@@ -64,6 +66,14 @@ export default function AdminScreen() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userChats, setUserChats] = useState<Chat[]>([]);
   const [userJobs, setUserJobs] = useState<Job[]>([]);
+
+  const navigateToChat = (chatId: string) => {
+    router.push(`/chat/${chatId}` as any);
+  };
+
+  const navigateToJob = (jobId: string) => {
+    router.push(`/job/${jobId}` as any);
+  };
 
   const fetchUsers = async () => {
     try {
@@ -202,12 +212,15 @@ export default function AdminScreen() {
             <Text style={styles.emptyText}>No chats</Text>
           ) : (
             userChats.map((chat) => (
-              <View key={chat.id} style={styles.itemCard}>
+              <TouchableOpacity key={chat.id} style={styles.itemCard} onPress={() => navigateToChat(chat.id)}>
                 <Text style={styles.itemTitle}>{chat.title}</Text>
-                <Text style={styles.itemSubtitle}>
-                  {chat.isStandalone ? 'Standalone' : 'Job Chat'} - {formatDate(chat.updatedAt)}
-                </Text>
-              </View>
+                <View style={styles.itemFooter}>
+                  <Text style={styles.itemSubtitle}>
+                    {chat.isStandalone ? 'Standalone' : 'Job Chat'} - {formatDate(chat.updatedAt)}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+                </View>
+              </TouchableOpacity>
             ))
           )}
 
@@ -216,14 +229,17 @@ export default function AdminScreen() {
             <Text style={styles.emptyText}>No jobs</Text>
           ) : (
             userJobs.map(({ job, ampProfile }) => (
-              <View key={job.id} style={styles.itemCard}>
+              <TouchableOpacity key={job.id} style={styles.itemCard} onPress={() => navigateToJob(job.id)}>
                 <Text style={styles.itemTitle}>
                   {ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}
                 </Text>
-                <Text style={styles.itemSubtitle}>
-                  Status: {job.status} - {formatDate(job.createdAt)}
-                </Text>
-              </View>
+                <View style={styles.itemFooter}>
+                  <Text style={styles.itemSubtitle}>
+                    Status: {job.status} - {formatDate(job.createdAt)}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+                </View>
+              </TouchableOpacity>
             ))
           )}
         </ScrollView>
@@ -299,7 +315,7 @@ export default function AdminScreen() {
         {activeTab === 'chats' && (
           <>
             {allChats.map(({ chat, user: chatUser }) => (
-              <View key={chat.id} style={styles.itemCard}>
+              <TouchableOpacity key={chat.id} style={styles.itemCard} onPress={() => navigateToChat(chat.id)}>
                 <View style={styles.itemHeader}>
                   <Text style={styles.itemTitle}>{chat.title}</Text>
                   {chat.isStandalone ? (
@@ -315,8 +331,11 @@ export default function AdminScreen() {
                 <Text style={styles.itemSubtitle}>
                   User: {chatUser?.firstName} {chatUser?.lastName} ({chatUser?.email})
                 </Text>
-                <Text style={styles.itemDate}>Updated: {formatDate(chat.updatedAt)}</Text>
-              </View>
+                <View style={styles.itemFooter}>
+                  <Text style={styles.itemDate}>Updated: {formatDate(chat.updatedAt)}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+                </View>
+              </TouchableOpacity>
             ))}
           </>
         )}
@@ -324,7 +343,7 @@ export default function AdminScreen() {
         {activeTab === 'jobs' && (
           <>
             {allJobs.map(({ job, ampProfile, user: jobUser }) => (
-              <View key={job.id} style={styles.itemCard}>
+              <TouchableOpacity key={job.id} style={styles.itemCard} onPress={() => navigateToJob(job.id)}>
                 <View style={styles.itemHeader}>
                   <Text style={styles.itemTitle}>
                     {ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}
@@ -341,8 +360,11 @@ export default function AdminScreen() {
                     Symptoms: {job.ownerSymptoms}
                   </Text>
                 )}
-                <Text style={styles.itemDate}>Created: {formatDate(job.createdAt)}</Text>
-              </View>
+                <View style={styles.itemFooter}>
+                  <Text style={styles.itemDate}>Created: {formatDate(job.createdAt)}</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+                </View>
+              </TouchableOpacity>
             ))}
           </>
         )}
@@ -516,6 +538,11 @@ const styles = StyleSheet.create({
   itemDate: {
     fontSize: 12,
     color: '#6b7280',
+  },
+  itemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 8,
   },
   standaloneBadge: {
