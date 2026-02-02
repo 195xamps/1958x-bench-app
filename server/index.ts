@@ -435,15 +435,23 @@ app.get('/api/schematics/:id', async (req, res) => {
 app.patch('/api/schematics/:id', async (req, res) => {
   try {
     const schematicId = req.params.id;
-    const { notes } = req.body;
+    const { name, tags, ampModel, circuitFamily, notes, externalLinks } = req.body;
     
     const [schematic] = await db.select().from(schema.schematics).where(eq(schema.schematics.id, schematicId));
     if (!schematic) {
       return res.status(404).json({ error: 'Schematic not found' });
     }
     
+    const updateData: Record<string, any> = {};
+    if (name !== undefined) updateData.name = name;
+    if (tags !== undefined) updateData.tags = tags;
+    if (ampModel !== undefined) updateData.ampModel = ampModel;
+    if (circuitFamily !== undefined) updateData.circuitFamily = circuitFamily;
+    if (notes !== undefined) updateData.notes = notes;
+    if (externalLinks !== undefined) updateData.externalLinks = externalLinks;
+    
     const [updated] = await db.update(schema.schematics)
-      .set({ notes })
+      .set(updateData)
       .where(eq(schema.schematics.id, schematicId))
       .returning();
     
@@ -451,6 +459,49 @@ app.patch('/api/schematics/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating schematic:', error);
     res.status(500).json({ error: 'Failed to update schematic' });
+  }
+});
+
+app.get('/api/schematics/:id/attachments', async (req, res) => {
+  try {
+    const schematicId = req.params.id;
+    const attachments = await db.select().from(schema.schematicAttachments)
+      .where(eq(schema.schematicAttachments.schematicId, schematicId));
+    res.json(attachments);
+  } catch (error) {
+    console.error('Error fetching schematic attachments:', error);
+    res.status(500).json({ error: 'Failed to fetch attachments' });
+  }
+});
+
+app.post('/api/schematics/:id/attachments', async (req, res) => {
+  try {
+    const schematicId = req.params.id;
+    const { fileUrl, fileName, fileType } = req.body;
+    
+    const [attachment] = await db.insert(schema.schematicAttachments).values({
+      schematicId,
+      fileUrl,
+      fileName,
+      fileType,
+    }).returning();
+    
+    res.json(attachment);
+  } catch (error) {
+    console.error('Error adding schematic attachment:', error);
+    res.status(500).json({ error: 'Failed to add attachment' });
+  }
+});
+
+app.delete('/api/schematics/:id/attachments/:attachmentId', async (req, res) => {
+  try {
+    const { attachmentId } = req.params;
+    await db.delete(schema.schematicAttachments)
+      .where(eq(schema.schematicAttachments.id, attachmentId));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting schematic attachment:', error);
+    res.status(500).json({ error: 'Failed to delete attachment' });
   }
 });
 
@@ -464,6 +515,7 @@ app.delete('/api/schematics/:id', async (req, res) => {
     }
     
     await db.delete(schema.jobSchematics).where(eq(schema.jobSchematics.schematicId, schematicId));
+    await db.delete(schema.schematicAttachments).where(eq(schema.schematicAttachments.schematicId, schematicId));
     await db.delete(schema.schematics).where(eq(schema.schematics.id, schematicId));
     
     res.json({ success: true });
