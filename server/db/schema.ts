@@ -98,6 +98,15 @@ export const schematics = pgTable('schematics', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const schematicAttachments = pgTable('schematic_attachments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  schematicId: uuid('schematic_id').references(() => schematics.id).notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileName: text('file_name'),
+  fileType: text('file_type'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const jobSchematics = pgTable('job_schematics', {
   id: uuid('id').primaryKey().defaultRandom(),
   benchJobId: uuid('bench_job_id').references(() => benchJobs.id).notNull(),
