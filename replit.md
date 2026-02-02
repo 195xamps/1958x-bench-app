@@ -143,6 +143,14 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Multiple Schematic Attachments & Editing** - Enhanced schematic management
+  - Multiple image/PDF uploads per schematic card
+  - Edit schematic title, amp model, circuit family, and tags directly from detail view
+  - Pencil icon in header enables edit mode with Save button
+  - Attachments section with grid view of uploaded files
+  - Add/delete individual attachments independently
+  - Database table: schematic_attachments
+  - API endpoints: GET/POST/DELETE /api/schematics/:id/attachments
 - Feb 2026: **Comprehensive Tube Amp Calculators** - Expanded calculator section with 12 essential bench tools
   - Organized into 5 collapsible categories: Bias & Power Tube Health, Output Power & Load Matching, Power Supply & Safety, Frequency & Coupling, General Bench Math
   - Fixed-Bias Target Calculator: Calculate target plate current for % of max dissipation (6V6, 6L6GC, EL34, EL84, 6550)

@@ -11,16 +11,29 @@ import {
   Image,
   Linking,
   Alert,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 
 const API_URL = '';
 
 interface ExternalLink {
   label: string;
   url: string;
+}
+
+interface Attachment {
+  id: string;
+  schematicId: string;
+  fileUrl: string;
+  fileName: string | null;
+  fileType: string | null;
+  createdAt: string;
 }
 
 interface Schematic {
@@ -40,6 +53,7 @@ export default function SchematicDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [schematic, setSchematic] = useState<Schematic | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const goBack = () => {
@@ -52,9 +66,31 @@ export default function SchematicDetailScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editTags, setEditTags] = useState('');
+  const [editAmpModel, setEditAmpModel] = useState('');
+  const [editCircuitFamily, setEditCircuitFamily] = useState('');
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+
+  const CIRCUIT_FAMILIES = [
+    'AB763 (Blackface)',
+    'AA763 (Blackface)',
+    'AA864 (Blackface)',
+    'AB568 (Silverface)',
+    '5E3 (Tweed Deluxe)',
+    '5F6-A (Tweed Bassman)',
+    'JTM45',
+    'JCM800',
+    'AC30',
+    'Plexi',
+    'Other',
+  ];
 
   useEffect(() => {
     fetchSchematic();
+    fetchAttachments();
   }, [id]);
 
   const fetchSchematic = async () => {
@@ -62,6 +98,10 @@ export default function SchematicDetailScreen() {
       const response = await axios.get(`${API_URL}/api/schematics/${id}`);
       setSchematic(response.data);
       setNotes(response.data.notes || '');
+      setEditName(response.data.name || '');
+      setEditTags(response.data.tags || '');
+      setEditAmpModel(response.data.ampModel || '');
+      setEditCircuitFamily(response.data.circuitFamily || '');
     } catch (error) {
       console.error('Error fetching schematic:', error);
       if (Platform.OS === 'web') {
@@ -74,26 +114,188 @@ export default function SchematicDetailScreen() {
     }
   };
 
-  const saveNotes = async () => {
+  const fetchAttachments = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/schematics/${id}/attachments`);
+      setAttachments(response.data);
+    } catch (error) {
+      console.error('Error fetching attachments:', error);
+    }
+  };
+
+  const saveChanges = async () => {
     if (!schematic) return;
     setSaving(true);
     try {
-      await axios.patch(`${API_URL}/api/schematics/${schematic.id}`, { notes });
+      const response = await axios.patch(`${API_URL}/api/schematics/${schematic.id}`, { 
+        name: editName,
+        tags: editTags,
+        ampModel: editAmpModel,
+        circuitFamily: editCircuitFamily,
+        notes 
+      });
+      setSchematic(response.data);
       setHasChanges(false);
+      setEditMode(false);
       if (Platform.OS === 'web') {
-        window.alert('Notes saved');
+        window.alert('Changes saved');
       } else {
-        Alert.alert('Success', 'Notes saved');
+        Alert.alert('Success', 'Changes saved');
       }
     } catch (error) {
-      console.error('Error saving notes:', error);
+      console.error('Error saving changes:', error);
       if (Platform.OS === 'web') {
-        window.alert('Failed to save notes');
+        window.alert('Failed to save changes');
       } else {
-        Alert.alert('Error', 'Failed to save notes');
+        Alert.alert('Error', 'Failed to save changes');
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const uploadFileToStorage = async (uri: string, name: string, contentType: string): Promise<string | null> => {
+    try {
+      const urlResponse = await axios.post(`${API_URL}/api/uploads/request-url`, {
+        name: name,
+        size: 0,
+        contentType: contentType,
+      });
+      const { uploadURL, objectPath } = urlResponse.data;
+
+      let uploadBody: Blob | Uint8Array;
+      
+      if (Platform.OS === 'web') {
+        const fileResponse = await fetch(uri);
+        uploadBody = await fileResponse.blob();
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        uploadBody = bytes;
+      }
+
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: uploadBody,
+        headers: { 'Content-Type': contentType },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
+
+      return `${API_URL}${objectPath}`;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      return null;
+    }
+  };
+
+  const addImageAttachment = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setUploadingAttachment(true);
+        const uri = result.assets[0].uri;
+        const fileName = `attachment-${Date.now()}.jpg`;
+        const uploadedUrl = await uploadFileToStorage(uri, fileName, 'image/jpeg');
+        
+        if (uploadedUrl) {
+          const response = await axios.post(`${API_URL}/api/schematics/${id}/attachments`, {
+            fileUrl: uploadedUrl,
+            fileName: fileName,
+            fileType: 'image/jpeg',
+          });
+          setAttachments([...attachments, response.data]);
+        } else {
+          if (Platform.OS === 'web') {
+            window.alert('Failed to upload image');
+          } else {
+            Alert.alert('Error', 'Failed to upload image');
+          }
+        }
+        setUploadingAttachment(false);
+      }
+    } catch (error) {
+      console.error('Error adding image attachment:', error);
+      setUploadingAttachment(false);
+    }
+  };
+
+  const addPdfAttachment = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setUploadingAttachment(true);
+        const file = result.assets[0];
+        const fileName = file.name || `attachment-${Date.now()}.pdf`;
+        const uploadedUrl = await uploadFileToStorage(file.uri, fileName, 'application/pdf');
+        
+        if (uploadedUrl) {
+          const response = await axios.post(`${API_URL}/api/schematics/${id}/attachments`, {
+            fileUrl: uploadedUrl,
+            fileName: fileName,
+            fileType: 'application/pdf',
+          });
+          setAttachments([...attachments, response.data]);
+        } else {
+          if (Platform.OS === 'web') {
+            window.alert('Failed to upload PDF');
+          } else {
+            Alert.alert('Error', 'Failed to upload PDF');
+          }
+        }
+        setUploadingAttachment(false);
+      }
+    } catch (error) {
+      console.error('Error adding PDF attachment:', error);
+      setUploadingAttachment(false);
+    }
+  };
+
+  const deleteAttachment = async (attachmentId: string) => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Delete this attachment?')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Delete Attachment', 'Delete this attachment?', [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        });
+    
+    if (!confirmed) return;
+    
+    try {
+      await axios.delete(`${API_URL}/api/schematics/${id}/attachments/${attachmentId}`);
+      setAttachments(attachments.filter(a => a.id !== attachmentId));
+    } catch (error) {
+      console.error('Error deleting attachment:', error);
+    }
+  };
+
+  const openAttachment = (attachment: Attachment) => {
+    if (Platform.OS === 'web') {
+      window.open(attachment.fileUrl, '_blank');
+    } else {
+      Linking.openURL(attachment.fileUrl).catch((err) => {
+        console.error('Failed to open attachment:', err);
+        Alert.alert('Error', 'Could not open attachment');
+      });
     }
   };
 
@@ -140,11 +342,44 @@ export default function SchematicDetailScreen() {
           <Ionicons name="arrow-back" size={24} color="#f59e0b" />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
-          <Text style={styles.title} numberOfLines={1}>{schematic.name}</Text>
-          {schematic.ampModel && (
-            <Text style={styles.subtitle}>{schematic.ampModel}</Text>
+          {editMode ? (
+            <TextInput
+              style={styles.editNameInput}
+              value={editName}
+              onChangeText={(text) => {
+                setEditName(text);
+                setHasChanges(true);
+              }}
+              placeholder="Schematic name"
+              placeholderTextColor="#6b7280"
+            />
+          ) : (
+            <>
+              <Text style={styles.title} numberOfLines={1}>{schematic.name}</Text>
+              {schematic.ampModel && (
+                <Text style={styles.subtitle}>{schematic.ampModel}</Text>
+              )}
+            </>
           )}
         </View>
+        <TouchableOpacity 
+          onPress={() => {
+            if (editMode && hasChanges) {
+              saveChanges();
+            } else {
+              setEditMode(!editMode);
+            }
+          }} 
+          style={styles.editButton}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#f59e0b" />
+          ) : editMode ? (
+            <Ionicons name={hasChanges ? "checkmark" : "close"} size={24} color="#f59e0b" />
+          ) : (
+            <Ionicons name="pencil" size={20} color="#f59e0b" />
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -175,16 +410,74 @@ export default function SchematicDetailScreen() {
           )}
         </TouchableOpacity>
 
-        {schematic.circuitFamily && (
-          <View style={styles.infoSection}>
-            <Text style={styles.infoLabel}>Circuit Family</Text>
-            <Text style={styles.infoValue}>{schematic.circuitFamily}</Text>
-          </View>
-        )}
+        <View style={styles.infoSection}>
+          <Text style={styles.infoLabel}>Amp Model</Text>
+          {editMode ? (
+            <TextInput
+              style={styles.editTagsInput}
+              value={editAmpModel}
+              onChangeText={(text) => {
+                setEditAmpModel(text);
+                setHasChanges(true);
+              }}
+              placeholder="e.g., Deluxe Reverb"
+              placeholderTextColor="#6b7280"
+            />
+          ) : schematic.ampModel ? (
+            <Text style={styles.infoValue}>{schematic.ampModel}</Text>
+          ) : (
+            <Text style={styles.noTagsText}>Not specified</Text>
+          )}
+        </View>
 
-        {schematic.tags && (
-          <View style={styles.infoSection}>
-            <Text style={styles.infoLabel}>Tags</Text>
+        <View style={styles.infoSection}>
+          <Text style={styles.infoLabel}>Circuit Family</Text>
+          {editMode ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.circuitScroll}>
+              {CIRCUIT_FAMILIES.map((family, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.circuitOption,
+                    editCircuitFamily === family && styles.circuitOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setEditCircuitFamily(family);
+                    setHasChanges(true);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.circuitOptionText,
+                      editCircuitFamily === family && styles.circuitOptionTextSelected,
+                    ]}
+                  >
+                    {family}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : schematic.circuitFamily ? (
+            <Text style={styles.infoValue}>{schematic.circuitFamily}</Text>
+          ) : (
+            <Text style={styles.noTagsText}>Not specified</Text>
+          )}
+        </View>
+
+        <View style={styles.infoSection}>
+          <Text style={styles.infoLabel}>Tags</Text>
+          {editMode ? (
+            <TextInput
+              style={styles.editTagsInput}
+              value={editTags}
+              onChangeText={(text) => {
+                setEditTags(text);
+                setHasChanges(true);
+              }}
+              placeholder="Enter tags (comma separated)"
+              placeholderTextColor="#6b7280"
+            />
+          ) : schematic.tags ? (
             <View style={styles.tagsContainer}>
               {schematic.tags.split(',').map((tag, index) => (
                 <View key={index} style={styles.tag}>
@@ -192,8 +485,10 @@ export default function SchematicDetailScreen() {
                 </View>
               ))}
             </View>
-          </View>
-        )}
+          ) : (
+            <Text style={styles.noTagsText}>No tags added</Text>
+          )}
+        </View>
 
         <View style={styles.notesSection}>
           <View style={styles.notesHeader}>
@@ -201,7 +496,7 @@ export default function SchematicDetailScreen() {
             {hasChanges && (
               <TouchableOpacity 
                 style={[styles.saveButton, saving && styles.saveButtonDisabled]} 
-                onPress={saveNotes}
+                onPress={saveChanges}
                 disabled={saving}
               >
                 {saving ? (
@@ -227,6 +522,68 @@ export default function SchematicDetailScreen() {
             }}
             textAlignVertical="top"
           />
+        </View>
+
+        <View style={styles.attachmentsSection}>
+          <View style={styles.attachmentsHeader}>
+            <Text style={styles.attachmentsLabel}>Attachments ({attachments.length})</Text>
+            {uploadingAttachment && (
+              <ActivityIndicator size="small" color="#f59e0b" style={{ marginLeft: 8 }} />
+            )}
+          </View>
+          
+          <View style={styles.attachmentsGrid}>
+            {attachments.map((attachment) => {
+              const isPdfAttachment = attachment.fileType?.includes('pdf') || 
+                attachment.fileUrl?.toLowerCase().includes('.pdf');
+              return (
+                <View key={attachment.id} style={styles.attachmentItem}>
+                  <TouchableOpacity 
+                    style={styles.attachmentPreview}
+                    onPress={() => openAttachment(attachment)}
+                  >
+                    {isPdfAttachment ? (
+                      <Ionicons name="document-text" size={32} color="#f59e0b" />
+                    ) : (
+                      <Image
+                        source={{ uri: attachment.fileUrl }}
+                        style={styles.attachmentImage}
+                        resizeMode="cover"
+                      />
+                    )}
+                  </TouchableOpacity>
+                  <Text style={styles.attachmentName} numberOfLines={1}>
+                    {attachment.fileName || 'Attachment'}
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.deleteAttachmentButton}
+                    onPress={() => deleteAttachment(attachment.id)}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+            
+            <View style={styles.addAttachmentButtons}>
+              <TouchableOpacity 
+                style={styles.addAttachmentButton}
+                onPress={addImageAttachment}
+                disabled={uploadingAttachment}
+              >
+                <Ionicons name="image" size={24} color={uploadingAttachment ? '#6b7280' : '#f59e0b'} />
+                <Text style={[styles.addAttachmentText, uploadingAttachment && styles.disabledText]}>Image</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.addAttachmentButton}
+                onPress={addPdfAttachment}
+                disabled={uploadingAttachment}
+              >
+                <Ionicons name="document-text" size={24} color={uploadingAttachment ? '#6b7280' : '#f59e0b'} />
+                <Text style={[styles.addAttachmentText, uploadingAttachment && styles.disabledText]}>PDF</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         {schematic.externalLinks && schematic.externalLinks.length > 0 && (
@@ -478,5 +835,121 @@ const styles = StyleSheet.create({
     color: '#f59e0b',
     fontSize: 16,
     fontWeight: '500',
+  },
+  editButton: {
+    padding: 8,
+  },
+  editNameInput: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  editTagsInput: {
+    color: 'white',
+    fontSize: 14,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  noTagsText: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  attachmentsSection: {
+    marginTop: 24,
+  },
+  attachmentsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  attachmentsLabel: {
+    color: '#9ca3af',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  attachmentsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  attachmentItem: {
+    width: 100,
+    alignItems: 'center',
+  },
+  attachmentPreview: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  attachmentImage: {
+    width: '100%',
+    height: '100%',
+  },
+  attachmentName: {
+    color: '#9ca3af',
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
+    width: '100%',
+  },
+  deleteAttachmentButton: {
+    marginTop: 4,
+    padding: 4,
+  },
+  addAttachmentButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  addAttachmentButton: {
+    width: 80,
+    height: 100,
+    backgroundColor: '#374151',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#4b5563',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addAttachmentText: {
+    color: '#f59e0b',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  disabledText: {
+    color: '#6b7280',
+  },
+  circuitScroll: {
+    marginTop: 8,
+  },
+  circuitOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#374151',
+    marginRight: 8,
+  },
+  circuitOptionSelected: {
+    backgroundColor: '#f59e0b',
+  },
+  circuitOptionText: {
+    color: '#9ca3af',
+    fontSize: 13,
+  },
+  circuitOptionTextSelected: {
+    color: '#1f2937',
+    fontWeight: '600',
   },
 });
