@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { MarkdownContent } from '../components/MarkdownContent';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = '';
 
@@ -58,6 +59,7 @@ interface BenchJob {
 }
 
 export default function DashboardScreen() {
+  const { user, logout } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -447,6 +449,27 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
+        <View style={styles.userHeader}>
+          <View style={styles.userInfo}>
+            {user?.profileImageUrl ? (
+              <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
+            ) : (
+              <View style={styles.userAvatarPlaceholder}>
+                <Ionicons name="person" size={20} color="#9ca3af" />
+              </View>
+            )}
+            <View style={styles.userTextContainer}>
+              <Text style={styles.userName}>
+                {user?.firstName || user?.email?.split('@')[0] || 'User'}
+              </Text>
+              <Text style={styles.userEmail}>{user?.email}</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+            <Ionicons name="log-out-outline" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.header}>
           <Text style={styles.title}>195x Bench App</Text>
           <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
@@ -915,6 +938,51 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     padding: 16,
+  },
+  userHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  userAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  userTextContainer: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  userEmail: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  logoutButton: {
+    padding: 8,
   },
   header: {
     marginBottom: 24,
