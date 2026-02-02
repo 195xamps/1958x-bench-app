@@ -9,13 +9,15 @@ import {
   Platform,
   Linking,
   Image,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import MarkdownContent from '../components/MarkdownContent';
+import ImageViewer from '../components/ImageViewer';
 
 const API_URL = '';
+const { width: screenWidth } = Dimensions.get('window');
 
 interface ArticleImage {
   url: string;
@@ -34,11 +36,96 @@ interface ReferenceArticle {
   createdAt: string;
 }
 
+interface ContentBlock {
+  type: 'text' | 'image' | 'header' | 'separator';
+  content: string;
+  level?: number;
+  imageUrl?: string;
+  imageAlt?: string;
+}
+
+function parseContent(content: string): ContentBlock[] {
+  const blocks: ContentBlock[] = [];
+  const lines = content.split('\n');
+  let currentText = '';
+
+  const flushText = () => {
+    if (currentText.trim()) {
+      blocks.push({ type: 'text', content: currentText.trim() });
+      currentText = '';
+    }
+  };
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    if (!trimmedLine) {
+      if (currentText) currentText += '\n';
+      continue;
+    }
+
+    if (/^#+\s*$/.test(trimmedLine) || trimmedLine === '#') {
+      continue;
+    }
+
+    const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imageMatch) {
+      flushText();
+      blocks.push({
+        type: 'image',
+        content: imageMatch[1] || 'Schematic',
+        imageUrl: imageMatch[2],
+        imageAlt: imageMatch[1] || 'Schematic',
+      });
+      continue;
+    }
+
+    const headerMatch = trimmedLine.match(/^(#{1,4})\s+(.+)$/);
+    if (headerMatch) {
+      const headerText = headerMatch[2].replace(/[*#]/g, '').trim();
+      if (headerText) {
+        flushText();
+        blocks.push({
+          type: 'header',
+          content: headerText,
+          level: headerMatch[1].length,
+        });
+      }
+      continue;
+    }
+
+    if (trimmedLine === '---') {
+      flushText();
+      blocks.push({ type: 'separator', content: '' });
+      continue;
+    }
+
+    currentText += (currentText ? '\n' : '') + trimmedLine;
+  }
+
+  flushText();
+  return blocks;
+}
+
+function cleanText(text: string): string {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\[\s*\]/g, '')
+    .replace(/\|\s*$/gm, '')
+    .replace(/^\s*\|\s*/gm, '')
+    .replace(/^#+\s*$/gm, '')
+    .replace(/^\s*#\s*$/gm, '')
+    .trim();
+}
+
 export default function ArticleDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [article, setArticle] = useState<ReferenceArticle | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const goBack = () => {
     if (router.canGoBack()) {
@@ -63,6 +150,59 @@ export default function ArticleDetailScreen() {
     }
   };
 
+  const renderBlock = (block: ContentBlock, index: number) => {
+    switch (block.type) {
+      case 'header':
+        const headerStyles = [
+          styles.header1,
+          styles.header2,
+          styles.header3,
+          styles.header4,
+        ];
+        return (
+          <Text key={index} style={headerStyles[(block.level || 1) - 1]}>
+            {block.content}
+          </Text>
+        );
+
+      case 'image':
+        return (
+          <TouchableOpacity
+            key={index}
+            style={styles.imageContainer}
+            onPress={() => setSelectedImage(block.imageUrl || null)}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={{ uri: block.imageUrl }}
+              style={styles.articleImage}
+              resizeMode="contain"
+            />
+            <View style={styles.imageTapHint}>
+              <Ionicons name="expand-outline" size={16} color="#f59e0b" />
+              <Text style={styles.imageTapText}>Tap to zoom</Text>
+            </View>
+            {block.imageAlt && block.imageAlt !== 'Schematic' && (
+              <Text style={styles.imageCaption}>{block.imageAlt}</Text>
+            )}
+          </TouchableOpacity>
+        );
+
+      case 'separator':
+        return <View key={index} style={styles.separator} />;
+
+      case 'text':
+      default:
+        const cleanedText = cleanText(block.content);
+        if (!cleanedText) return null;
+        return (
+          <Text key={index} style={styles.paragraph}>
+            {cleanedText}
+          </Text>
+        );
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -83,6 +223,8 @@ export default function ArticleDetailScreen() {
       </View>
     );
   }
+
+  const contentBlocks = parseContent(article.content);
 
   return (
     <View style={styles.container}>
@@ -125,8 +267,8 @@ export default function ArticleDetailScreen() {
 
         <View style={styles.divider} />
 
-        <View style={styles.markdownContainer}>
-          <MarkdownContent content={article.content} />
+        <View style={styles.contentContainer}>
+          {contentBlocks.map((block, index) => renderBlock(block, index))}
         </View>
 
         <View style={styles.creditFooter}>
@@ -137,9 +279,7 @@ export default function ArticleDetailScreen() {
               <Text style={styles.creditDescription}>
                 This article was imported from {article.sourceName}. All credit for the original content belongs to the author.
               </Text>
-              <TouchableOpacity
-                onPress={() => Linking.openURL(article.sourceUrl)}
-              >
+              <TouchableOpacity onPress={() => Linking.openURL(article.sourceUrl)}>
                 <Text style={styles.creditLink}>View Original Article</Text>
               </TouchableOpacity>
             </View>
@@ -148,6 +288,12 @@ export default function ArticleDetailScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <ImageViewer
+        visible={!!selectedImage}
+        imageUrl={selectedImage || ''}
+        onClose={() => setSelectedImage(null)}
+      />
     </View>
   );
 }
@@ -261,8 +407,84 @@ const styles = StyleSheet.create({
     backgroundColor: '#374151',
     marginVertical: 20,
   },
-  markdownContainer: {
+  contentContainer: {
     marginBottom: 24,
+  },
+  header1: {
+    color: '#f59e0b',
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 24,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+    paddingBottom: 8,
+  },
+  header2: {
+    color: '#f59e0b',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  header3: {
+    color: '#fbbf24',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  header4: {
+    color: '#fbbf24',
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  paragraph: {
+    color: '#e5e7eb',
+    fontSize: 15,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#374151',
+    marginVertical: 20,
+  },
+  imageContainer: {
+    marginVertical: 16,
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  articleImage: {
+    width: screenWidth - 34,
+    height: 250,
+    backgroundColor: '#0f172a',
+  },
+  imageTapHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    gap: 6,
+    backgroundColor: '#1f2937',
+  },
+  imageTapText: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  imageCaption: {
+    color: '#9ca3af',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    fontStyle: 'italic',
   },
   creditFooter: {
     marginTop: 20,

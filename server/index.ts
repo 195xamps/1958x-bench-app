@@ -1004,10 +1004,9 @@ app.post('/api/reference-articles/import', async (req, res) => {
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch) {
       title = titleMatch[1].trim();
-      // Clean up common title patterns from robrobinette.com
       title = title.replace(/\s*-\s*Rob Robinette$/i, '');
     }
-    // Try H1 as fallback - handle nested tags
+    // Try H1 as fallback
     const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
     if (h1Match) {
       const h1Content = h1Match[1].replace(/<[^>]*>/g, '').trim();
@@ -1016,27 +1015,53 @@ app.post('/api/reference-articles/import', async (req, res) => {
       }
     }
 
-    // Extract main content and convert to markdown
-    // Remove navigation, scripts, styles
-    let content = html
+    // Extract main content - robrobinette.com specific cleanup
+    let content = html;
+    
+    // Remove scripts, styles, navigation
+    content = content
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
       .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
       .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
-      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '');
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '');
+
+    // Remove robrobinette.com navigation sections
+    content = content
+      .replace(/\[\s*\[Up\][^\]]*\]/gi, '')
+      .replace(/\[\s*Up\s*\]/gi, '')
+      .replace(/\[\s*\[How the 5E3[\s\S]*?\]\s*\]/gi, '')
+      .replace(/\[\s*\[Deluxe Models[\s\S]*?\]\s*\]/gi, '')
+      .replace(/\[\s*\[DRRI[\s\S]*?\]\s*\]/gi, '');
+
+    // Remove font tags but keep content
+    content = content.replace(/<font[^>]*>([\s\S]*?)<\/font>/gi, '$1');
+    
+    // Remove span, div wrappers but keep content
+    content = content.replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+
+    // Convert tables to clean format (for voltage charts)
+    content = content
+      .replace(/<table[^>]*>/gi, '\n\n')
+      .replace(/<\/table>/gi, '\n\n')
+      .replace(/<tr[^>]*>/gi, '\n')
+      .replace(/<\/tr>/gi, '')
+      .replace(/<th[^>]*>([\s\S]*?)<\/th>/gi, '**$1** | ')
+      .replace(/<td[^>]*>([\s\S]*?)<\/td>/gi, '$1 | ');
 
     // Convert headers
     content = content
-      .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '\n# $1\n')
-      .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n## $1\n')
-      .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '\n### $1\n')
-      .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, '\n#### $1\n');
+      .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '\n\n# $1\n\n')
+      .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n\n## $1\n\n')
+      .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '\n\n### $1\n\n')
+      .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, '\n\n#### $1\n\n');
 
     // Convert paragraphs and breaks
     content = content
-      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '\n$1\n')
+      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '\n\n$1\n\n')
       .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<hr\s*\/?>/gi, '\n---\n');
+      .replace(/<hr\s*\/?>/gi, '\n\n---\n\n');
 
     // Convert lists
     content = content
@@ -1053,48 +1078,103 @@ app.post('/api/reference-articles/import', async (req, res) => {
       .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*')
       .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, '*$1*');
 
-    // Convert links
-    content = content.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)');
+    // Convert links - make relative links absolute
+    const baseUrl = new URL(url);
+    content = content.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (match, href, text) => {
+      let linkUrl = href;
+      if (!linkUrl.startsWith('http') && !linkUrl.startsWith('#') && !linkUrl.startsWith('mailto:')) {
+        linkUrl = new URL(href, baseUrl.origin).href;
+      }
+      const cleanText = text.replace(/<[^>]*>/g, '').trim();
+      if (!cleanText) return '';
+      return `[${cleanText}](${linkUrl})`;
+    });
 
     // Extract images with full URLs
     const images: { url: string; alt: string }[] = [];
-    const imgRegex = /<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*>/gi;
+    const imgRegex = /<img[^>]*src="([^"]*)"[^>]*>/gi;
     let imgMatch;
     while ((imgMatch = imgRegex.exec(html)) !== null) {
       let imgUrl = imgMatch[1];
-      // Convert relative URLs to absolute
       if (!imgUrl.startsWith('http')) {
-        const baseUrl = new URL(url);
         imgUrl = new URL(imgUrl, baseUrl.origin).href;
       }
+      const altMatch = imgMatch[0].match(/alt="([^"]*)"/i);
       images.push({
         url: imgUrl,
-        alt: imgMatch[2] || '',
+        alt: altMatch ? altMatch[1] : '',
       });
     }
 
-    // Convert images in content
-    content = content.replace(/<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*>/gi, (match, src, alt) => {
+    // Convert images in content with full URLs
+    content = content.replace(/<img[^>]*src="([^"]*)"[^>]*>/gi, (match, src) => {
       let imgUrl = src;
       if (!imgUrl.startsWith('http')) {
-        const baseUrl = new URL(url);
         imgUrl = new URL(src, baseUrl.origin).href;
       }
-      return `![${alt || ''}](${imgUrl})`;
+      const altMatch = match.match(/alt="([^"]*)"/i);
+      const alt = altMatch ? altMatch[1] : 'Schematic';
+      return `\n\n![${alt}](${imgUrl})\n\n`;
     });
 
     // Remove remaining HTML tags
     content = content.replace(/<[^>]+>/g, '');
 
-    // Clean up whitespace
+    // Decode HTML entities
     content = content
-      .replace(/\n{3,}/g, '\n\n')
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
+      .replace(/&rsquo;/g, "'")
+      .replace(/&lsquo;/g, "'")
+      .replace(/&rdquo;/g, '"')
+      .replace(/&ldquo;/g, '"')
+      .replace(/&mdash;/g, '—')
+      .replace(/&ndash;/g, '–')
+      .replace(/&hellip;/g, '...')
+      .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+      .replace(/&[a-z]+;/gi, '');
+
+    // Clean up robrobinette.com navigation links (after markdown conversion)
+    content = content
+      .replace(/\[\s*\[Up\]\([^\)]+\)\s*\]/gi, '')
+      .replace(/\[Up\]\([^\)]+\)/gi, '')
+      .replace(/\[\s*\[How the 5E3[^\]]*\]\([^\)]+\)\s*\]/gi, '')
+      .replace(/\[\s*\[Deluxe Models[^\]]*\]\([^\)]+\)\s*\]/gi, '')
+      .replace(/\[\s*\[DRRI[^\]]*\]\([^\)]+\)\s*\]/gi, '')
+      .replace(/\[\s*\[\s*\*\s*\]\([^\)]+\)\s*\]/g, '')
+      .replace(/\[\s*\*\s*\]\([^\)]+\)/g, '')
+      .replace(/\[\s+\]/g, '')
+      .replace(/\[\s*\]/g, '')
+      .replace(/\[\s*\[\s*\]\s*\]/g, '');
+
+    // Clean up stray formatting artifacts
+    content = content
+      .replace(/\*\*\s*\*\*/g, '')
+      .replace(/\*\s*\*/g, '')
+      .replace(/^\s*\*\s*$/gm, '')
+      .replace(/^\s*\[\s*$/gm, '')
+      .replace(/^\s*\]\s*$/gm, '')
+      .replace(/\|\s*\|/g, '|')
+      .replace(/\|\s*$/gm, '');
+
+    // Remove lines that are just navigation
+    content = content
+      .replace(/^\s*\[\s*\[.*?\]\(.*?\)\s*\]\s*$/gm, '')
+      .replace(/^\s*\[.*?Works.*?\]\(.*?\)\s*$/gmi, '')
+      .replace(/^\s*\[.*?Models.*?\]\(.*?\)\s*$/gmi, '')
+      .replace(/^\s*\[.*?Mods.*?\]\(.*?\)\s*$/gmi, '');
+
+    // Clean up excessive whitespace
+    content = content
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\s*\r?\n/gm, '\n')
       .trim();
 
     // Detect circuit family from content
