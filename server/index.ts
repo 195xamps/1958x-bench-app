@@ -1208,6 +1208,23 @@ app.post('/api/reference-articles/import', async (req, res) => {
   }
 });
 
+app.patch('/api/reference-articles/:id', async (req, res) => {
+  try {
+    const { title } = req.body;
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+    const [updated] = await db.update(schema.referenceArticles)
+      .set({ title })
+      .where(eq(schema.referenceArticles.id, req.params.id))
+      .returning();
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating article:', error);
+    res.status(500).json({ error: 'Failed to update article' });
+  }
+});
+
 app.delete('/api/reference-articles/:id', async (req, res) => {
   try {
     await db.delete(schema.referenceArticles)

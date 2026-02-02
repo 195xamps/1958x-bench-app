@@ -10,6 +10,9 @@ import {
   Linking,
   Image,
   Dimensions,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,6 +129,9 @@ export default function ArticleDetailScreen() {
   const [article, setArticle] = useState<ReferenceArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const goBack = () => {
     if (router.canGoBack()) {
@@ -147,6 +153,34 @@ export default function ArticleDetailScreen() {
       console.error('Error fetching article:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openRenameModal = () => {
+    if (article) {
+      setNewTitle(article.title);
+      setRenameModalVisible(true);
+    }
+  };
+
+  const saveTitle = async () => {
+    if (!newTitle.trim() || !article) return;
+    setSaving(true);
+    try {
+      const response = await axios.patch(`${API_URL}/api/reference-articles/${id}`, {
+        title: newTitle.trim(),
+      });
+      setArticle(response.data);
+      setRenameModalVisible(false);
+    } catch (error) {
+      console.error('Error updating title:', error);
+      if (Platform.OS === 'web') {
+        alert('Failed to update title');
+      } else {
+        Alert.alert('Error', 'Failed to update title');
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -244,7 +278,12 @@ export default function ArticleDetailScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.articleTitle}>{article.title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.articleTitle}>{article.title}</Text>
+          <TouchableOpacity style={styles.editTitleButton} onPress={openRenameModal}>
+            <Ionicons name="pencil" size={18} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.metaRow}>
           {article.circuitFamily && (
@@ -294,6 +333,44 @@ export default function ArticleDetailScreen() {
         imageUrl={selectedImage || ''}
         onClose={() => setSelectedImage(null)}
       />
+
+      <Modal
+        visible={renameModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRenameModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Article Title</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newTitle}
+              onChangeText={setNewTitle}
+              placeholder="Enter article title"
+              placeholderTextColor="#6b7280"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setRenameModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveButton, saving && styles.modalButtonDisabled]}
+                onPress={saveTitle}
+                disabled={saving}
+              >
+                <Text style={styles.modalSaveText}>
+                  {saving ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -364,12 +441,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   articleTitle: {
     color: '#e5e7eb',
     fontSize: 24,
     fontWeight: 'bold',
     lineHeight: 32,
     marginBottom: 16,
+    flex: 1,
+  },
+  editTitleButton: {
+    padding: 8,
+    marginTop: 4,
   },
   metaRow: {
     flexDirection: 'row',
@@ -517,6 +605,69 @@ const styles = StyleSheet.create({
   creditLink: {
     color: '#f59e0b',
     fontSize: 13,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  modalTitle: {
+    color: '#e5e7eb',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    padding: 12,
+    color: '#e5e7eb',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#374151',
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#374151',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#9ca3af',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#f59e0b',
+    alignItems: 'center',
+  },
+  modalButtonDisabled: {
+    opacity: 0.6,
+  },
+  modalSaveText: {
+    color: '#111827',
+    fontSize: 16,
     fontWeight: '600',
   },
 });
