@@ -158,6 +158,18 @@ async function migrate() {
         content TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS reference_articles (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title TEXT NOT NULL,
+        source_url TEXT NOT NULL,
+        source_name TEXT DEFAULT 'Rob Robinette',
+        content TEXT NOT NULL,
+        images JSONB,
+        circuit_family TEXT,
+        tags TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
     `);
     
     console.log('Migration completed successfully!');

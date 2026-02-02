@@ -999,15 +999,21 @@ app.post('/api/reference-articles/import', async (req, res) => {
     }
     const html = await response.text();
 
-    // Extract title from <title> tag or <h1>
+    // Extract title from <title> tag
     let title = 'Imported Article';
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch) {
       title = titleMatch[1].trim();
+      // Clean up common title patterns from robrobinette.com
+      title = title.replace(/\s*-\s*Rob Robinette$/i, '');
     }
-    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    // Try H1 as fallback - handle nested tags
+    const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
     if (h1Match) {
-      title = h1Match[1].replace(/<[^>]*>/g, '').trim();
+      const h1Content = h1Match[1].replace(/<[^>]*>/g, '').trim();
+      if (h1Content.length > 10 && h1Content.length < 200) {
+        title = h1Content;
+      }
     }
 
     // Extract main content and convert to markdown
