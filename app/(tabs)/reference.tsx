@@ -459,6 +459,8 @@ export default function ReferenceScreen() {
   const [podcastSearch, setPodcastSearch] = useState('');
   const [searchResults, setSearchResults] = useState<PodcastTopic[]>([]);
   const [searching, setSearching] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [expandedEpisodes, setExpandedEpisodes] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (activeTab === 'articles') {
@@ -550,6 +552,45 @@ export default function ReferenceScreen() {
 
   const openPodcastEpisode = (url: string) => {
     Linking.openURL(url);
+  };
+
+  const toggleEpisode = (episodeNumber: number) => {
+    setExpandedEpisodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(episodeNumber)) {
+        newSet.delete(episodeNumber);
+      } else {
+        newSet.add(episodeNumber);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSyncPodcast = async () => {
+    setSyncing(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/podcast/sync`);
+      const { newEpisodes, totalEpisodes, totalTopics } = response.data;
+      fetchPodcastTopics();
+      const msg = newEpisodes > 0 
+        ? `Added ${newEpisodes} new episodes! Total: ${totalEpisodes} episodes, ${totalTopics} topics`
+        : `Already up to date: ${totalEpisodes} episodes, ${totalTopics} topics`;
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Sync Complete', msg);
+      }
+    } catch (error: any) {
+      console.error('Error syncing podcast:', error);
+      const msg = error.response?.data?.error || 'Failed to sync podcast data';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Error', msg);
+      }
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const startFlowchart = (flowchart: Flowchart) => {
@@ -985,11 +1026,29 @@ export default function ReferenceScreen() {
 
     const episodes = Object.values(groupedByEpisode).sort((a, b) => a.episodeNumber - b.episodeNumber);
 
+    const isSearching = podcastSearch.trim().length > 0;
+
     return (
       <ScrollView style={styles.tavaContainer}>
-        <View style={styles.tavaHeader}>
-          <Text style={styles.sectionTitle}>TAVA Podcast Index</Text>
-          <Text style={styles.sectionSubtitle}>The Truth About Vintage Amps</Text>
+        <View style={styles.tavaHeaderRow}>
+          <View>
+            <Text style={styles.sectionTitle}>TAVA Podcast Index</Text>
+            <Text style={styles.sectionSubtitle}>The Truth About Vintage Amps</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
+            onPress={handleSyncPodcast}
+            disabled={syncing}
+          >
+            {syncing ? (
+              <ActivityIndicator size="small" color="#1f2937" />
+            ) : (
+              <Ionicons name="refresh" size={18} color="#1f2937" />
+            )}
+            <Text style={styles.syncButtonText}>
+              {syncing ? 'Syncing...' : 'Check Updates'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.podcastSearchContainer}>
@@ -1023,43 +1082,63 @@ export default function ReferenceScreen() {
             <Text style={styles.emptySubtitle}>
               {podcastSearch.trim() 
                 ? `No topics match "${podcastSearch}"` 
-                : 'Podcast topic index will appear here'
+                : 'Tap "Check Updates" to sync episodes'
               }
             </Text>
           </View>
         ) : (
           <View style={styles.episodesList}>
-            {episodes.map((ep) => (
-              <View key={`ep-${ep.episodeNumber}`} style={styles.episodeCard}>
-                <TouchableOpacity 
-                  style={styles.episodeHeader}
-                  onPress={() => openPodcastEpisode(ep.episodeUrl)}
-                >
-                  <View style={styles.episodeNumberBadge}>
-                    <Text style={styles.episodeNumberText}>#{ep.episodeNumber}</Text>
-                  </View>
-                  <Text style={styles.episodeTitleText} numberOfLines={2}>
-                    {ep.episodeTitle}
-                  </Text>
-                  <Ionicons name="open-outline" size={16} color="#9ca3af" />
-                </TouchableOpacity>
-                <View style={styles.topicsList}>
-                  {ep.topics.map((topic) => (
-                    <View key={topic.id} style={styles.topicItem}>
-                      {topic.timestamp && (
-                        <Text style={styles.topicTimestamp}>{topic.timestamp}</Text>
-                      )}
-                      <Text style={styles.topicText}>{topic.topic}</Text>
-                      {topic.circuitFamily && (
-                        <View style={styles.circuitBadge}>
-                          <Text style={styles.circuitBadgeText}>{topic.circuitFamily}</Text>
-                        </View>
-                      )}
+            {episodes.map((ep) => {
+              const isExpanded = isSearching || expandedEpisodes.has(ep.episodeNumber);
+              return (
+                <View key={`ep-${ep.episodeNumber}`} style={styles.episodeCard}>
+                  <TouchableOpacity 
+                    style={styles.episodeHeader}
+                    onPress={() => toggleEpisode(ep.episodeNumber)}
+                  >
+                    <View style={styles.episodeNumberBadge}>
+                      <Text style={styles.episodeNumberText}>#{ep.episodeNumber}</Text>
                     </View>
-                  ))}
+                    <Text style={styles.episodeTitleText} numberOfLines={2}>
+                      {ep.episodeTitle}
+                    </Text>
+                    <View style={styles.episodeHeaderIcons}>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          openPodcastEpisode(ep.episodeUrl);
+                        }}
+                        style={styles.openLinkButton}
+                      >
+                        <Ionicons name="open-outline" size={16} color="#9ca3af" />
+                      </TouchableOpacity>
+                      <Ionicons 
+                        name={isExpanded ? "chevron-up" : "chevron-down"} 
+                        size={20} 
+                        color="#9ca3af" 
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {isExpanded && (
+                    <View style={styles.topicsList}>
+                      {ep.topics.map((topic) => (
+                        <View key={topic.id} style={styles.topicItem}>
+                          {topic.timestamp && (
+                            <Text style={styles.topicTimestamp}>{topic.timestamp}</Text>
+                          )}
+                          <Text style={styles.topicText}>{topic.topic}</Text>
+                          {topic.circuitFamily && (
+                            <View style={styles.circuitBadge}>
+                              <Text style={styles.circuitBadgeText}>{topic.circuitFamily}</Text>
+                            </View>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
         )}
 
@@ -1689,9 +1768,30 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
-  tavaHeader: {
+  tavaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingTop: 16,
     paddingBottom: 12,
+    gap: 12,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  syncButtonDisabled: {
+    opacity: 0.7,
+  },
+  syncButtonText: {
+    color: '#1f2937',
+    fontSize: 13,
+    fontWeight: '600',
   },
   podcastSearchContainer: {
     flexDirection: 'row',
@@ -1739,6 +1839,14 @@ const styles = StyleSheet.create({
     color: '#e5e7eb',
     fontSize: 15,
     fontWeight: '600',
+  },
+  episodeHeaderIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  openLinkButton: {
+    padding: 4,
   },
   topicsList: {
     padding: 12,

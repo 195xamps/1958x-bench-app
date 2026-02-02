@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import axios from 'axios';
 import { db, schema } from './db';
 import { eq, desc, ilike, or, and } from 'drizzle-orm';
 import OpenAI from 'openai';
@@ -1332,6 +1333,133 @@ app.post('/api/podcast/import', async (req, res) => {
   } catch (error) {
     console.error('Error importing podcast data:', error);
     res.status(500).json({ error: 'Failed to import podcast data' });
+  }
+});
+
+app.post('/api/podcast/sync', async (req, res) => {
+  try {
+    const indexUrl = 'https://www.fretboardjournal.com/podcasts/the-truth-about-vintage-amps-big-index-page/';
+    const response = await axios.get(indexUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; 195xBenchApp/1.0)' },
+      timeout: 30000,
+    });
+
+    const html = response.data;
+
+    const existingEpisodes = await db.select({ episodeNumber: schema.podcastEpisodes.episodeNumber })
+      .from(schema.podcastEpisodes);
+    const existingNumbers = new Set(existingEpisodes.map(e => e.episodeNumber));
+
+    const episodePattern = /<a[^>]+href="(https?:\/\/[^"]*fretboardjournal\.com\/podcasts\/[^"]+)"[^>]*>Episode\s+(\d+)<\/a>/gi;
+    const episodes: { number: number; url: string; topics: { text: string; timestamp: string | null; seconds: number | null }[] }[] = [];
+
+    let match;
+    const matches: { number: number; url: string; index: number; matchLength: number }[] = [];
+    while ((match = episodePattern.exec(html)) !== null) {
+      matches.push({
+        number: parseInt(match[2], 10),
+        url: match[1],
+        index: match.index,
+        matchLength: match[0].length,
+      });
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const ep = matches[i];
+      if (existingNumbers.has(ep.number)) continue;
+
+      const startIdx = ep.index + ep.matchLength;
+      const endIdx = i + 1 < matches.length ? matches[i + 1].index : html.length;
+      const section = html.substring(startIdx, endIdx);
+
+      const cleanSection = section
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#8217;/g, "'")
+        .replace(/&#8220;/g, '"')
+        .replace(/&#8221;/g, '"')
+        .replace(/&#8211;/g, '-')
+        .replace(/&nbsp;/g, ' ');
+
+      const topicLines = cleanSection.split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.startsWith('-') || /^\d+:\d+/.test(line));
+
+      const topics: { text: string; timestamp: string | null; seconds: number | null }[] = [];
+      for (const line of topicLines) {
+        let text = line;
+        let timestamp: string | null = null;
+        let seconds: number | null = null;
+
+        const tsMatch = line.match(/^(\d+:\d+(?::\d+)?)\s+(.+)$/);
+        if (tsMatch) {
+          timestamp = tsMatch[1];
+          text = tsMatch[2];
+          const parts = (timestamp || '').split(':').map(Number);
+          if (parts.length === 3) {
+            seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+          } else if (parts.length === 2) {
+            seconds = parts[0] * 60 + parts[1];
+          }
+        } else if (line.startsWith('-')) {
+          text = line.substring(1).trim();
+        }
+
+        text = text.trim();
+        if (text.length > 0) {
+          topics.push({ text, timestamp, seconds });
+        }
+      }
+
+      if (topics.length > 0) {
+        episodes.push({
+          number: ep.number,
+          url: ep.url,
+          topics,
+        });
+      }
+    }
+
+    let importedCount = 0;
+    for (const ep of episodes) {
+      const title = `Episode ${ep.number}`;
+      const [episode] = await db.insert(schema.podcastEpisodes).values({
+        episodeNumber: ep.number,
+        title,
+        sourceUrl: ep.url,
+        description: null,
+      }).returning();
+
+      for (const topic of ep.topics) {
+        await db.insert(schema.podcastTopics).values({
+          episodeId: episode.id,
+          topic: topic.text,
+          timestamp: topic.timestamp,
+          timestampSeconds: topic.seconds,
+          circuitFamily: null,
+        });
+      }
+      importedCount++;
+    }
+
+    const totalEpisodes = await db.select().from(schema.podcastEpisodes);
+    const totalTopics = await db.select().from(schema.podcastTopics);
+
+    res.json({
+      success: true,
+      newEpisodes: importedCount,
+      totalEpisodes: totalEpisodes.length,
+      totalTopics: totalTopics.length,
+    });
+  } catch (error) {
+    console.error('Error syncing podcast data:', error);
+    res.status(500).json({ error: 'Failed to sync podcast data' });
   }
 });
 
