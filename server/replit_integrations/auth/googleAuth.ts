@@ -92,9 +92,12 @@ export async function setupGoogleAuth(app: Express) {
   app.get(
     "/api/auth/google/callback",
     passport.authenticate("google", { 
-      failureRedirect: "/",
-      successRedirect: "/" 
-    })
+      failureRedirect: "/login?error=auth_failed"
+    }),
+    (req, res) => {
+      console.log("Google OAuth callback - user authenticated:", req.user);
+      res.redirect("/");
+    }
   );
 
   app.get("/api/logout", (req, res) => {
