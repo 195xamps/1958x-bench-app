@@ -143,6 +143,13 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Google Authentication** - User accounts with Google OAuth
+  - Login screen with "Sign in with Google" button
+  - Only Google accounts supported (no other auth methods)
+  - Admin account: brent@195xamps.com (auto-granted admin rights)
+  - User profile display with avatar and logout in dashboard header
+  - Session management via PostgreSQL
+  - Database tables: users (updated), sessions (new)
 - Feb 2026: **Multiple Schematic Attachments & Editing** - Enhanced schematic management
   - Multiple image/PDF uploads per schematic card
   - Edit schematic title, amp model, circuit family, and tags directly from detail view
