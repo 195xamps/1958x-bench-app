@@ -959,6 +959,180 @@ app.get('/api/bench-jobs/:id/chat', async (req, res) => {
   }
 });
 
+// Reference Articles API
+app.get('/api/reference-articles', async (req, res) => {
+  try {
+    const articles = await db.select().from(schema.referenceArticles)
+      .orderBy(desc(schema.referenceArticles.createdAt));
+    res.json(articles);
+  } catch (error) {
+    console.error('Error fetching reference articles:', error);
+    res.status(500).json({ error: 'Failed to fetch reference articles' });
+  }
+});
+
+app.get('/api/reference-articles/:id', async (req, res) => {
+  try {
+    const [article] = await db.select().from(schema.referenceArticles)
+      .where(eq(schema.referenceArticles.id, req.params.id));
+    if (!article) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+    res.json(article);
+  } catch (error) {
+    console.error('Error fetching article:', error);
+    res.status(500).json({ error: 'Failed to fetch article' });
+  }
+});
+
+app.post('/api/reference-articles/import', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    // Fetch the webpage
+    const response = await fetch(url);
+    if (!response.ok) {
+      return res.status(400).json({ error: 'Failed to fetch the URL' });
+    }
+    const html = await response.text();
+
+    // Extract title from <title> tag or <h1>
+    let title = 'Imported Article';
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+    }
+    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    if (h1Match) {
+      title = h1Match[1].replace(/<[^>]*>/g, '').trim();
+    }
+
+    // Extract main content and convert to markdown
+    // Remove navigation, scripts, styles
+    let content = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '');
+
+    // Convert headers
+    content = content
+      .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '\n# $1\n')
+      .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '\n## $1\n')
+      .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '\n### $1\n')
+      .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, '\n#### $1\n');
+
+    // Convert paragraphs and breaks
+    content = content
+      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '\n$1\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<hr\s*\/?>/gi, '\n---\n');
+
+    // Convert lists
+    content = content
+      .replace(/<ul[^>]*>/gi, '\n')
+      .replace(/<\/ul>/gi, '\n')
+      .replace(/<ol[^>]*>/gi, '\n')
+      .replace(/<\/ol>/gi, '\n')
+      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n');
+
+    // Convert bold and italic
+    content = content
+      .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '**$1**')
+      .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, '**$1**')
+      .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, '*$1*')
+      .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, '*$1*');
+
+    // Convert links
+    content = content.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)');
+
+    // Extract images with full URLs
+    const images: { url: string; alt: string }[] = [];
+    const imgRegex = /<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*>/gi;
+    let imgMatch;
+    while ((imgMatch = imgRegex.exec(html)) !== null) {
+      let imgUrl = imgMatch[1];
+      // Convert relative URLs to absolute
+      if (!imgUrl.startsWith('http')) {
+        const baseUrl = new URL(url);
+        imgUrl = new URL(imgUrl, baseUrl.origin).href;
+      }
+      images.push({
+        url: imgUrl,
+        alt: imgMatch[2] || '',
+      });
+    }
+
+    // Convert images in content
+    content = content.replace(/<img[^>]*src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*>/gi, (match, src, alt) => {
+      let imgUrl = src;
+      if (!imgUrl.startsWith('http')) {
+        const baseUrl = new URL(url);
+        imgUrl = new URL(src, baseUrl.origin).href;
+      }
+      return `![${alt || ''}](${imgUrl})`;
+    });
+
+    // Remove remaining HTML tags
+    content = content.replace(/<[^>]+>/g, '');
+
+    // Clean up whitespace
+    content = content
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+
+    // Detect circuit family from content
+    let circuitFamily = null;
+    if (content.toLowerCase().includes('blackface') || content.includes('AB763')) {
+      circuitFamily = 'Blackface';
+    } else if (content.toLowerCase().includes('silverface')) {
+      circuitFamily = 'Silverface';
+    } else if (content.toLowerCase().includes('tweed') || content.includes('5E3') || content.includes('5F6')) {
+      circuitFamily = 'Tweed';
+    } else if (content.toLowerCase().includes('marshall')) {
+      circuitFamily = 'Marshall';
+    } else if (content.toLowerCase().includes('vox')) {
+      circuitFamily = 'Vox';
+    }
+
+    // Save to database
+    const [article] = await db.insert(schema.referenceArticles).values({
+      title,
+      sourceUrl: url,
+      sourceName: 'Rob Robinette',
+      content,
+      images,
+      circuitFamily,
+    }).returning();
+
+    res.json(article);
+  } catch (error) {
+    console.error('Error importing article:', error);
+    res.status(500).json({ error: 'Failed to import article' });
+  }
+});
+
+app.delete('/api/reference-articles/:id', async (req, res) => {
+  try {
+    await db.delete(schema.referenceArticles)
+      .where(eq(schema.referenceArticles.id, req.params.id));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting article:', error);
+    res.status(500).json({ error: 'Failed to delete article' });
+  }
+});
+
 app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'dist', 'server', '(tabs)', 'index.html'));
 });

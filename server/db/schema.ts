@@ -157,3 +157,15 @@ export const chatMessages = pgTable('chat_messages', {
   attachments: jsonb('attachments'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+export const referenceArticles = pgTable('reference_articles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  title: text('title').notNull(),
+  sourceUrl: text('source_url').notNull(),
+  sourceName: text('source_name').default('Rob Robinette'),
+  content: text('content').notNull(),
+  images: jsonb('images'),
+  circuitFamily: text('circuit_family'),
+  tags: text('tags'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
