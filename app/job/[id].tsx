@@ -64,6 +64,8 @@ interface JobData {
     priorWork: string;
     knownMods: string;
     safetyChecklistCompleted: boolean;
+    isPublic: boolean;
+    shareAnonymously: boolean;
     createdAt: string;
     updatedAt: string;
   };
@@ -120,6 +122,10 @@ export default function JobDetailScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const [isPublic, setIsPublic] = useState(false);
+  const [shareAnonymously, setShareAnonymously] = useState(false);
+  const [savingShare, setSavingShare] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -140,6 +146,8 @@ export default function JobDetailScreen() {
       setJobData(response.data);
       setTechNotes(response.data.job.techNotes || '');
       setCurrentStatus(response.data.job.status || 'active');
+      setIsPublic(response.data.job.isPublic || false);
+      setShareAnonymously(response.data.job.shareAnonymously || false);
     } catch (error) {
       console.error('Error fetching job:', error);
       if (Platform.OS === 'web') {
@@ -201,6 +209,33 @@ export default function JobDetailScreen() {
     } catch (error) {
       console.error('Error updating status:', error);
       setCurrentStatus(oldStatus);
+    }
+  };
+
+  const toggleSharing = async (field: 'isPublic' | 'shareAnonymously', value: boolean) => {
+    if (!id) return;
+    setSavingShare(true);
+    const oldPublic = isPublic;
+    const oldAnon = shareAnonymously;
+    
+    if (field === 'isPublic') {
+      setIsPublic(value);
+      if (!value) setShareAnonymously(false);
+    } else {
+      setShareAnonymously(value);
+    }
+    
+    try {
+      const updates = field === 'isPublic' 
+        ? { isPublic: value, shareAnonymously: value ? shareAnonymously : false }
+        : { shareAnonymously: value };
+      await axios.patch(`${API_URL}/api/bench-jobs/${id}/sharing`, updates);
+    } catch (error) {
+      console.error('Error updating sharing:', error);
+      setIsPublic(oldPublic);
+      setShareAnonymously(oldAnon);
+    } finally {
+      setSavingShare(false);
     }
   };
 
@@ -558,6 +593,7 @@ export default function JobDetailScreen() {
       style={styles.notesContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
       <View style={styles.notesHeader}>
         <View>
           <Text style={styles.notesTitle}>Repair Notes</Text>
@@ -618,6 +654,48 @@ export default function JobDetailScreen() {
           <Text style={styles.infoText}>{job.knownMods}</Text>
         </View>
       )}
+
+      <View style={styles.shareSection}>
+        <View style={styles.shareSectionHeader}>
+          <Ionicons name="globe-outline" size={20} color="#f59e0b" />
+          <Text style={styles.shareSectionTitle}>Community Sharing</Text>
+          {savingShare && <ActivityIndicator size="small" color="#f59e0b" style={{ marginLeft: 8 }} />}
+        </View>
+        <Text style={styles.shareSectionDescription}>
+          Share this job with the community so other technicians can learn from your work.
+        </Text>
+        
+        <TouchableOpacity 
+          style={styles.shareToggleRow}
+          onPress={() => toggleSharing('isPublic', !isPublic)}
+          disabled={savingShare}
+        >
+          <View style={styles.shareToggleInfo}>
+            <Text style={styles.shareToggleLabel}>Share to Community Bench</Text>
+            <Text style={styles.shareToggleHint}>Other technicians can view this job (read-only)</Text>
+          </View>
+          <View style={[styles.toggleSwitch, isPublic && styles.toggleSwitchOn]}>
+            <View style={[styles.toggleKnob, isPublic && styles.toggleKnobOn]} />
+          </View>
+        </TouchableOpacity>
+        
+        {isPublic && (
+          <TouchableOpacity 
+            style={styles.shareToggleRow}
+            onPress={() => toggleSharing('shareAnonymously', !shareAnonymously)}
+            disabled={savingShare}
+          >
+            <View style={styles.shareToggleInfo}>
+              <Text style={styles.shareToggleLabel}>Share Anonymously</Text>
+              <Text style={styles.shareToggleHint}>Hide your name from the shared job</Text>
+            </View>
+            <View style={[styles.toggleSwitch, shareAnonymously && styles.toggleSwitchOn]}>
+              <View style={[styles.toggleKnob, shareAnonymously && styles.toggleKnobOn]} />
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 
@@ -1520,5 +1598,72 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  shareSection: {
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  shareSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  shareSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f59e0b',
+    marginLeft: 8,
+  },
+  shareSectionDescription: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  shareToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#374151',
+  },
+  shareToggleInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  shareToggleLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#e5e7eb',
+  },
+  shareToggleHint: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleSwitchOn: {
+    backgroundColor: '#f59e0b',
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#6b7280',
+  },
+  toggleKnobOn: {
+    backgroundColor: '#ffffff',
+    alignSelf: 'flex-end',
   },
 });
