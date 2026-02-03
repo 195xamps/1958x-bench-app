@@ -1,0 +1,86 @@
+Step 1 — Redownload a clean copy of the code
+In Replit, download the project ZIP again (fresh).
+Unzip it into a clean folder like:
+~/Projects/195x-Bench-App
+Open Terminal and go there:
+cd ~/Projects/195x-Bench-App
+Confirm you’re in the real project root:
+ls
+ls package.json
+You must see package.json in this folder.
+Step 2 — Add your feature (recommended flow)
+Make your code changes now (before messing with dev builds):
+Edit code as needed.
+Save.
+Quick sanity run in Expo Go (optional but helpful if your app can run in Expo Go):
+npx expo start
+If you plan to use native modules or dev client features, you’ll move to dev builds next.
+Step 3 — Hard reset the local environment (prevents stale-native issues)
+From the project root:
+A) Delete dependencies + caches
+rm -rf node_modules
+rm -f package-lock.json
+rm -f yarn.lock
+rm -rf .expo
+rm -rf ios android
+Why delete ios/ android/? Because they’re the #1 source of “native is out of sync” build errors when you change Expo SDK versions or dev-client state.
+B) Reinstall dependencies
+Use npm unless your project is clearly yarn-based.
+npm install
+Step 4 — Ensure your Expo config is correct (App Store critical)
+Open app.json (or app.config.js) and confirm:
+expo.name
+expo.slug
+ios.bundleIdentifier (must be stable and unique)
+ios.buildNumber (will increment later)
+version
+Example (illustrative):
+{
+  "expo": {
+    "name": "195x Bench App",
+    "slug": "195x-bench-app",
+    "version": "1.0.0",
+    "ios": {
+      "bundleIdentifier": "com.195xamps.benchapp",
+      "buildNumber": "1"
+    }
+  }
+}
+Step 5 — Install dev client cleanly
+From the project root:
+npx expo install expo-dev-client
+Then run a health check:
+npx expo doctor
+If expo doctor complains about mismatched packages, fix those before building.
+Step 6 — (Re)create native projects cleanly (prebuild)
+This step regenerates ios/ and android/ from your current Expo config and dependencies:
+npx expo prebuild --clean
+This “clean prebuild” step is exactly what prevents the kind of Xcode symbol/API mismatch you saw.
+(If your project is strictly managed and you don’t want native folders checked in, that’s fine—EAS will still use prebuild internally. But doing it locally once often flushes out config issues early.)
+Step 7 — Configure EAS Build (once per project)
+npm i -g eas-cli
+eas login
+eas build:configure
+This creates/updates eas.json and sets up the project for EAS builds. Expo’s build process + troubleshooting references are here:
+Step 8 — Build a Development build for iOS (dev client)
+eas build -p ios --profile development
+Device registration prompt
+When it asks:
+“You don’t have any registered devices yet…”
+Answer: Yes (for dev builds). This is required for installing a dev build on your iPhone.
+Step 9 — Install the dev build + run it locally
+When EAS finishes, it gives an install link / QR.
+Install on your iPhone.
+Start the bundler with dev-client mode:
+npx expo start --dev-client
+Open the installed dev build app on your phone and connect.
+This matches Expo’s dev build workflow (moving from Expo Go to dev builds):
+Step 10 — When you’re ready for App Store/TestFlight
+A) Bump build number
+Each upload needs a new build number.
+Increment ios.buildNumber (e.g., "2", "3", …)
+B) Build a production (store) build
+eas build -p ios --profile production
+C) Submit to App Store Connect
+eas submit -p ios
+Then you use TestFlight + App Store Connect to complete listing + review. Expo’s “build process” + troubleshooting docs are useful here:
