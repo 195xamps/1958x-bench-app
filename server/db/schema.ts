@@ -45,6 +45,8 @@ export const benchJobs = pgTable('bench_jobs', {
   priorWork: text('prior_work'),
   knownMods: text('known_mods'),
   safetyChecklistCompleted: boolean('safety_checklist_completed').default(false),
+  isPublic: boolean('is_public').default(false),
+  shareAnonymously: boolean('share_anonymously').default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
