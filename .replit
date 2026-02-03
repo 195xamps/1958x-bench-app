@@ -79,3 +79,8 @@ waitForPort = 5000
 [agent]
 expertMode = true
 integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_object_storage:2.0.0", "javascript_log_in_with_replit:2.0.0"]
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["npx", "tsx", "server/index.ts"]
+build = ["npx", "expo", "export", "--platform", "web"]
