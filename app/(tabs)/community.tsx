@@ -44,31 +44,17 @@ interface CommunityJob {
   } | null;
 }
 
-const CIRCUIT_FAMILIES = [
-  'All',
-  'Blackface',
-  'Silverface',
-  'Tweed',
-  'Brownface',
-  'Marshall',
-  'Vox',
-  'Mesa',
-  'Other',
-];
-
 export default function CommunityScreen() {
   const router = useRouter();
   const [jobs, setJobs] = useState<CommunityJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFamily, setSelectedFamily] = useState('All');
 
   const fetchCommunityJobs = async () => {
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.append('search', searchQuery);
-      if (selectedFamily !== 'All') params.append('circuitFamily', selectedFamily);
       
       const response = await fetch(
         `${API_URL}/api/community/jobs?${params.toString()}`,
@@ -88,7 +74,7 @@ export default function CommunityScreen() {
 
   useEffect(() => {
     fetchCommunityJobs();
-  }, [selectedFamily]);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -100,7 +86,7 @@ export default function CommunityScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchCommunityJobs();
-  }, [searchQuery, selectedFamily]);
+  }, [searchQuery]);
 
   const navigateToJob = (jobId: string) => {
     router.push(`/community-job/${jobId}` as any);
@@ -163,33 +149,6 @@ export default function CommunityScreen() {
           </TouchableOpacity>
         )}
       </View>
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterContainer}
-      >
-        {CIRCUIT_FAMILIES.map((family) => (
-          <TouchableOpacity
-            key={family}
-            style={[
-              styles.filterChip,
-              selectedFamily === family && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedFamily(family)}
-          >
-            <Text
-              style={[
-                styles.filterChipText,
-                selectedFamily === family && styles.filterChipTextActive,
-              ]}
-            >
-              {family}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       <ScrollView
         style={styles.jobsList}
@@ -313,32 +272,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: '#f3f4f6',
     fontSize: 16,
-  },
-  filterScroll: {
-    maxHeight: 50,
-    marginTop: 12,
-  },
-  filterContainer: {
-    paddingHorizontal: 16,
-    gap: 8,
-    flexDirection: 'row',
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#374151',
-  },
-  filterChipActive: {
-    backgroundColor: '#f59e0b',
-  },
-  filterChipText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#9ca3af',
-  },
-  filterChipTextActive: {
-    color: '#111827',
   },
   jobsList: {
     flex: 1,
