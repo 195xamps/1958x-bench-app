@@ -19,5 +19,13 @@
         "EXPO_PUBLIC_API_URL": "https://195-x-bench-app.replit.app"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "brent@195xamps.com",
+        "ascAppId": "6742562918"
+      }
+    }
   }
 }
