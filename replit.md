@@ -143,6 +143,13 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **Enhanced Community Job View** - Full read-only access to shared jobs
+  - Community job detail now has Chat, Notes, and Measurements tabs (matching owner view)
+  - Read-only chat history with all messages and attachments
+  - Measurements display with green/yellow/red status indicators
+  - Media gallery for viewing shared images and PDFs
+  - Share button with globe icon in job header for easy toggle
+  - Anonymous sharing option hides technician name
 - Feb 2026: **User Isolation & Admin Dashboard** - Multi-user support with data isolation
   - Each user only sees their own chats and bench jobs
   - Schematics and references remain shared for all users
