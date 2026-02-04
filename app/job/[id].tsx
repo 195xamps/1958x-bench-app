@@ -133,6 +133,7 @@ export default function JobDetailScreen() {
   const [isPublic, setIsPublic] = useState(false);
   const [shareAnonymously, setShareAnonymously] = useState(false);
   const [savingShare, setSavingShare] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -785,16 +786,28 @@ export default function JobDetailScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
-        {activeTab === 'chat' && (
-          <TouchableOpacity style={styles.galleryButton} onPress={() => setShowMediaGallery(true)}>
-            <Ionicons name="images-outline" size={22} color="#9ca3af" />
-            {getAllAttachments().length > 0 && (
-              <View style={styles.galleryBadge}>
-                <Text style={styles.galleryBadgeText}>{getAllAttachments().length}</Text>
-              </View>
-            )}
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={[styles.shareButton, isPublic && styles.shareButtonActive]} 
+            onPress={() => setShowShareModal(true)}
+          >
+            <Ionicons 
+              name={isPublic ? "globe" : "globe-outline"} 
+              size={22} 
+              color={isPublic ? "#22c55e" : "#9ca3af"} 
+            />
           </TouchableOpacity>
-        )}
+          {activeTab === 'chat' && (
+            <TouchableOpacity style={styles.galleryButton} onPress={() => setShowMediaGallery(true)}>
+              <Ionicons name="images-outline" size={22} color="#9ca3af" />
+              {getAllAttachments().length > 0 && (
+                <View style={styles.galleryBadge}>
+                  <Text style={styles.galleryBadgeText}>{getAllAttachments().length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <View style={styles.tabBar}>
@@ -926,6 +939,68 @@ export default function JobDetailScreen() {
                 )}
               </TouchableOpacity>
             ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={showShareModal} transparent animationType="fade">
+        <TouchableOpacity 
+          style={styles.shareModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowShareModal(false)}
+        >
+          <View style={styles.shareModalContent}>
+            <View style={styles.shareModalHeader}>
+              <Ionicons name="globe-outline" size={24} color="#f59e0b" />
+              <Text style={styles.shareModalTitle}>Community Sharing</Text>
+            </View>
+            <Text style={styles.shareModalDescription}>
+              Share this job with the community so other technicians can learn from your work.
+            </Text>
+            
+            <TouchableOpacity 
+              style={styles.shareToggleRow}
+              onPress={() => toggleSharing('isPublic', !isPublic)}
+              disabled={savingShare}
+            >
+              <View style={styles.shareToggleInfo}>
+                <Text style={styles.shareToggleLabel}>Share to Community Bench</Text>
+                <Text style={styles.shareToggleHint}>Other technicians can view this job (read-only)</Text>
+              </View>
+              <View style={[styles.toggleSwitch, isPublic && styles.toggleSwitchOn]}>
+                <View style={[styles.toggleKnob, isPublic && styles.toggleKnobOn]} />
+              </View>
+            </TouchableOpacity>
+            
+            {isPublic && (
+              <TouchableOpacity 
+                style={styles.shareToggleRow}
+                onPress={() => toggleSharing('shareAnonymously', !shareAnonymously)}
+                disabled={savingShare}
+              >
+                <View style={styles.shareToggleInfo}>
+                  <Text style={styles.shareToggleLabel}>Share Anonymously</Text>
+                  <Text style={styles.shareToggleHint}>Hide your name from the shared job</Text>
+                </View>
+                <View style={[styles.toggleSwitch, shareAnonymously && styles.toggleSwitchOn]}>
+                  <View style={[styles.toggleKnob, shareAnonymously && styles.toggleKnobOn]} />
+                </View>
+              </TouchableOpacity>
+            )}
+            
+            {savingShare && (
+              <View style={styles.savingShareIndicator}>
+                <ActivityIndicator size="small" color="#f59e0b" />
+                <Text style={styles.savingShareText}>Saving...</Text>
+              </View>
+            )}
+            
+            <TouchableOpacity 
+              style={styles.shareModalCloseButton}
+              onPress={() => setShowShareModal(false)}
+            >
+              <Text style={styles.shareModalCloseText}>Done</Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1100,6 +1175,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  shareButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  shareButtonActive: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+  },
   galleryButton: {
     position: 'relative',
     padding: 8,
@@ -1115,6 +1202,62 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
+  },
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  shareModalContent: {
+    backgroundColor: '#1f2937',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  shareModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  shareModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#f3f4f6',
+  },
+  shareModalDescription: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  savingShareIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  savingShareText: {
+    color: '#f59e0b',
+    fontSize: 14,
+  },
+  shareModalCloseButton: {
+    backgroundColor: '#374151',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  shareModalCloseText: {
+    color: '#f3f4f6',
+    fontSize: 16,
+    fontWeight: '600',
   },
   galleryBadgeText: {
     color: '#111827',
