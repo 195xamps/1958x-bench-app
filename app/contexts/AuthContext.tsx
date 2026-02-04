@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -24,7 +25,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: () => void;
+  login: () => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -59,11 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, []);
 
-  const login = () => {
+  const login = async () => {
     if (Platform.OS === 'web') {
       window.location.href = `${API_URL}/api/login`;
     } else {
-      Linking.openURL(`${API_URL}/api/login`);
+      const result = await WebBrowser.openAuthSessionAsync(
+        `${API_URL}/api/login?mobile=true`,
+        'benchapp195x://auth-complete'
+      );
+      console.log('Auth session result:', result);
+      if (result.type === 'success') {
+        await refreshUser();
+      }
     }
   };
 

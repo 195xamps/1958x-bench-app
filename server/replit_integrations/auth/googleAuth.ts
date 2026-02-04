@@ -91,10 +91,17 @@ export async function setupGoogleAuth(app: Express) {
     }
   });
 
-  app.get("/api/login", passport.authenticate("google", { 
-    scope: ["profile", "email"],
-    prompt: "select_account"
-  }));
+  app.get("/api/login", (req, res, next) => {
+    const isMobile = req.query.mobile === 'true';
+    const state = JSON.stringify({ mobile: isMobile, nonce: Date.now().toString() });
+    const encodedState = Buffer.from(state).toString('base64url');
+    console.log("Login initiated, isMobile:", isMobile, "state:", encodedState);
+    passport.authenticate("google", { 
+      scope: ["profile", "email"],
+      prompt: "select_account",
+      state: encodedState
+    })(req, res, next);
+  });
 
   app.get(
     "/api/auth/google/callback",
@@ -103,7 +110,26 @@ export async function setupGoogleAuth(app: Express) {
     }),
     (req, res) => {
       console.log("Google OAuth callback - user authenticated:", req.user);
-      res.redirect("/");
+      let isMobile = false;
+      try {
+        const stateParam = req.query.state as string;
+        if (stateParam) {
+          const decoded = Buffer.from(stateParam, 'base64url').toString('utf-8');
+          const state = JSON.parse(decoded);
+          isMobile = state.mobile === true;
+          console.log("Decoded state:", state, "isMobile:", isMobile);
+        }
+      } catch (e) {
+        console.error("Failed to decode state:", e);
+      }
+      
+      if (isMobile) {
+        const mobileRedirectUrl = process.env.MOBILE_REDIRECT_URL || 'benchapp195x://auth-complete';
+        console.log("Redirecting to mobile app:", mobileRedirectUrl);
+        res.redirect(mobileRedirectUrl);
+      } else {
+        res.redirect("/");
+      }
     }
   );
 

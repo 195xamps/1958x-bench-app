@@ -88,7 +88,7 @@ build = ["npx", "expo", "export", "--platform", "web"]
 [userenv]
 
 [userenv.shared]
-MOBILE_REDIRECT_URL = "exp+195x-bench-app://auth-complete"
+MOBILE_REDIRECT_URL = "benchapp195x://auth-complete"
 
 [userenv.production]
 PRODUCTION_URL = "https://195-x-bench-app.replit.app"
