@@ -1906,6 +1906,24 @@ app.get('/api/community/jobs/:id', async (req: any, res) => {
       .innerJoin(schema.schematics, eq(schema.jobSchematics.schematicId, schema.schematics.id))
       .where(eq(schema.jobSchematics.benchJobId, id));
     
+    // Get chat messages for this job
+    const [jobChat] = await db.select().from(schema.chats)
+      .where(eq(schema.chats.benchJobId, id));
+    
+    let chatMessages: any[] = [];
+    if (jobChat) {
+      const messages = await db.select().from(schema.chatMessages)
+        .where(eq(schema.chatMessages.chatId, jobChat.id))
+        .orderBy(schema.chatMessages.createdAt);
+      chatMessages = messages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        attachments: m.attachments,
+        createdAt: m.createdAt,
+      }));
+    }
+    
     const publicJob = {
       id: job.id,
       status: job.status,
@@ -1942,6 +1960,7 @@ app.get('/api/community/jobs/:id', async (req: any, res) => {
         ampModel: js.schematic.ampModel,
         circuitFamily: js.schematic.circuitFamily,
       })),
+      chatMessages,
     };
     
     res.json(publicJob);
