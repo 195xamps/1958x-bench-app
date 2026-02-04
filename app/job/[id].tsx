@@ -20,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import { decode as base64Decode } from 'base-64';
 import { MarkdownContent } from '../components/MarkdownContent';
 
 const getApiUrl = () => {
@@ -284,19 +286,46 @@ export default function JobDetailScreen() {
     }
   };
 
-  const uploadImage = async (uri: string, fileName: string): Promise<string | null> => {
+  const uploadFile = async (uri: string, fileName: string, contentType: string): Promise<string | null> => {
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const formData = new FormData();
-      formData.append('file', blob, fileName);
-      
-      const uploadResponse = await axios.post(`${API_URL}/api/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const urlResponse = await axios.post(`${API_URL}/api/uploads/request-url`, {
+        name: fileName,
+        size: 0,
+        contentType: contentType,
       });
-      return uploadResponse.data.url;
+      const { uploadURL, objectPath } = urlResponse.data;
+
+      let uploadBody: Blob | Uint8Array;
+      
+      if (Platform.OS === 'web') {
+        const fileResponse = await fetch(uri);
+        uploadBody = await fileResponse.blob();
+      } else {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const binaryString = base64Decode(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        uploadBody = bytes;
+      }
+
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: uploadBody,
+        headers: { 'Content-Type': contentType },
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
+
+      const publicUrl = `${API_URL}${objectPath}`;
+      return publicUrl;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error uploading file:', error);
       return null;
     }
   };
@@ -324,11 +353,17 @@ export default function JobDetailScreen() {
       setUploadingImage(true);
       const asset = result.assets[0];
       const fileName = asset.fileName || `photo_${Date.now()}.jpg`;
-      const uploadedUrl = await uploadImage(asset.uri, fileName);
+      const uploadedUrl = await uploadFile(asset.uri, fileName, 'image/jpeg');
       setUploadingImage(false);
       
       if (uploadedUrl) {
         setPendingAttachments((prev) => [...prev, { type: 'image', url: uploadedUrl }]);
+      } else {
+        if (Platform.OS === 'web') {
+          window.alert('Failed to upload image');
+        } else {
+          Alert.alert('Error', 'Failed to upload image');
+        }
       }
     }
   };
@@ -344,23 +379,28 @@ export default function JobDetailScreen() {
       if (!result.canceled && result.assets[0]) {
         setUploadingImage(true);
         const asset = result.assets[0];
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
-        const formData = new FormData();
-        formData.append('file', blob, asset.name);
-        
-        const uploadResponse = await axios.post(`${API_URL}/api/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const fileName = asset.name || `document-${Date.now()}.pdf`;
+        const uploadedUrl = await uploadFile(asset.uri, fileName, 'application/pdf');
         setUploadingImage(false);
         
-        if (uploadResponse.data.url) {
-          setPendingAttachments((prev) => [...prev, { type: 'file', url: uploadResponse.data.url, name: asset.name }]);
+        if (uploadedUrl) {
+          setPendingAttachments((prev) => [...prev, { type: 'file', url: uploadedUrl, name: fileName }]);
+        } else {
+          if (Platform.OS === 'web') {
+            window.alert('Failed to upload PDF');
+          } else {
+            Alert.alert('Error', 'Failed to upload PDF');
+          }
         }
       }
     } catch (error) {
       setUploadingImage(false);
       console.error('Error picking document:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to pick document');
+      } else {
+        Alert.alert('Error', 'Failed to pick document');
+      }
     }
   };
 

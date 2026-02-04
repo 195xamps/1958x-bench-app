@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import { decode as base64Decode } from 'base-64';
 import axios from 'axios';
 
 const getApiUrl = () => {
@@ -165,7 +166,7 @@ export default function SchematicsScreen() {
         const base64 = await FileSystem.readAsStringAsync(uri, {
           encoding: FileSystem.EncodingType.Base64,
         });
-        const binaryString = atob(base64);
+        const binaryString = base64Decode(base64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);

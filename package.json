@@ -40,6 +40,7 @@
     "@uppy/dashboard": "^5.1.0",
     "@uppy/react": "^5.1.1",
     "axios": "^1.13.4",
+    "base-64": "^1.0.0",
     "concurrently": "^9.2.1",
     "connect-pg-simple": "^10.0.0",
     "cors": "^2.8.6",
