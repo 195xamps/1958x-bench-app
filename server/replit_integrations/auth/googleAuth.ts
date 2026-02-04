@@ -42,9 +42,16 @@ export async function setupGoogleAuth(app: Express) {
     return;
   }
 
-  const callbackURL = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`
-    : `http://localhost:5000/api/auth/google/callback`;
+  // Production URL takes priority, then dev domain, then localhost
+  let callbackURL: string;
+  if (process.env.PRODUCTION_URL) {
+    callbackURL = `${process.env.PRODUCTION_URL}/api/auth/google/callback`;
+  } else if (process.env.REPLIT_DEV_DOMAIN) {
+    callbackURL = `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/google/callback`;
+  } else {
+    callbackURL = `http://localhost:5000/api/auth/google/callback`;
+  }
+  console.log("Google OAuth callback URL:", callbackURL);
 
   passport.use(
     new GoogleStrategy(
