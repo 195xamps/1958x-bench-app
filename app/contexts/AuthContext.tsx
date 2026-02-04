@@ -69,8 +69,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         'benchapp195x://auth-complete'
       );
       console.log('Auth session result:', result);
-      if (result.type === 'success') {
-        await refreshUser();
+      if (result.type === 'success' && result.url) {
+        // Parse token from the redirect URL
+        const url = new URL(result.url);
+        const token = url.searchParams.get('token');
+        
+        if (token) {
+          try {
+            // Exchange token for session
+            const response = await fetch(`${API_URL}/api/auth/mobile-token`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({ token }),
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log('Mobile auth successful:', data.user?.email);
+              setUser(data.user);
+            } else {
+              console.error('Token exchange failed:', await response.text());
+            }
+          } catch (error) {
+            console.error('Error exchanging token:', error);
+          }
+        } else {
+          // Fallback to refreshing user
+          await refreshUser();
+        }
       }
     }
   };

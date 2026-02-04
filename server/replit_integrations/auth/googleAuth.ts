@@ -3,7 +3,21 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
+import crypto from "crypto";
 import { authStorage } from "./storage";
+
+// Store mobile auth tokens temporarily (in production, use Redis or DB)
+const mobileAuthTokens = new Map<string, { userId: string; expires: number }>();
+
+// Clean up expired tokens periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of mobileAuthTokens.entries()) {
+    if (data.expires < now) {
+      mobileAuthTokens.delete(token);
+    }
+  }
+}, 60000); // Clean up every minute
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -124,14 +138,60 @@ export async function setupGoogleAuth(app: Express) {
       }
       
       if (isMobile) {
-        const mobileRedirectUrl = process.env.MOBILE_REDIRECT_URL || 'benchapp195x://auth-complete';
-        console.log("Redirecting to mobile app:", mobileRedirectUrl);
+        // Generate a short-lived token for mobile auth
+        const token = crypto.randomBytes(32).toString('hex');
+        const userId = (req.user as any).id;
+        mobileAuthTokens.set(token, {
+          userId,
+          expires: Date.now() + 5 * 60 * 1000 // 5 minutes
+        });
+        
+        const mobileRedirectUrl = `benchapp195x://auth-complete?token=${token}`;
+        console.log("Redirecting to mobile app with token");
         res.redirect(mobileRedirectUrl);
       } else {
         res.redirect("/");
       }
     }
   );
+
+  // Exchange mobile auth token for session
+  app.post("/api/auth/mobile-token", async (req, res) => {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ error: "Token required" });
+    }
+    
+    const tokenData = mobileAuthTokens.get(token);
+    if (!tokenData) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+    
+    if (tokenData.expires < Date.now()) {
+      mobileAuthTokens.delete(token);
+      return res.status(401).json({ error: "Token expired" });
+    }
+    
+    // Delete token after use (one-time use)
+    mobileAuthTokens.delete(token);
+    
+    // Get user and log them in
+    const user = await authStorage.getUser(tokenData.userId);
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+    
+    // Log the user in by setting up the session
+    req.login(user, (err) => {
+      if (err) {
+        console.error("Mobile login error:", err);
+        return res.status(500).json({ error: "Login failed" });
+      }
+      console.log("Mobile user logged in:", user.email);
+      res.json({ success: true, user });
+    });
+  });
 
   app.get("/api/logout", (req, res) => {
     req.logout((err) => {
