@@ -318,6 +318,7 @@ export default function JobDetailScreen() {
         const uploadResult = await FileSystem.uploadAsync(uploadURL, uri, {
           httpMethod: 'PUT',
           uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
           headers: { 'Content-Type': contentType },
         });
         
