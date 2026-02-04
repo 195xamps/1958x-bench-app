@@ -11,9 +11,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.brentwrisley.195xbenchapp",
-      "buildNumber": "9",
+      "buildNumber": "10",
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow 195x Bench to take photos of amplifier chassis, circuits, and components for documentation and AI analysis.",
+        "NSPhotoLibraryUsageDescription": "Allow 195x Bench to access your photo library to attach reference images and documentation to your repair jobs.",
+        "NSPhotoLibraryAddUsageDescription": "Allow 195x Bench to save photos of your work to your photo library."
       }
     },
     "android": {
@@ -37,6 +42,19 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow 195x Bench to access your photos for attaching to repair jobs.",
+          "cameraPermission": "Allow 195x Bench to take photos of amplifier chassis and components."
+        }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
         }
       ]
     ],
