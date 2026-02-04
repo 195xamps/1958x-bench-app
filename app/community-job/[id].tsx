@@ -161,9 +161,9 @@ export default function CommunityJobDetailScreen() {
   };
 
   const getAllAttachments = (): Attachment[] => {
-    if (!job?.chatMessages) return [];
+    if (!job?.chatMessages || !Array.isArray(job.chatMessages)) return [];
     return job.chatMessages
-      .filter(m => m.attachments && m.attachments.length > 0)
+      .filter(m => m.attachments && Array.isArray(m.attachments) && m.attachments.length > 0)
       .flatMap(m => m.attachments || []);
   };
 
@@ -205,7 +205,7 @@ export default function CommunityJobDetailScreen() {
 
   const renderChatTab = () => (
     <ScrollView style={styles.chatContainer} contentContainerStyle={styles.chatContent}>
-      {job.chatMessages.length === 0 ? (
+      {(!job.chatMessages || job.chatMessages.length === 0) ? (
         <View style={styles.emptyState}>
           <Ionicons name="chatbubbles-outline" size={64} color="#4b5563" />
           <Text style={styles.emptyText}>No chat history</Text>
@@ -354,7 +354,7 @@ export default function CommunityJobDetailScreen() {
 
   const renderMeasurementsTab = () => (
     <ScrollView style={styles.measurementsContainer} contentContainerStyle={styles.measurementsContent}>
-      {job.measurements.length === 0 ? (
+      {(!job.measurements || job.measurements.length === 0) ? (
         <View style={styles.emptyState}>
           <Ionicons name="analytics-outline" size={64} color="#4b5563" />
           <Text style={styles.emptyText}>No measurements recorded</Text>
