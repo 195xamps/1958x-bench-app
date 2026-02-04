@@ -16,7 +16,6 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { decode as base64Decode } from 'base-64';
 import axios from 'axios';
 
 const getApiUrl = () => {
@@ -153,40 +152,41 @@ export default function SchematicsScreen() {
       const { uploadURL, objectPath } = urlResponse.data;
       console.log('Step 2: Got upload URL:', uploadURL?.substring(0, 50) + '...');
 
-      let uploadBody: Blob | Uint8Array;
-      
       if (Platform.OS === 'web') {
         console.log('Step 3: Fetching file from URI (web):', uri?.substring(0, 50));
         const fileResponse = await fetch(uri);
         console.log('Step 3b: File response ok:', fileResponse.ok);
-        uploadBody = await fileResponse.blob();
+        const uploadBody = await fileResponse.blob();
         console.log('Step 3c: Got blob, size:', uploadBody.size);
-      } else {
-        console.log('Step 3: Reading file from URI (native):', uri?.substring(0, 50));
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-        const binaryString = base64Decode(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        uploadBody = bytes;
-        console.log('Step 3b: Got bytes, size:', bytes.length);
-      }
 
-      console.log('Step 4: Uploading to storage...');
-      const uploadResponse = await fetch(uploadURL, {
-        method: 'PUT',
-        body: uploadBody,
-        headers: { 'Content-Type': contentType },
-      });
-      console.log('Step 4b: Upload response status:', uploadResponse.status);
-      
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error('Upload error response:', errorText);
-        throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
+        console.log('Step 4: Uploading to storage, size:', uploadBody.size);
+        const uploadResponse = await fetch(uploadURL, {
+          method: 'PUT',
+          body: uploadBody,
+          headers: { 'Content-Type': contentType },
+        });
+        console.log('Step 4b: Upload response status:', uploadResponse.status);
+        
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('Upload error response:', errorText);
+          throw new Error(`Upload failed with status ${uploadResponse.status}: ${errorText}`);
+        }
+      } else {
+        console.log('Step 3: Native upload using FileSystem.uploadAsync:', uri?.substring(0, 50));
+        
+        const uploadResult = await FileSystem.uploadAsync(uploadURL, uri, {
+          httpMethod: 'PUT',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: { 'Content-Type': contentType },
+        });
+        
+        console.log('Step 4: Upload response status:', uploadResult.status, 'body:', uploadResult.body?.substring(0, 200));
+        
+        if (uploadResult.status < 200 || uploadResult.status >= 300) {
+          console.error('Upload error response:', uploadResult.body);
+          throw new Error(`Upload failed with status ${uploadResult.status}: ${uploadResult.body}`);
+        }
       }
 
       const publicUrl = `${API_URL}${objectPath}`;

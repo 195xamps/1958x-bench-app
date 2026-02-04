@@ -20,7 +20,6 @@ import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { decode as base64Decode } from 'base-64';
 import { MarkdownContent } from '../components/MarkdownContent';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -154,31 +153,39 @@ export default function DashboardScreen() {
       });
       const { uploadURL, objectPath } = urlResponse.data;
 
-      let uploadBody: Blob | Uint8Array;
-      
       if (Platform.OS === 'web') {
         const fileResponse = await fetch(uri);
-        uploadBody = await fileResponse.blob();
-      } else {
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
+        const uploadBody = await fileResponse.blob();
+        console.log('[Upload] Web upload, size:', uploadBody.size, 'type:', contentType);
+        
+        const uploadResponse = await fetch(uploadURL, {
+          method: 'PUT',
+          body: uploadBody,
+          headers: { 'Content-Type': contentType },
         });
-        const binaryString = base64Decode(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
+        
+        console.log('[Upload] Response status:', uploadResponse.status);
+        
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('[Upload] Error response:', errorText);
+          throw new Error(`Upload failed with status ${uploadResponse.status}`);
         }
-        uploadBody = bytes;
-      }
-
-      const uploadResponse = await fetch(uploadURL, {
-        method: 'PUT',
-        body: uploadBody,
-        headers: { 'Content-Type': contentType },
-      });
-      
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      } else {
+        console.log('[Upload] Native upload using FileSystem.uploadAsync, type:', contentType);
+        
+        const uploadResult = await FileSystem.uploadAsync(uploadURL, uri, {
+          httpMethod: 'PUT',
+          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+          headers: { 'Content-Type': contentType },
+        });
+        
+        console.log('[Upload] Response status:', uploadResult.status, 'body:', uploadResult.body?.substring(0, 200));
+        
+        if (uploadResult.status < 200 || uploadResult.status >= 300) {
+          console.error('[Upload] Error response:', uploadResult.body);
+          throw new Error(`Upload failed with status ${uploadResult.status}`);
+        }
       }
 
       const publicUrl = `${API_URL}${objectPath}`;
