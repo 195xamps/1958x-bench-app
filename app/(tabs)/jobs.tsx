@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import { MarkdownContent } from '../components/MarkdownContent';
 
@@ -140,6 +141,13 @@ export default function JobsScreen() {
   useEffect(() => {
     fetchJobs();
   }, [statusFilter, searchQuery]);
+
+  // Refresh jobs when tab is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchJobs();
+    }, [statusFilter, searchQuery])
+  );
 
   useEffect(() => {
     return () => {
