@@ -1,0 +1,42 @@
+bww@Mac 195x-Bench-App % eas submit --platform ios --latest
+
+Selected build uses "production" build profile but a submit profile with the same name is missing in eas.json. Using default ("production") profile
+Ensuring your app exists on App Store Connect. This step can be skipped by providing ascAppId in the submit profile. Learn more: https://expo.fyi/asc-app-id
+
+› Log in to your Apple Developer account to continue
+✔ Apple ID: … bwrisley@gmail.com
+› Restoring session /Users/bww/.app-store/auth/bwrisley@gmail.com/cookie
+› Team BRENT WILLIAM WRISLEY (78UL88A675)
+› Provider BRENT WILLIAM WRISLEY (128507813)
+✔ Logged in Local session
+
+✔ Bundle identifier registered com.brentwrisley.195xbenchapp
+✔ Prepared App Store Connect for 195x Bench App com.brentwrisley.195xbenchapp
+Looking up credentials configuration for com.brentwrisley.195xbenchapp...
+✔ App Store Connect API Key already set up.
+Using Api Key ID: C964LFQGK8 ([Expo] EAS Submit YyF-UzN8Bf)
+
+ASC App ID:                 6758681707
+Project ID:                 a94d8249-95cb-48ca-8492-8bbe17308508
+App Store Connect API Key:  
+    Key Name  :  [Expo] EAS Submit YyF-UzN8Bf
+    Key ID    :  C964LFQGK8
+    Key Source:  EAS servers
+Build:                      
+    Build ID    :  16c07d2a-d111-46ef-b277-e32b3e9a3953
+    Build Date  :  2/3/2026, 9:35:10 PM
+    App Version :  1.0.0
+    Build number:  2
+
+✔ Scheduled iOS submission
+
+Submission details: https://expo.dev/accounts/brentwrisley/projects/195x-bench-app/submissions/9b5322ae-efe0-4516-94b3-a42081aaccf3
+
+Waiting for submission to complete. You can press Ctrl+C to exit.
+✖ Something went wrong when submitting your app to Apple App Store Connect.
+
+You've already submitted this build of the app.
+Builds are identified by CFBundleVersion from Info.plist (expo.ios.buildNumber in app.json).
+If you're submitting an Expo project built with EAS Build, increment the build number (expo.ios.buildNumber) in app.json and build the project again.
+Learn more: https://expo.fyi/bumping-ios-build-number
+bww@Mac 195x-Bench-App % 
