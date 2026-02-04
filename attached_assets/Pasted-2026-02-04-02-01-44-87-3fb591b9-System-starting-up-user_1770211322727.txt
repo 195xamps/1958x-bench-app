@@ -1,0 +1,136 @@
+2026-02-04 02:01:44.87
+3fb591b9
+System
+starting up user application
+2026-02-04 02:01:44.87
+3fb591b9
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-02-04 02:01:44.87
+3fb591b9
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-02-04 02:01:49.17
+3fb591b9
+User
+195x Bench App running on port 5000
+2026-02-04 02:16:55.35
+3fb591b9
+System
+system: received signal terminated
+2026-02-04 08:17:42.14
+26e5758a
+System
+starting up user application
+2026-02-04 08:17:42.14
+26e5758a
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-02-04 08:17:42.15
+26e5758a
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-02-04 08:17:49.20
+26e5758a
+User
+Google OAuth callback URL: https://195-x-bench-app.replit.app/api/auth/google/callback
+2026-02-04 08:17:49.21
+26e5758a
+User
+195x Bench App running on port 5000
+2026-02-04 08:19:02.46
+26e5758a
+User
+Auth check - isAuthenticated: false user: undefined
+2026-02-04 08:19:02.46
+26e5758a
+User
+Session ID: w1sPNQPFw67v1R3wOuXQvrxxQPFJEfOb
+2026-02-04 08:19:08.07
+26e5758a
+User
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+2026-02-04 08:19:08.07
+26e5758a
+User
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+2026-02-04 08:19:08.07
+26e5758a
+User
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-02-04 08:19:08.07
+26e5758a
+User
+(node:52) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-02-04 08:19:08.07
+26e5758a
+User
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-02-04 08:19:08.07
+26e5758a
+User
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-02-04 08:19:08.07
+26e5758a
+User
+To prepare for this change:
+2026-02-04 08:19:12.91
+26e5758a
+User
+isAdmin: true,
+2026-02-04 08:19:12.91
+26e5758a
+User
+id: '114022143129330030195',
+2026-02-04 08:19:12.91
+26e5758a
+User
+lastName: 'Wrisley',
+2026-02-04 08:19:12.91
+26e5758a
+User
+Google OAuth callback - user authenticated: {
+2026-02-04 08:19:12.91
+26e5758a
+User
+createdAt: 2026-02-04T13:19:10.597Z,
+2026-02-04 08:19:12.91
+26e5758a
+User
+firstName: 'Brent',
+2026-02-04 08:19:12.91
+26e5758a
+User
+updatedAt: 2026-02-04T13:19:10.597Z
+2026-02-04 08:19:12.91
+26e5758a
+User
+profileImageUrl: 'https://lh3.googleusercontent.com/a/ACg8ocJMpEQZMhbV9rcP0HBHWuEaTO2KB27_ZEztaTU3iH9OdigwLQ=s96-c',
+2026-02-04 08:19:12.91
+26e5758a
+User
+email: 'brent@195xamps.com',
+2026-02-04 08:19:12.91
+26e5758a
+User
+}
+2026-02-04 08:19:16.05
+26e5758a
+User
+Session ID: 59OJRivmAbX_4eDEOU0CqtWYr2NUwr5M
+2026-02-04 08:19:16.05
+26e5758a
+User
+Auth check - isAuthenticated: true user: 114022143129330030195
+2026-02-04 08:19:16.05
+26e5758a
+User
+Auth check - isAuthenticated: true user: 114022143129330030195
+2026-02-04 08:19:16.05
+26e5758a
+User
+Session ID: 59OJRivmAbX_4eDEOU0CqtWYr2NUwr5M
+2026-02-04 08:19:16.05
+26e5758a
+User
+Auth check - isAuthenticated: true user: 114022143129330030195
