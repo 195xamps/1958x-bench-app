@@ -1,0 +1,99 @@
+bww@Mac 195x-bench-app % git checkout -- app.json && git pull         
+Already up to date.
+bww@Mac 195x-bench-app % eas build --platform ios --profile production
+The field "cli.appVersionSource" is not set, but it will be required in the future. Learn more: https://docs.expo.dev/build-reference/app-versions/
+EAS project not configured.
+✔ Existing EAS project found for @brentwrisley/195x-bench-app (id = a94d8249-95cb-48ca-8492-8bbe17308508). Configure this project? … yes
+✔ Linked local project to EAS project a94d8249-95cb-48ca-8492-8bbe17308508
+Resolved "production" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+No environment variables with visibility "Plain text" and "Sensitive" found for the "production" environment on EAS.
+Environment variables loaded from the "production" build profile "env" configuration: EXPO_PUBLIC_API_URL.
+
+
+
+The field "cli.appVersionSource" is not set, but it will be required in the future. Learn more: https://docs.expo.dev/build-reference/app-versions/
+✔ Using remote iOS credentials (Expo server)
+
+If you provide your Apple account credentials we will be able to generate all necessary build credentials and fully validate them.
+This is optional, but without Apple account access you will need to provide all the missing values manually and we can only run minimal validation on them.
+✔ Do you want to log in to your Apple account? … yes
+
+› Log in to your Apple Developer account to continue
+✔ Apple ID: … bwrisley@gmail.com
+› Restoring session /Users/bww/.app-store/auth/bwrisley@gmail.com/cookie
+› Team BRENT WILLIAM WRISLEY (78UL88A675)
+› Provider BRENT WILLIAM WRISLEY (128507813)
+✔ Logged in Local session
+✔ Bundle identifier registered com.brentwrisley.195xbenchapp
+✔ Synced capabilities: No updates
+✔ Synced capability identifiers: No updates
+✔ Fetched Apple distribution certificates
+✔ Fetched Apple provisioning profiles
+
+Project Credentials Configuration
+
+Project                   @brentwrisley/195x-bench-app
+Bundle Identifier         com.brentwrisley.195xbenchapp
+                          
+App Store Configuration   
+                          
+Distribution Certificate  
+Serial Number             55E13D128BD5F21F195C7D1132429E2C
+Expiration Date           Tue, 02 Feb 2027 16:43:10 EST
+Apple Team                78UL88A675 (BRENT WILLIAM WRISLEY (Individual))
+Updated                   1 day ago
+                          
+Provisioning Profile      
+Developer Portal ID       32VJB84XG7
+Status                    active
+Expiration                Tue, 02 Feb 2027 16:43:10 EST
+Apple Team                78UL88A675 (BRENT WILLIAM WRISLEY (Individual))
+Updated                   19 hours ago
+                          
+All credentials are ready to build @brentwrisley/195x-bench-app (com.brentwrisley.195xbenchapp)
+
+
+Compressing project files and uploading to EAS Build. Learn more: https://expo.fyi/eas-build-archive
+✔ Compressed project files 1s (35.9 MB)
+✔ Uploaded to EAS 1m
+✔ Computed project fingerprint
+
+See logs: https://expo.dev/accounts/brentwrisley/projects/195x-bench-app/builds/9c808ecc-d0f9-47f6-976a-3f4b354a81e5
+
+Waiting for build to complete. You can press Ctrl+C to exit.
+  Build queued...
+
+Waiting in priority queue
+|■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 
+
+✔ Build finished
+🍏 iOS app:
+https://expo.dev/artifacts/eas/kjTaW8Zwi1DNUWnQ28EdPg.ipa
+bww@Mac 195x-bench-app % 
+bww@Mac 195x-bench-app % 
+bww@Mac 195x-bench-app % 
+bww@Mac 195x-bench-app % eas submit --platform ios --latest
+
+Looking up credentials configuration for com.brentwrisley.195xbenchapp...
+✔ App Store Connect API Key already set up.
+Using Api Key ID: C964LFQGK8 ([Expo] EAS Submit YyF-UzN8Bf)
+
+ASC App ID:                 6742562918
+Project ID:                 a94d8249-95cb-48ca-8492-8bbe17308508
+App Store Connect API Key:  
+    Key Name  :  [Expo] EAS Submit YyF-UzN8Bf
+    Key ID    :  C964LFQGK8
+    Key Source:  EAS servers
+Build:                      
+    Build ID    :  9c808ecc-d0f9-47f6-976a-3f4b354a81e5
+    Build Date  :  2/4/2026, 1:26:08 PM
+    App Version :  1.0.0
+    Build number:  6
+
+✔ Scheduled iOS submission
+
+Submission details: https://expo.dev/accounts/brentwrisley/projects/195x-bench-app/submissions/252ba31d-072b-430d-b360-aa28479358f6
+
+Waiting for submission to complete. You can press Ctrl+C to exit.
+⠋ Submitting your app to Apple App Store Connect: waiting for an available submitter
+bww@Mac 195x-bench-app % 
