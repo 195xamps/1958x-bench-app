@@ -14,7 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { MarkdownContent } from '../components/MarkdownContent';
 
-const API_URL = '';
+const getApiUrl = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.EXPO_PUBLIC_API_URL || '';
+};
+
+const API_URL = getApiUrl();
 
 interface Message {
   role: 'user' | 'assistant';

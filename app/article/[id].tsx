@@ -19,7 +19,14 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import ImageViewer from '../components/ImageViewer';
 
-const API_URL = '';
+const getApiUrl = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.EXPO_PUBLIC_API_URL || '';
+};
+
+const API_URL = getApiUrl();
 const { width: screenWidth } = Dimensions.get('window');
 
 interface ArticleImage {

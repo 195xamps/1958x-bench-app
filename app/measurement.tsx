@@ -9,12 +9,20 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 
-const API_URL = '';
+const getApiUrl = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.EXPO_PUBLIC_API_URL || '';
+};
+
+const API_URL = getApiUrl();
 
 interface Measurement {
   id: string;

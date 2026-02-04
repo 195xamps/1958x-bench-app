@@ -18,7 +18,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import axios from 'axios';
 
-const API_URL = '';
+const getApiUrl = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.EXPO_PUBLIC_API_URL || '';
+};
+
+const API_URL = getApiUrl();
 
 interface ExternalLink {
   label: string;

@@ -23,7 +23,14 @@ import * as FileSystem from 'expo-file-system';
 import { MarkdownContent } from '../components/MarkdownContent';
 import { useAuth } from '../contexts/AuthContext';
 
-const API_URL = '';
+const getApiUrl = () => {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.EXPO_PUBLIC_API_URL || '';
+};
+
+const API_URL = getApiUrl();
 
 interface Chat {
   id: string;
