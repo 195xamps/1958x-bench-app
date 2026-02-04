@@ -931,7 +931,10 @@ export default function JobDetailScreen() {
       </Modal>
 
       <Modal visible={showEditModal} transparent animationType="slide">
-        <View style={styles.editModalOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.editModalOverlay}
+        >
           <View style={styles.editModalContent}>
             <View style={styles.editModalHeader}>
               <Text style={styles.editModalTitle}>Edit Job</Text>
@@ -964,7 +967,7 @@ export default function JobDetailScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
