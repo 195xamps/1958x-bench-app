@@ -102,6 +102,36 @@ export default function JobDetailScreen() {
       router.replace('/(tabs)/jobs' as any);
     }
   };
+
+  const deleteJob = async () => {
+    const jobName = [ampProfile?.make, ampProfile?.model].filter(Boolean).join(' ') || 'this job';
+    const confirmDelete = Platform.OS === 'web'
+      ? window.confirm(`Delete "${jobName}"? This will permanently remove the job, chat history, and measurements.`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Delete Job',
+            `Delete "${jobName}"? This will permanently remove the job, chat history, and measurements.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+    
+    if (confirmDelete) {
+      try {
+        await axios.delete(`${API_URL}/api/bench-jobs/${id}`);
+        router.replace('/(tabs)/jobs' as any);
+      } catch (error) {
+        console.error('Error deleting job:', error);
+        if (Platform.OS === 'web') {
+          window.alert('Failed to delete job');
+        } else {
+          Alert.alert('Error', 'Failed to delete job');
+        }
+      }
+    }
+  };
   
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -856,6 +886,9 @@ export default function JobDetailScreen() {
               )}
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={styles.deleteJobButton} onPress={deleteJob}>
+            <Ionicons name="trash-outline" size={22} color="#ef4444" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1238,6 +1271,9 @@ const styles = StyleSheet.create({
   },
   galleryButton: {
     position: 'relative',
+    padding: 8,
+  },
+  deleteJobButton: {
     padding: 8,
   },
   galleryBadge: {
