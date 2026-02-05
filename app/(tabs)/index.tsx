@@ -17,6 +17,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -564,6 +565,7 @@ export default function DashboardScreen() {
       </ScrollView>
 
       <Modal visible={showChatModal} animationType="slide">
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={styles.chatModalContainer}>
           <View style={styles.chatModalHeader}>
             <Pressable
@@ -780,6 +782,7 @@ export default function DashboardScreen() {
           </View>
           </KeyboardAvoidingView>
         </View>
+        </GestureHandlerRootView>
       </Modal>
 
       <Modal visible={showRenameModal} transparent animationType="fade">
