@@ -563,10 +563,7 @@ export default function DashboardScreen() {
       </ScrollView>
 
       <Modal visible={showChatModal} animationType="slide">
-        <KeyboardAvoidingView
-          style={styles.chatModalContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={styles.chatModalContainer}>
           <View style={styles.chatModalHeader}>
             <TouchableOpacity
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
@@ -618,6 +615,11 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={0}
+          >
           <ScrollView
             ref={scrollViewRef}
             style={styles.messagesContainer}
@@ -774,7 +776,8 @@ export default function DashboardScreen() {
               <Ionicons name="send" size={22} color="#1f2937" />
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Modal visible={showRenameModal} transparent animationType="fade">
