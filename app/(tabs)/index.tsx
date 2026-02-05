@@ -569,6 +569,7 @@ export default function DashboardScreen() {
         >
           <View style={styles.chatModalHeader}>
             <TouchableOpacity
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               onPress={() => {
                 setShowChatModal(false);
                 setActiveChat(null);
@@ -580,6 +581,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.chatTitleButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               onPress={() => {
                 setNewTitle(activeChat?.title || '');
                 setShowRenameModal(true);
@@ -592,6 +594,7 @@ export default function DashboardScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.mediaGalleryButton}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               onPress={() => setShowMediaGallery(true)}
             >
               <Ionicons name="images-outline" size={22} color="#9ca3af" />
@@ -602,6 +605,8 @@ export default function DashboardScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              style={{ padding: 8 }}
               onPress={() => {
                 if (activeChat) {
                   setSelectedChat(activeChat);
