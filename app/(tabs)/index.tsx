@@ -564,7 +564,8 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      <Modal visible={showChatModal} animationType="slide">
+      {showChatModal && (
+        <View style={styles.fullScreenOverlay}>
         <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={styles.chatModalContainer}>
           <View style={styles.chatModalHeader}>
@@ -779,7 +780,8 @@ export default function DashboardScreen() {
           </KeyboardAvoidingView>
         </View>
         </GestureHandlerRootView>
-      </Modal>
+        </View>
+      )}
 
       <Modal visible={showRenameModal} transparent animationType="fade">
         <View style={styles.renameModalOverlay}>
@@ -1157,6 +1159,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fullScreenOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#111827',
+    zIndex: 1000,
   },
   chatModalTitle: {
     color: '#e5e7eb',
