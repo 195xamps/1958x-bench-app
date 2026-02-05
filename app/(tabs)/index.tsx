@@ -17,7 +17,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, Pressable as GHPressable } from 'react-native-gesture-handler';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -568,9 +568,8 @@ export default function DashboardScreen() {
         <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={styles.chatModalContainer}>
           <View style={styles.chatModalHeader}>
-            <Pressable
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-              style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.5 : 1 }]}
+            <GHPressable
+              style={styles.headerButton}
               onPress={() => {
                 setShowChatModal(false);
                 setActiveChat(null);
@@ -579,10 +578,9 @@ export default function DashboardScreen() {
               }}
             >
               <Ionicons name="arrow-back" size={28} color="#f59e0b" />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.chatTitleButton, { opacity: pressed ? 0.5 : 1 }]}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            </GHPressable>
+            <GHPressable
+              style={styles.chatTitleButton}
               onPress={() => {
                 setNewTitle(activeChat?.title || '');
                 setShowRenameModal(true);
@@ -592,10 +590,9 @@ export default function DashboardScreen() {
                 {activeChat?.title}
               </Text>
               <Ionicons name="pencil" size={16} color="#9ca3af" />
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.mediaGalleryButton, { opacity: pressed ? 0.5 : 1 }]}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            </GHPressable>
+            <GHPressable
+              style={styles.headerButton}
               onPress={() => setShowMediaGallery(true)}
             >
               <Ionicons name="images-outline" size={22} color="#9ca3af" />
@@ -604,10 +601,9 @@ export default function DashboardScreen() {
                   <Text style={styles.mediaCountText}>{getAllAttachments().length}</Text>
                 </View>
               )}
-            </Pressable>
-            <Pressable
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-              style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.5 : 1 }]}
+            </GHPressable>
+            <GHPressable
+              style={styles.headerButton}
               onPress={() => {
                 if (activeChat) {
                   setSelectedChat(activeChat);
@@ -616,7 +612,7 @@ export default function DashboardScreen() {
               }}
             >
               <Ionicons name="ellipsis-vertical" size={24} color="#9ca3af" />
-            </Pressable>
+            </GHPressable>
           </View>
 
           <KeyboardAvoidingView
@@ -1147,12 +1143,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#1f2937',
   },
   chatTitleButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginHorizontal: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: 200,
+  },
+  headerButton: {
+    padding: 12,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chatModalTitle: {
     color: '#e5e7eb',
