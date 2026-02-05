@@ -146,12 +146,14 @@ export default function DashboardScreen() {
   const uploadFile = async (uri: string, fileName: string, contentType: string): Promise<string | null> => {
     try {
       setUploadingImage(true);
+      console.log('[Upload] Step 1: Requesting presigned URL from:', API_URL);
       const urlResponse = await axios.post(`${API_URL}/api/uploads/request-url`, {
         name: fileName,
         size: 0,
         contentType: contentType,
       });
       const { uploadURL, objectPath } = urlResponse.data;
+      console.log('[Upload] Step 2: Got presigned URL, objectPath:', objectPath);
 
       if (Platform.OS === 'web') {
         const fileResponse = await fetch(uri);
@@ -191,8 +193,12 @@ export default function DashboardScreen() {
 
       const publicUrl = `${API_URL}${objectPath}`;
       return publicUrl;
-    } catch (error) {
-      console.error('Error uploading file:', error);
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
+      console.error('[Upload] Error:', errorMsg, error);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Upload Debug', `Error: ${errorMsg}`);
+      }
       return null;
     } finally {
       setUploadingImage(false);
@@ -200,6 +206,7 @@ export default function DashboardScreen() {
   };
 
   const uploadImage = async (uri: string): Promise<string | null> => {
+    console.log('[uploadImage] Starting for URI:', uri?.substring(0, 80));
     return uploadFile(uri, `image-${Date.now()}.jpg`, 'image/jpeg');
   };
 
@@ -241,14 +248,27 @@ export default function DashboardScreen() {
         });
 
     if (!result.canceled && result.assets[0]) {
-      const uploadedUrl = await uploadImage(result.assets[0].uri);
-      if (uploadedUrl) {
-        setPendingAttachments((prev) => [...prev, { type: 'image', url: uploadedUrl }]);
-      } else {
-        if (Platform.OS === 'web') {
-          window.alert('Failed to upload image');
+      try {
+        console.log('[pickImage] Starting upload for:', result.assets[0].uri?.substring(0, 50));
+        const uploadedUrl = await uploadImage(result.assets[0].uri);
+        if (uploadedUrl) {
+          console.log('[pickImage] Upload successful:', uploadedUrl);
+          setPendingAttachments((prev) => [...prev, { type: 'image', url: uploadedUrl }]);
         } else {
-          Alert.alert('Error', 'Failed to upload image');
+          console.log('[pickImage] Upload returned null');
+          if (Platform.OS === 'web') {
+            window.alert('Failed to upload image - check console for details');
+          } else {
+            Alert.alert('Error', 'Failed to upload image - see logs');
+          }
+        }
+      } catch (err: any) {
+        console.error('[pickImage] Upload error:', err);
+        const errorMsg = err?.message || String(err);
+        if (Platform.OS === 'web') {
+          window.alert(`Upload failed: ${errorMsg}`);
+        } else {
+          Alert.alert('Upload Error', errorMsg);
         }
       }
     }
