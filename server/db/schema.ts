@@ -19,6 +19,7 @@ export const users = pgTable('users', {
   lastName: text('last_name'),
   profileImageUrl: text('profile_image_url'),
   isAdmin: boolean('is_admin').default(false),
+  totalTokensUsed: integer('total_tokens_used').default(0),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

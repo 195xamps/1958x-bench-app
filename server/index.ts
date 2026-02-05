@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import axios from 'axios';
 import { db, schema } from './db';
-import { eq, desc, ilike, or, and } from 'drizzle-orm';
+import { eq, desc, ilike, or, and, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { setupAuth, registerAuthRoutes, isAuthenticated } from './replit_integrations/auth';
@@ -351,6 +351,11 @@ app.post('/api/troubleshooting/chat', async (req: any, res) => {
       temperature: 0.7,
       max_tokens: 4000,
     });
+    
+    const tokensUsed = completion.usage?.total_tokens || 0;
+    if (userId && tokensUsed > 0) {
+      await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${tokensUsed} WHERE id = ${userId}`);
+    }
     
     const assistantMessage = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
     
@@ -1100,6 +1105,11 @@ app.post('/api/chats/:id/messages', async (req: any, res) => {
       max_tokens: 4000,
     });
     
+    const tokensUsed = completion.usage?.total_tokens || 0;
+    if (userId && tokensUsed > 0) {
+      await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${tokensUsed} WHERE id = ${userId}`);
+    }
+    
     const assistantContent = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
     
     const [assistantMessage] = await db.insert(schema.chatMessages).values({
@@ -1716,7 +1726,42 @@ app.get('/api/admin/users', async (req: any, res) => {
     }
     
     const allUsers = await db.select().from(schema.users).orderBy(desc(schema.users.createdAt));
-    res.json(allUsers);
+    
+    const activeSessions = await db.select({ 
+      sess: schema.sessions.sess 
+    }).from(schema.sessions)
+      .where(sql`expire > NOW()`);
+    
+    const activeUserIds = new Set(
+      activeSessions
+        .map(s => (s.sess as any)?.passport?.user)
+        .filter(Boolean)
+    );
+    
+    const chatCounts = await db.execute(sql`
+      SELECT user_id, COUNT(*) as count 
+      FROM chats 
+      WHERE user_id IS NOT NULL 
+      GROUP BY user_id
+    `);
+    const chatCountMap = new Map((chatCounts.rows as any[]).map(r => [r.user_id, parseInt(r.count)]));
+    
+    const jobCounts = await db.execute(sql`
+      SELECT user_id, COUNT(*) as count 
+      FROM bench_jobs 
+      WHERE user_id IS NOT NULL 
+      GROUP BY user_id
+    `);
+    const jobCountMap = new Map((jobCounts.rows as any[]).map(r => [r.user_id, parseInt(r.count)]));
+    
+    const usersWithStats = allUsers.map(user => ({
+      ...user,
+      chatCount: chatCountMap.get(user.id) || 0,
+      jobCount: jobCountMap.get(user.id) || 0,
+      isActive: activeUserIds.has(user.id),
+    }));
+    
+    res.json(usersWithStats);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });

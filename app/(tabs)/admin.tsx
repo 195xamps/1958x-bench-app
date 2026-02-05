@@ -22,6 +22,10 @@ interface User {
   profileImageUrl: string | null;
   isAdmin: boolean;
   createdAt: string;
+  totalTokensUsed: number | null;
+  chatCount: number;
+  jobCount: number;
+  isActive: boolean;
 }
 
 interface Chat {
@@ -290,20 +294,38 @@ export default function AdminScreen() {
             {users.map((u) => (
               <TouchableOpacity key={u.id} style={styles.userCard} onPress={() => handleUserSelect(u)}>
                 <View style={styles.userInfo}>
-                  {u.profileImageUrl ? (
-                    <Image source={{ uri: u.profileImageUrl }} style={styles.userAvatar} />
-                  ) : (
-                    <View style={styles.userAvatarPlaceholder}>
-                      <Ionicons name="person" size={20} color="#9ca3af" />
-                    </View>
-                  )}
+                  <View style={styles.avatarContainer}>
+                    {u.profileImageUrl ? (
+                      <Image source={{ uri: u.profileImageUrl }} style={styles.userAvatar} />
+                    ) : (
+                      <View style={styles.userAvatarPlaceholder}>
+                        <Ionicons name="person" size={20} color="#9ca3af" />
+                      </View>
+                    )}
+                    {u.isActive && <View style={styles.activeIndicator} />}
+                  </View>
                   <View style={styles.userDetails}>
-                    <Text style={styles.userName}>
-                      {u.firstName} {u.lastName}
-                      {u.isAdmin && <Text style={styles.adminBadge}> (Admin)</Text>}
-                    </Text>
+                    <View style={styles.userNameRow}>
+                      <Text style={styles.userName}>
+                        {u.firstName} {u.lastName}
+                      </Text>
+                      {u.isAdmin && <View style={styles.adminBadgeTag}><Text style={styles.adminBadgeText}>Admin</Text></View>}
+                    </View>
                     <Text style={styles.userEmail}>{u.email}</Text>
-                    <Text style={styles.userJoined}>Joined {formatDate(u.createdAt)}</Text>
+                    <View style={styles.userStatsRow}>
+                      <View style={styles.userStat}>
+                        <Ionicons name="chatbubble-outline" size={14} color="#9ca3af" />
+                        <Text style={styles.userStatText}>{u.chatCount} chats</Text>
+                      </View>
+                      <View style={styles.userStat}>
+                        <Ionicons name="briefcase-outline" size={14} color="#9ca3af" />
+                        <Text style={styles.userStatText}>{u.jobCount} jobs</Text>
+                      </View>
+                      <View style={styles.userStat}>
+                        <Ionicons name="flash-outline" size={14} color="#f59e0b" />
+                        <Text style={styles.userStatText}>{((u.totalTokensUsed || 0) / 1000).toFixed(1)}k tokens</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#6b7280" />
@@ -650,5 +672,50 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 14,
     fontStyle: 'italic',
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#22c55e',
+    borderWidth: 2,
+    borderColor: '#1f2937',
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminBadgeTag: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  adminBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  userStatsRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 12,
+  },
+  userStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  userStatText: {
+    fontSize: 12,
+    color: '#9ca3af',
   },
 });
