@@ -10,6 +10,8 @@ import {
   RefreshControl,
   Image,
   Platform,
+  Modal,
+  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -44,12 +46,28 @@ interface CommunityJob {
   } | null;
 }
 
+interface MyJob {
+  id: string;
+  status: string;
+  isPublic: boolean;
+  shareAnonymously: boolean;
+  ampProfile: {
+    make: string | null;
+    model: string | null;
+    year: string | null;
+  } | null;
+}
+
 export default function CommunityScreen() {
   const router = useRouter();
   const [jobs, setJobs] = useState<CommunityJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showManageModal, setShowManageModal] = useState(false);
+  const [myJobs, setMyJobs] = useState<MyJob[]>([]);
+  const [loadingMyJobs, setLoadingMyJobs] = useState(false);
+  const [togglingJob, setTogglingJob] = useState<string | null>(null);
 
   const fetchCommunityJobs = async () => {
     try {
@@ -70,6 +88,55 @@ export default function CommunityScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const fetchMyJobs = async () => {
+    setLoadingMyJobs(true);
+    try {
+      const response = await fetch(`${API_URL}/api/bench-jobs`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        const mapped = data.map((item: any) => ({
+          id: item.job.id,
+          status: item.job.status,
+          isPublic: item.job.isPublic || false,
+          shareAnonymously: item.job.shareAnonymously || false,
+          ampProfile: item.ampProfile,
+        }));
+        setMyJobs(mapped);
+      }
+    } catch (error) {
+      console.error('Error fetching my jobs:', error);
+    } finally {
+      setLoadingMyJobs(false);
+    }
+  };
+
+  const toggleJobSharing = async (jobId: string, isPublic: boolean) => {
+    setTogglingJob(jobId);
+    try {
+      const response = await fetch(`${API_URL}/api/bench-jobs/${jobId}/sharing`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isPublic }),
+      });
+      if (response.ok) {
+        setMyJobs(prev => prev.map(job => 
+          job.id === jobId ? { ...job, isPublic } : job
+        ));
+        fetchCommunityJobs();
+      }
+    } catch (error) {
+      console.error('Error toggling job sharing:', error);
+    } finally {
+      setTogglingJob(null);
+    }
+  };
+
+  const openManageModal = () => {
+    setShowManageModal(true);
+    fetchMyJobs();
   };
 
   useEffect(() => {
@@ -134,20 +201,25 @@ export default function CommunityScreen() {
         Browse jobs shared by other technicians. Learn from real troubleshooting cases.
       </Text>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by amp, symptom, circuit..."
-          placeholderTextColor="#6b7280"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#6b7280" />
-          </TouchableOpacity>
-        )}
+      <View style={styles.searchRow}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by amp, symptom, circuit..."
+            placeholderTextColor="#6b7280"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity style={styles.manageButton} onPress={openManageModal}>
+          <Ionicons name="settings-outline" size={20} color="#f59e0b" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -225,6 +297,61 @@ export default function CommunityScreen() {
           ))
         )}
       </ScrollView>
+
+      <Modal visible={showManageModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Manage My Shared Jobs</Text>
+              <TouchableOpacity onPress={() => setShowManageModal(false)}>
+                <Ionicons name="close" size={24} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Toggle sharing for your jobs. Shared jobs appear in Community Bench.
+            </Text>
+            
+            {loadingMyJobs ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator size="large" color="#f59e0b" />
+              </View>
+            ) : myJobs.length === 0 ? (
+              <View style={styles.modalEmpty}>
+                <Ionicons name="briefcase-outline" size={48} color="#6b7280" />
+                <Text style={styles.modalEmptyText}>No jobs yet</Text>
+                <Text style={styles.modalEmptyHint}>Create a job first, then share it here.</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.modalList}>
+                {myJobs.map((job) => (
+                  <View key={job.id} style={styles.myJobCard}>
+                    <View style={styles.myJobInfo}>
+                      <Text style={styles.myJobTitle}>
+                        {job.ampProfile?.make || 'Unknown'} {job.ampProfile?.model || 'Amp'}
+                      </Text>
+                      <Text style={styles.myJobYear}>
+                        {job.ampProfile?.year || 'Unknown year'}
+                      </Text>
+                    </View>
+                    <View style={styles.shareToggle}>
+                      {togglingJob === job.id ? (
+                        <ActivityIndicator size="small" color="#f59e0b" />
+                      ) : (
+                        <Switch
+                          value={job.isPublic}
+                          onValueChange={(value) => toggleJobSharing(job.id, value)}
+                          trackColor={{ false: '#374151', true: '#f59e0b' }}
+                          thumbColor={job.isPublic ? '#fff' : '#9ca3af'}
+                        />
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -255,14 +382,27 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     backgroundColor: '#1f2937',
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 8,
+  },
   searchContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#374151',
-    marginHorizontal: 16,
-    marginTop: 16,
     borderRadius: 12,
     paddingHorizontal: 12,
+  },
+  manageButton: {
+    backgroundColor: '#374151',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchIcon: {
     marginRight: 8,
@@ -384,5 +524,82 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1f2937',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#f3f4f6',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginBottom: 20,
+  },
+  modalLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  modalEmpty: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  modalEmptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#9ca3af',
+    marginTop: 12,
+  },
+  modalEmptyHint: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  modalList: {
+    maxHeight: 400,
+  },
+  myJobCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#374151',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  myJobInfo: {
+    flex: 1,
+  },
+  myJobTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f3f4f6',
+  },
+  myJobYear: {
+    fontSize: 13,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  shareToggle: {
+    marginLeft: 12,
   },
 });
