@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   TextInput,
   Modal,
   Alert,
@@ -565,8 +566,9 @@ export default function DashboardScreen() {
       <Modal visible={showChatModal} animationType="slide">
         <View style={styles.chatModalContainer}>
           <View style={styles.chatModalHeader}>
-            <TouchableOpacity
+            <Pressable
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.5 : 1 }]}
               onPress={() => {
                 setShowChatModal(false);
                 setActiveChat(null);
@@ -575,9 +577,9 @@ export default function DashboardScreen() {
               }}
             >
               <Ionicons name="arrow-back" size={28} color="#f59e0b" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.chatTitleButton}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.chatTitleButton, { opacity: pressed ? 0.5 : 1 }]}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               onPress={() => {
                 setNewTitle(activeChat?.title || '');
@@ -588,9 +590,9 @@ export default function DashboardScreen() {
                 {activeChat?.title}
               </Text>
               <Ionicons name="pencil" size={16} color="#9ca3af" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.mediaGalleryButton}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.mediaGalleryButton, { opacity: pressed ? 0.5 : 1 }]}
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               onPress={() => setShowMediaGallery(true)}
             >
@@ -600,10 +602,10 @@ export default function DashboardScreen() {
                   <Text style={styles.mediaCountText}>{getAllAttachments().length}</Text>
                 </View>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            <Pressable
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-              style={{ padding: 8 }}
+              style={({ pressed }) => [{ padding: 8, opacity: pressed ? 0.5 : 1 }]}
               onPress={() => {
                 if (activeChat) {
                   setSelectedChat(activeChat);
@@ -612,7 +614,7 @@ export default function DashboardScreen() {
               }}
             >
               <Ionicons name="ellipsis-vertical" size={24} color="#9ca3af" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <KeyboardAvoidingView
