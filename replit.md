@@ -143,6 +143,12 @@ The app emphasizes safety for high-voltage work:
 
 ## Recent Changes
 
+- Feb 2026: **iOS Touch Responsiveness Fix** - Fixed chat header buttons not responding
+  - Replaced Modal with full-screen View overlay to bypass React Native Modal touch issues
+  - Modal component has broken touch handling with new architecture (newArchEnabled: true)
+  - Header buttons now use GHPressable from react-native-gesture-handler
+  - Proper 44x44 touch targets on all header buttons
+  - Build 23: All buttons (rename, media gallery, menu) respond immediately
 - Feb 2026: **Enhanced Community Job View** - Full read-only access to shared jobs
   - Community job detail now has Chat, Notes, and Measurements tabs (matching owner view)
   - Read-only chat history with all messages and attachments
