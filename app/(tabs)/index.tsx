@@ -619,7 +619,7 @@ export default function DashboardScreen() {
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={0}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
           >
           <ScrollView
             ref={scrollViewRef}
