@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -139,9 +140,11 @@ export default function CommunityScreen() {
     fetchMyJobs();
   };
 
-  useEffect(() => {
-    fetchCommunityJobs();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCommunityJobs();
+    }, [searchQuery])
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => {
