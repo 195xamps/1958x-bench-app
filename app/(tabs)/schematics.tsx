@@ -175,12 +175,13 @@ export default function SchematicsScreen() {
       } else {
         console.log('Step 3: Native upload using FileSystem.uploadAsync:', uri?.substring(0, 50));
         
+        // Use numeric values: BINARY_CONTENT=0, FOREGROUND=1
         const uploadResult = await FileSystem.uploadAsync(uploadURL, uri, {
           httpMethod: 'PUT',
-          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-          sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
+          uploadType: 0,
+          sessionType: 1,
           headers: { 'Content-Type': contentType },
-        });
+        } as any);
         
         console.log('Step 4: Upload response status:', uploadResult.status, 'body:', uploadResult.body?.substring(0, 200));
         

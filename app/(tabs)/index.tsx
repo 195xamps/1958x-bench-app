@@ -176,12 +176,13 @@ export default function DashboardScreen() {
       } else {
         console.log('[Upload] Native upload using FileSystem.uploadAsync, type:', contentType);
         
+        // Use numeric values: BINARY_CONTENT=0, FOREGROUND=1
         const uploadResult = await FileSystem.uploadAsync(uploadURL, uri, {
           httpMethod: 'PUT',
-          uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-          sessionType: FileSystem.FileSystemSessionType.FOREGROUND,
+          uploadType: 0,
+          sessionType: 1,
           headers: { 'Content-Type': contentType },
-        });
+        } as any);
         
         console.log('[Upload] Response status:', uploadResult.status, 'body:', uploadResult.body?.substring(0, 200));
         
