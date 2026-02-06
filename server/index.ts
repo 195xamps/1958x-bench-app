@@ -1162,12 +1162,20 @@ app.post('/api/chats/:id/convert-to-job', async (req: any, res) => {
       techNotes: `Converted from chat: ${chat.title}`,
     }).returning();
     
-    const [updatedChat] = await db.update(schema.chats)
-      .set({ benchJobId: benchJob.id, isStandalone: false, updatedAt: new Date() })
-      .where(eq(schema.chats.id, chatId))
-      .returning();
+    const [jobChat] = await db.insert(schema.chats).values({
+      userId,
+      benchJobId: benchJob.id,
+      title: chat.title,
+      isStandalone: false,
+    }).returning();
     
-    res.json({ benchJob, ampProfile, chat: updatedChat });
+    await db.update(schema.chatMessages)
+      .set({ chatId: jobChat.id })
+      .where(eq(schema.chatMessages.chatId, chatId));
+    
+    await db.delete(schema.chats).where(eq(schema.chats.id, chatId));
+    
+    res.json({ benchJob, ampProfile, deletedChatId: chatId, jobChat });
   } catch (error) {
     console.error('Error converting chat to job:', error);
     res.status(500).json({ error: 'Failed to convert chat to job' });

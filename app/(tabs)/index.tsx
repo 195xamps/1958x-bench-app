@@ -23,6 +23,7 @@ import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useFocusEffect } from '@react-navigation/native';
 import { MarkdownContent } from '../components/MarkdownContent';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -99,9 +100,11 @@ export default function DashboardScreen() {
     return attachments;
   };
 
-  useEffect(() => {
-    fetchChats();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchChats();
+    }, [])
+  );
 
   useEffect(() => {
     if (showChatModal) {
@@ -431,22 +434,18 @@ export default function DashboardScreen() {
 
   const convertToJob = async (chat: Chat) => {
     try {
-      const response = await axios.post(`${API_URL}/api/chats/${chat.id}/convert-to-job`);
+      await axios.post(`${API_URL}/api/chats/${chat.id}/convert-to-job`);
+      setChats((prev) => prev.filter((c) => c.id !== chat.id));
+      setShowOptionsModal(false);
       if (Platform.OS === 'web') {
-        window.alert('This chat has been converted to a bench job. You can now fill in the amp details.');
+        window.alert('Chat converted to a bench job. Check the Jobs tab to fill in amp details.');
       } else {
         Alert.alert(
           'Job Created',
-          'This chat has been converted to a bench job. You can now fill in the amp details.',
+          'Chat converted to a bench job. Check the Jobs tab to fill in amp details.',
           [{ text: 'OK' }]
         );
       }
-      setChats((prev) =>
-        prev.map((c) =>
-          c.id === chat.id ? { ...c, benchJobId: response.data.benchJob.id, isStandalone: false } : c
-        )
-      );
-      setShowOptionsModal(false);
     } catch (error: any) {
       console.error('Error converting to job:', error);
       const errorMsg = error.response?.data?.error || 'Failed to convert chat to job';
