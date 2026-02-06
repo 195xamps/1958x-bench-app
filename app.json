@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.brentwrisley.195xbenchapp",
-      "buildNumber": "32",
+      "buildNumber": "33",
       "config": {
         "usesNonExemptEncryption": false
       },

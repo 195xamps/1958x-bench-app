@@ -549,7 +549,7 @@ export default function JobDetailScreen() {
     <KeyboardAvoidingView 
       style={styles.chatContainer}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={220}
+      keyboardVerticalOffset={280}
     >
       <ScrollView
         ref={chatScrollRef}
