@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Alert,
   Image,
@@ -468,6 +469,7 @@ export default function JobDetailScreen() {
   const sendChatMessage = async () => {
     if ((!chatInput.trim() && pendingAttachments.length === 0) || !chatId || sendingChat) return;
 
+    Keyboard.dismiss();
     const messageText = chatInput.trim();
     const attachmentsToSend = [...pendingAttachments];
     setChatInput('');

@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Image,
   ActionSheetIOS,
@@ -336,6 +337,7 @@ export default function DashboardScreen() {
   const sendMessage = async () => {
     if ((!input.trim() && pendingAttachments.length === 0) || !activeChat || sending) return;
 
+    Keyboard.dismiss();
     const messageText = input.trim();
     const attachmentsToSend = [...pendingAttachments];
     setInput('');
