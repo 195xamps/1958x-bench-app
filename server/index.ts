@@ -897,7 +897,7 @@ app.get('/api/chats', async (req: any, res) => {
     }
     
     const allChats = await db.select().from(schema.chats)
-      .where(eq(schema.chats.userId, userId))
+      .where(and(eq(schema.chats.userId, userId), eq(schema.chats.isStandalone, true)))
       .orderBy(desc(schema.chats.updatedAt));
     res.json(allChats);
   } catch (error) {
