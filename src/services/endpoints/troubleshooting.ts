@@ -1,7 +1,7 @@
 import { apiClient } from '../api';
 
 export const troubleshootingApi = {
-  async start(params: { benchJobId: string; mode?: string }) {
+  async start(params: { benchJobId?: string; mode?: string }) {
     const { data } = await apiClient.post('/api/troubleshooting/start', {
       benchJobId: params.benchJobId,
       mode: params.mode || 'guided',

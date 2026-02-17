@@ -5,41 +5,19 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
+
+import { troubleshootingApi } from '../../src/services';
+import { colors } from '../../src/theme';
+import type { TroubleshootingMessage } from '../../src/types';
 import { MarkdownContent } from '../../src/components/MarkdownContent';
+import { ChatInput } from '../../src/components/chat';
 
-const getApiUrl = () => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  return process.env.EXPO_PUBLIC_API_URL || '';
-};
-
-const API_URL = getApiUrl();
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface BenchJob {
-  id: string;
-  ownerSymptoms: string;
-  knownMods: string;
-  priorWork: string;
-}
-
-interface AmpProfile {
-  make: string;
-  model: string;
-  year: string;
-}
+// ─── Constants ──────────────────────────────────────────────────────────────
 
 const COMMON_SYMPTOMS = [
   'Hum after recap',
@@ -54,31 +32,43 @@ const COMMON_SYMPTOMS = [
   'Pops on standby toggle',
 ];
 
+const WELCOME_MESSAGE: TroubleshootingMessage = {
+  role: 'assistant',
+  content:
+    "I'm your troubleshooting assistant for the 195x Bench App. I'll guide you through diagnosing and repairing guitar amplifiers safely and methodically.\n\n" +
+    '**SAFETY FIRST**: Before we begin any high-voltage work, please confirm:\n' +
+    '- Isolation transformer is connected\n' +
+    '- Capacitors are discharged\n' +
+    '- PPE is available\n\n' +
+    'Describe the symptom you\'re experiencing, or select one from the common issues above to get started.',
+};
+
+// ─── Main Component ─────────────────────────────────────────────────────────
+
 export default function TroubleshootScreen() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<TroubleshootingMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'guided' | 'expert'>('guided');
-  const [activeJob, setActiveJob] = useState<BenchJob | null>(null);
-  const [ampProfile, setAmpProfile] = useState<AmpProfile | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
+
+  // ─── Session Management ─────────────────────────────────────────────────
 
   const startSession = async (symptom?: string) => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/api/troubleshooting/start`, {
-        mode,
-      });
-      setSessionId(response.data.id);
-      
+      const data = await troubleshootingApi.start({ mode });
+      setSessionId(data.id);
+
       if (symptom) {
-        await sendMessage(symptom, response.data.id);
+        await sendMessageToSession(symptom, data.id);
       } else {
-        setMessages([{
-          role: 'assistant',
-          content: `I'm your troubleshooting assistant for the 195x Bench App. I'll guide you through diagnosing and repairing guitar amplifiers safely and methodically.\n\n**SAFETY FIRST**: Before we begin any high-voltage work, please confirm:\n- Isolation transformer is connected\n- Capacitors are discharged\n- PPE is available\n\nDescribe the symptom you're experiencing, or select one from the common issues above to get started.`
-        }]);
+        setMessages([WELCOME_MESSAGE]);
       }
     } catch (error) {
       console.error('Error starting session:', error);
@@ -87,76 +77,47 @@ export default function TroubleshootScreen() {
     }
   };
 
-  const sendMessage = async (text: string, sid?: string) => {
-    const messageText = text || input;
-    if (!messageText.trim()) return;
+  const resetSession = () => {
+    setSessionId(null);
+    setMessages([]);
+  };
 
-    const currentSessionId = sid || sessionId;
-    if (!currentSessionId) {
-      await startSession(messageText);
-      return;
-    }
+  // ─── Messaging ──────────────────────────────────────────────────────────
 
-    setMessages(prev => [...prev, { role: 'user', content: messageText }]);
-    setInput('');
+  const sendMessageToSession = async (text: string, sid: string) => {
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/api/troubleshooting/chat`, {
-        sessionId: currentSessionId,
-        message: messageText,
-        benchJobContext: activeJob ? {
-          make: ampProfile?.make,
-          model: ampProfile?.model,
-          year: ampProfile?.year,
-          ownerSymptoms: activeJob.ownerSymptoms,
-          knownMods: activeJob.knownMods,
-          priorWork: activeJob.priorWork,
-        } : null,
+      const data = await troubleshootingApi.chat({
+        sessionId: sid,
+        message: text,
       });
-
-      setMessages(prev => [...prev, { role: 'assistant', content: response.data.message }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
     } catch (error) {
       console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'I encountered an error. Please try again or rephrase your question.' 
-      }]);
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'I encountered an error. Please try again or rephrase your question.' },
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text) return;
+    setInput('');
 
-  const renderMessage = (message: Message, index: number) => {
-    const isUser = message.role === 'user';
-    return (
-      <View
-        key={index}
-        style={[
-          styles.messageBubble,
-          isUser ? styles.userMessage : styles.assistantMessage,
-        ]}
-      >
-        {!isUser && (
-          <View style={styles.assistantHeader}>
-            <Ionicons name="hardware-chip" size={18} color="#f59e0b" />
-            <Text style={styles.assistantLabel}>Bench Assistant</Text>
-          </View>
-        )}
-        {isUser ? (
-          <Text style={[styles.messageText, styles.userMessageText]}>
-            {message.content}
-          </Text>
-        ) : (
-          <MarkdownContent content={message.content} />
-        )}
-      </View>
-    );
+    if (!sessionId) {
+      await startSession(text);
+    } else {
+      await sendMessageToSession(text, sessionId);
+    }
   };
+
+  // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
     <KeyboardAvoidingView
@@ -164,92 +125,76 @@ export default function TroubleshootScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
+      {/* Mode Toggle */}
       <View style={styles.modeToggle}>
-        <TouchableOpacity
-          style={[styles.modeButton, mode === 'guided' && styles.modeButtonActive]}
-          onPress={() => setMode('guided')}
-        >
-          <Ionicons name="list" size={18} color={mode === 'guided' ? '#1f2937' : '#9ca3af'} />
-          <Text style={[styles.modeButtonText, mode === 'guided' && styles.modeButtonTextActive]}>
-            Guided
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modeButton, mode === 'expert' && styles.modeButtonActive]}
-          onPress={() => setMode('expert')}
-        >
-          <Ionicons name="flash" size={18} color={mode === 'expert' ? '#1f2937' : '#9ca3af'} />
-          <Text style={[styles.modeButtonText, mode === 'expert' && styles.modeButtonTextActive]}>
-            Expert
-          </Text>
-        </TouchableOpacity>
+        {(['guided', 'expert'] as const).map((m) => (
+          <TouchableOpacity
+            key={m}
+            style={[styles.modeButton, mode === m && styles.modeButtonActive]}
+            onPress={() => setMode(m)}
+          >
+            <Ionicons
+              name={m === 'guided' ? 'list' : 'flash'}
+              size={18}
+              color={mode === m ? colors.text.onAccent : colors.text.secondary}
+            />
+            <Text style={[styles.modeButtonText, mode === m && styles.modeButtonTextActive]}>
+              {m === 'guided' ? 'Guided' : 'Expert'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
+      {/* Messages */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
       >
         {messages.length === 0 && !sessionId && (
-          <View style={styles.welcomeContainer}>
-            <Ionicons name="build" size={48} color="#f59e0b" />
-            <Text style={styles.welcomeTitle}>Troubleshooting Assistant</Text>
-            <Text style={styles.welcomeText}>
-              Select a common symptom or describe the issue you're experiencing
-            </Text>
-            
-            <View style={styles.symptomsGrid}>
-              {COMMON_SYMPTOMS.map((symptom, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.symptomChip}
-                  onPress={() => startSession(symptom)}
-                >
-                  <Text style={styles.symptomChipText}>{symptom}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+          <WelcomePanel onSelectSymptom={(s) => startSession(s)} />
         )}
 
-        {messages.map(renderMessage)}
+        {messages.map((msg, index) => (
+          <View
+            key={index}
+            style={[styles.bubble, msg.role === 'user' ? styles.userBubble : styles.assistantBubble]}
+          >
+            {msg.role === 'assistant' && (
+              <View style={styles.assistantHeader}>
+                <Ionicons name="hardware-chip" size={18} color={colors.accent} />
+                <Text style={styles.assistantLabel}>Bench Assistant</Text>
+              </View>
+            )}
+            {msg.role === 'user' ? (
+              <Text style={styles.userText}>{msg.content}</Text>
+            ) : (
+              <MarkdownContent content={msg.content} />
+            )}
+          </View>
+        ))}
 
         {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#f59e0b" />
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={colors.accent} />
             <Text style={styles.loadingText}>Analyzing...</Text>
           </View>
         )}
       </ScrollView>
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Describe the issue or ask a question..."
-          placeholderTextColor="#6b7280"
-          multiline
-          maxLength={2000}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (!input.trim() || loading) && styles.sendButtonDisabled]}
-          onPress={() => sendMessage(input)}
-          disabled={!input.trim() || loading}
-        >
-          <Ionicons name="send" size={22} color="#1f2937" />
-        </TouchableOpacity>
-      </View>
+      {/* Input */}
+      <ChatInput
+        value={input}
+        onChangeText={setInput}
+        onSend={handleSend}
+        sending={loading}
+        placeholder="Describe the issue or ask a question..."
+      />
 
+      {/* New Session */}
       {sessionId && (
-        <TouchableOpacity
-          style={styles.newSessionButton}
-          onPress={() => {
-            setSessionId(null);
-            setMessages([]);
-          }}
-        >
-          <Ionicons name="refresh" size={16} color="#9ca3af" />
+        <TouchableOpacity style={styles.newSessionButton} onPress={resetSession}>
+          <Ionicons name="refresh" size={16} color={colors.text.secondary} />
           <Text style={styles.newSessionText}>New Session</Text>
         </TouchableOpacity>
       )}
@@ -257,17 +202,43 @@ export default function TroubleshootScreen() {
   );
 }
 
+// ─── Welcome Panel ──────────────────────────────────────────────────────────
+
+function WelcomePanel({ onSelectSymptom }: { onSelectSymptom: (symptom: string) => void }) {
+  return (
+    <View style={styles.welcomeContainer}>
+      <Ionicons name="build" size={48} color={colors.accent} />
+      <Text style={styles.welcomeTitle}>Troubleshooting Assistant</Text>
+      <Text style={styles.welcomeText}>
+        Select a common symptom or describe the issue you're experiencing
+      </Text>
+
+      <View style={styles.symptomsGrid}>
+        {COMMON_SYMPTOMS.map((symptom, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.symptomChip}
+            onPress={() => onSelectSymptom(symptom)}
+          >
+            <Text style={styles.symptomChipText}>{symptom}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111827',
-  },
+  container: { flex: 1, backgroundColor: colors.bg.primary },
+  // Mode toggle
   modeToggle: {
     flexDirection: 'row',
     padding: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border.default,
   },
   modeButton: {
     flex: 1,
@@ -277,25 +248,61 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
   },
-  modeButtonActive: {
-    backgroundColor: '#f59e0b',
-  },
+  modeButtonActive: { backgroundColor: colors.accent },
   modeButtonText: {
-    color: '#9ca3af',
+    color: colors.text.secondary,
     fontSize: 14,
     fontWeight: '600',
   },
-  modeButtonTextActive: {
-    color: '#1f2937',
+  modeButtonTextActive: { color: colors.text.onAccent },
+  // Messages
+  messagesContainer: { flex: 1 },
+  messagesContent: { padding: 16 },
+  bubble: {
+    maxWidth: '85%',
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 12,
   },
-  messagesContainer: {
-    flex: 1,
+  userBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.accent,
+    borderBottomRightRadius: 4,
   },
-  messagesContent: {
-    padding: 16,
+  assistantBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.bg.surface,
+    borderBottomLeftRadius: 4,
   },
+  assistantHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  assistantLabel: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  userText: {
+    color: colors.text.onAccent,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  loadingText: {
+    color: colors.text.secondary,
+    fontSize: 14,
+  },
+  // Welcome
   welcomeContainer: {
     alignItems: 'center',
     paddingVertical: 32,
@@ -303,12 +310,12 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#f59e0b',
+    color: colors.accent,
     marginTop: 16,
     marginBottom: 8,
   },
   welcomeText: {
-    color: '#9ca3af',
+    color: colors.text.secondary,
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 24,
@@ -322,102 +329,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   symptomChip: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.border.default,
   },
   symptomChipText: {
-    color: '#e5e7eb',
+    color: colors.text.bright,
     fontSize: 14,
   },
-  messageBubble: {
-    maxWidth: '85%',
-    padding: 14,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  userMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#f59e0b',
-    borderBottomRightRadius: 4,
-  },
-  assistantMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#1f2937',
-    borderBottomLeftRadius: 4,
-  },
-  assistantHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  assistantLabel: {
-    color: '#f59e0b',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  messageText: {
-    color: '#e5e7eb',
-    fontSize: 15,
-    lineHeight: 22,
-  },
-  userMessageText: {
-    color: '#1f2937',
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-  },
-  loadingText: {
-    color: '#9ca3af',
-    fontSize: 14,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 12,
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-    backgroundColor: '#1f2937',
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#374151',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 16,
-    maxHeight: 100,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f59e0b',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
+  // New session
   newSessionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     padding: 10,
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
   },
   newSessionText: {
-    color: '#9ca3af',
+    color: colors.text.secondary,
     fontSize: 14,
   },
 });
