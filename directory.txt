@@ -81,14 +81,7 @@ app/chat:
 total 24
 drwxr-xr-x   3 bww  staff     96 Feb  4 11:17 .
 -rw-r--r--   1 bww  staff  11522 Feb  4 11:17 [id].tsx
-drwxr-xr-x  14 bww  staff    448 Feb  4 12:45 ..
-
-app/components:
-total 16
--rw-r--r--   1 bww  staff  3616 Feb  4 11:17 ImageViewer.tsx
-drwxr-xr-x   4 bww  staff   128 Feb  4 11:17 .
--rw-r--r--   1 bww  staff  3107 Feb  4 11:17 MarkdownContent.tsx
-drwxr-xr-x  14 bww  staff   448 Feb  4 12:45 ..
+drwxr-xr-x  21 bww  staff    672 Feb 16 22:38 ..
 
 assets/fonts:
 total 184
@@ -127,13 +120,13 @@ drwxr-xr-x  5 bww  staff  160 Feb  4 11:17 image
 drwxr-xr-x  8 bww  staff  256 Feb  4 11:17 .
 drwxr-xr-x  6 bww  staff  192 Feb  4 11:17 object_storage
 drwxr-xr-x  7 bww  staff  224 Feb  4 11:57 auth
-drwxr-xr-x  6 bww  staff  192 Feb  6 08:36 ..
+drwxr-xr-x  7 bww  staff  224 Feb 16 17:10 ..
 
 shared/models:
 total 8
-drwxr-xr-x  3 bww  staff    96 Feb  4 11:17 ..
 drwxr-xr-x  3 bww  staff    96 Feb  4 11:17 .
 -rw-r--r--  1 bww  staff  1066 Feb  4 11:17 auth.ts
+drwxr-xr-x  4 bww  staff   128 Feb 16 17:16 ..
 
 node_modules/@0no-co:
 total 0
@@ -11357,7 +11350,7 @@ app/contexts:
 total 8
 drwxr-xr-x   3 bww  staff    96 Feb  4 11:57 .
 -rw-r--r--   1 bww  staff  3713 Feb  4 11:57 AuthContext.tsx
-drwxr-xr-x  14 bww  staff   448 Feb  4 12:45 ..
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
 
 node_modules/@unrs:
 total 0
@@ -11390,42 +11383,104 @@ app/article:
 total 40
 drwxr-xr-x   3 bww  staff     96 Feb  4 12:45 .
 -rw-r--r--   1 bww  staff  16599 Feb  4 12:45 [id].tsx
-drwxr-xr-x  14 bww  staff    448 Feb  4 12:45 ..
+drwxr-xr-x  21 bww  staff    672 Feb 16 22:38 ..
 
 app/community-job:
 total 56
-drwxr-xr-x  14 bww  staff    448 Feb  4 12:45 ..
 drwxr-xr-x   3 bww  staff     96 Feb  4 16:05 .
 -rw-r--r--   1 bww  staff  25999 Feb  4 16:05 [id].tsx
+drwxr-xr-x  21 bww  staff    672 Feb 16 22:38 ..
 
 app/schematic:
 total 56
-drwxr-xr-x  14 bww  staff    448 Feb  4 12:45 ..
 drwxr-xr-x   3 bww  staff     96 Feb  4 21:07 .
 -rw-r--r--   1 bww  staff  27820 Feb  4 21:07 [id].tsx
+drwxr-xr-x  21 bww  staff    672 Feb 16 22:38 ..
 
 server/db:
 total 24
 -rw-r--r--  1 bww  staff   273 Feb  4 11:17 index.ts
 drwxr-xr-x  4 bww  staff   128 Feb  5 14:56 .
 -rw-r--r--  1 bww  staff  8172 Feb  5 14:56 schema.ts
-drwxr-xr-x  6 bww  staff   192 Feb  6 08:36 ..
+drwxr-xr-x  7 bww  staff   224 Feb 16 17:10 ..
 
 app/(tabs):
 total 536
 -rw-r--r--   1 bww  staff   2368 Feb  4 11:17 _layout.tsx
 -rw-r--r--   1 bww  staff  91392 Feb  4 12:45 reference.tsx
 -rw-r--r--   1 bww  staff  11214 Feb  4 12:45 troubleshoot.tsx
-drwxr-xr-x  14 bww  staff    448 Feb  4 12:45 ..
 -rw-r--r--   1 bww  staff  40546 Feb  4 13:43 jobs.tsx
 -rw-r--r--   1 bww  staff  30211 Feb  4 21:07 schematics.tsx
 -rw-r--r--   1 bww  staff  20322 Feb  5 14:56 admin.tsx
 -rw-r--r--   1 bww  staff  16700 Feb  5 17:16 community.tsx
 drwxr-xr-x  10 bww  staff    320 Feb  6 08:36 .
 -rw-r--r--   1 bww  staff  46708 Feb  6 08:36 index.tsx
+drwxr-xr-x  21 bww  staff    672 Feb 16 22:38 ..
 
 app/job:
 total 112
-drwxr-xr-x  14 bww  staff    448 Feb  4 12:45 ..
 drwxr-xr-x   3 bww  staff     96 Feb  6 14:04 .
 -rw-r--r--   1 bww  staff  56388 Feb  6 14:04 [id].tsx
+drwxr-xr-x  21 bww  staff    672 Feb 16 22:38 ..
+
+app/types:
+total 40
+drwxr-xr-x   7 bww  staff   224 Feb 16 17:56 .
+-rw-r--r--   1 bww  staff  1260 Feb 16 18:12 api.ts
+-rw-r--r--   1 bww  staff  3904 Feb 16 18:12 domain.ts
+-rw-r--r--   1 bww  staff  1562 Feb 16 18:12 reference.ts
+-rw-r--r--   1 bww  staff  2244 Feb 16 18:12 common.ts
+-rw-r--r--   1 bww  staff   104 Feb 16 18:12 index.ts
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
+
+app/utils:
+total 32
+drwxr-xr-x   6 bww  staff   192 Feb 16 17:56 .
+-rw-r--r--   1 bww  staff   270 Feb 16 18:12 config.ts
+-rw-r--r--   1 bww  staff  1189 Feb 16 18:12 alert.ts
+-rw-r--r--   1 bww  staff  1232 Feb 16 18:12 format.ts
+-rw-r--r--   1 bww  staff   220 Feb 16 18:12 index.ts
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
+
+app/theme:
+total 24
+drwxr-xr-x   5 bww  staff   160 Feb 16 17:56 .
+-rw-r--r--   1 bww  staff   537 Feb 16 18:12 colors.ts
+-rw-r--r--   1 bww  staff  3989 Feb 16 18:12 styles.ts
+-rw-r--r--   1 bww  staff   116 Feb 16 18:12 index.ts
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
+
+app/services:
+total 16
+drwxr-xr-x  10 bww  staff   320 Feb 16 17:56 endpoints
+drwxr-xr-x   5 bww  staff   160 Feb 16 17:56 .
+-rw-r--r--   1 bww  staff  1061 Feb 16 18:12 api.ts
+-rw-r--r--   1 bww  staff   499 Feb 16 18:12 index.ts
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
+
+app/components:
+total 16
+-rw-r--r--   1 bww  staff  3616 Feb  4 11:17 ImageViewer.tsx
+-rw-r--r--   1 bww  staff  3107 Feb  4 11:17 MarkdownContent.tsx
+drwxr-xr-x   8 bww  staff   256 Feb 16 22:38 chat
+drwxr-xr-x   6 bww  staff   192 Feb 16 22:38 .
+drwxr-xr-x   7 bww  staff   224 Feb 16 22:38 shared
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
+
+app/hooks:
+total 32
+-rw-r--r--   1 bww  staff  4239 Feb 16 22:38 useFileUpload.ts
+-rw-r--r--   1 bww  staff   357 Feb 16 22:38 useDebounce.ts
+drwxr-xr-x   5 bww  staff   160 Feb 16 22:38 .
+-rw-r--r--   1 bww  staff    94 Feb 16 22:38 index.ts
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
+
+app/data:
+total 64
+drwxr-xr-x  21 bww  staff   672 Feb 16 22:38 ..
+-rw-r--r--   1 bww  staff  7651 Feb 16 22:38 flowcharts.ts
+-rw-r--r--   1 bww  staff  5593 Feb 16 22:38 voltageCards.ts
+-rw-r--r--   1 bww  staff   320 Feb 16 22:38 tubeData.ts
+-rw-r--r--   1 bww  staff  5875 Feb 16 22:38 measurementCategories.ts
+drwxr-xr-x   7 bww  staff   224 Feb 16 22:38 .
+-rw-r--r--   1 bww  staff   434 Feb 16 22:38 index.ts
