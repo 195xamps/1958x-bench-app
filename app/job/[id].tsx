@@ -16,11 +16,11 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { jobsApi, chatsApi } from '../services';
-import { colors } from '../theme';
-import { JOB_STATUSES, getStatusConfig } from '../types/common';
-import type { ChatMessage, Attachment, Measurement } from '../types';
-import { useFileUpload } from '../hooks';
+import { jobsApi, chatsApi } from '../../src/services';
+import { colors } from '../../src/theme';
+import { JOB_STATUSES, getStatusConfig } from '../../src/types/common';
+import type { ChatMessage, Attachment, Measurement } from '../../src/types';
+import { useFileUpload } from '../../src/hooks';
 import {
   showAlert,
   showConfirm,
@@ -28,14 +28,14 @@ import {
   formatTimestamp,
   formatAmpName,
   openUrl,
-} from '../utils';
-import { LoadingScreen } from '../components/shared';
-import { MessageList, ChatInput } from '../components/chat';
+} from '../../src/utils';
+import { LoadingScreen } from '../../src/components/shared';
+import { MessageList, ChatInput } from '../../src/components/chat';
 import {
   AttachmentPickerModal,
   showAttachmentOptions,
-} from '../components/chat/AttachmentPicker';
-import { AttachmentPreview } from '../components/chat/AttachmentPreview';
+} from '../../src/components/chat/AttachmentPicker';
+import { AttachmentPreview } from '../../src/components/chat/AttachmentPreview';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

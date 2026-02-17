@@ -17,7 +17,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import ImageViewer from '../components/ImageViewer';
+import ImageViewer from '../../src/components/ImageViewer';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {

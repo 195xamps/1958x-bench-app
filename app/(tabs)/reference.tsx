@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FlowchartsTab, VoltagesTab, CalculatorTab, ArticlesTab, TavaTab } from '../components/reference';
-import { colors } from '../theme/colors';
+import { FlowchartsTab, VoltagesTab, CalculatorTab, ArticlesTab, TavaTab } from '../../src/components/reference';
+import { colors } from '../../src/theme/colors';
 
 type SubTab = 'flowcharts' | 'voltages' | 'calculator' | 'articles' | 'tava';
 

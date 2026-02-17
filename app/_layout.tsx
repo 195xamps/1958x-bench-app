@@ -5,24 +5,25 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import LoginScreen from './login';
 import { ActivityIndicator, View } from 'react-native';
 
 function RootLayoutNav() {
-  const { isLoading, isAuthenticated } = useAuth();
-
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#111827', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#f59e0b" />
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <LoginScreen />;
-  }
+  // TODO: Re-enable auth when backend is configured
+  // const { isLoading, isAuthenticated } = useAuth();
+  //
+  // if (isLoading) {
+  //   return (
+  //     <View style={{ flex: 1, backgroundColor: '#111827', justifyContent: 'center', alignItems: 'center' }}>
+  //       <ActivityIndicator size="large" color="#f59e0b" />
+  //     </View>
+  //   );
+  // }
+  //
+  // if (!isAuthenticated) {
+  //   return <LoginScreen />;
+  // }
 
   return (
     <Stack>

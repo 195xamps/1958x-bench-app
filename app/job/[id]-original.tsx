@@ -22,7 +22,7 @@ import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { MarkdownContent } from '../components/MarkdownContent';
+import { MarkdownContent } from '../../src/components/MarkdownContent';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {

@@ -24,8 +24,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useFocusEffect } from '@react-navigation/native';
-import { MarkdownContent } from '../components/MarkdownContent';
-import { useAuth } from '../contexts/AuthContext';
+import { MarkdownContent } from '../../src/components/MarkdownContent';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {

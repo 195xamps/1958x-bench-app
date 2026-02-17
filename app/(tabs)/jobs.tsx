@@ -14,22 +14,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { jobsApi, chatsApi } from '../services';
-import { colors } from '../theme';
+import { jobsApi, chatsApi } from '../../src/services';
+import { colors } from '../../src/theme';
 import {
   JOB_STATUSES,
   SAFETY_CHECKLIST,
   getStatusConfig,
-} from '../types/common';
+} from '../../src/types/common';
 import type {
   JobWithProfile,
   CreateJobPayload,
   ChatMessage,
-} from '../types';
-import { useDebounce } from '../hooks';
-import { showAlert, showConfirm, showError, formatDate, formatAmpName } from '../utils';
-import { LoadingScreen, EmptyState } from '../components/shared';
-import { MessageList, ChatInput } from '../components/chat';
+} from '../../src/types';
+import { useDebounce } from '../../src/hooks';
+import { showAlert, showConfirm, showError, formatDate, formatAmpName } from '../../src/utils';
+import { LoadingScreen, EmptyState } from '../../src/components/shared';
+import { MessageList, ChatInput } from '../../src/components/chat';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 

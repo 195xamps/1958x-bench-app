@@ -15,8 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
-import { MarkdownContent } from '../components/MarkdownContent';
-import { useAuth } from '../contexts/AuthContext';
+import { MarkdownContent } from '../../src/components/MarkdownContent';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
