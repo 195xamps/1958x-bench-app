@@ -1,60 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/contexts/AuthContext';
-import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-
-const getApiUrl = () => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  return process.env.EXPO_PUBLIC_API_URL || '';
-};
-
-const API_URL = getApiUrl();
-
-interface User {
-  id: string;
-  email: string | null;
-  firstName: string | null;
-  lastName: string | null;
-  profileImageUrl: string | null;
-  isAdmin: boolean;
-  createdAt: string;
-  totalTokensUsed: number | null;
-  chatCount: number;
-  jobCount: number;
-  isActive: boolean;
-}
-
-interface Chat {
-  id: string;
-  userId: string | null;
-  title: string;
-  benchJobId: string | null;
-  isStandalone: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Job {
-  job: {
-    id: string;
-    userId: string | null;
-    status: string;
-    ownerSymptoms: string | null;
-    techNotes: string | null;
-    createdAt: string;
-  };
-  ampProfile: {
-    make: string | null;
-    model: string | null;
-    year: string | null;
-    circuitFamily: string | null;
-  } | null;
-  user?: User;
-}
+import { useAuth } from '../../src/contexts/AuthContext';
+import { colors } from '../../src/theme/colors';
+import { adminApi } from '../../src/services/endpoints/admin';
+import { formatDate } from '../../src/utils';
+import { LoadingScreen } from '../../src/components/shared';
+import { getStatusConfig } from '../../src/types/common';
+import type { AdminUser, AdminChat, AdminJob } from '../../src/types/admin';
 
 type TabType = 'users' | 'chats' | 'jobs';
 
@@ -62,90 +16,29 @@ export default function AdminScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('users');
-  const [users, setUsers] = useState<User[]>([]);
-  const [allChats, setAllChats] = useState<{ chat: Chat; user: User | null }[]>([]);
-  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [allChats, setAllChats] = useState<{ chat: AdminChat; user: AdminUser | null }[]>([]);
+  const [allJobs, setAllJobs] = useState<AdminJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [userChats, setUserChats] = useState<Chat[]>([]);
-  const [userJobs, setUserJobs] = useState<Job[]>([]);
-
-  const navigateToChat = (chatId: string) => {
-    router.push(`/chat/${chatId}` as any);
-  };
-
-  const navigateToJob = (jobId: string) => {
-    router.push(`/job/${jobId}` as any);
-  };
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/admin/users`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
-  const fetchAllChats = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/admin/all-chats`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setAllChats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching chats:', error);
-    }
-  };
-
-  const fetchAllJobs = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/admin/all-jobs`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        setAllJobs(data);
-      }
-    } catch (error) {
-      console.error('Error fetching jobs:', error);
-    }
-  };
-
-  const fetchUserDetails = async (userId: string) => {
-    try {
-      const [chatsRes, jobsRes] = await Promise.all([
-        fetch(`${API_URL}/api/admin/users/${userId}/chats`, { credentials: 'include' }),
-        fetch(`${API_URL}/api/admin/users/${userId}/jobs`, { credentials: 'include' }),
-      ]);
-      
-      if (chatsRes.ok) {
-        const chats = await chatsRes.json();
-        setUserChats(chats);
-      }
-      if (jobsRes.ok) {
-        const jobs = await jobsRes.json();
-        setUserJobs(jobs);
-      }
-    } catch (error) {
-      console.error('Error fetching user details:', error);
-    }
-  };
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [userChats, setUserChats] = useState<AdminChat[]>([]);
+  const [userJobs, setUserJobs] = useState<AdminJob[]>([]);
 
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchUsers(), fetchAllChats(), fetchAllJobs()]);
-    setLoading(false);
+    try {
+      const [u, c, j] = await Promise.all([
+        adminApi.getUsers(),
+        adminApi.getAllChats(),
+        adminApi.getAllJobs(),
+      ]);
+      setUsers(u); setAllChats(c); setAllJobs(j);
+    } catch (e) { console.error('Error loading admin data:', e); }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    if (user?.isAdmin) {
-      loadData();
-    }
-  }, [user?.isAdmin]);
+  useEffect(() => { if (user?.isAdmin) loadData(); }, [user?.isAdmin]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -153,243 +46,172 @@ export default function AdminScreen() {
     setRefreshing(false);
   }, []);
 
-  const handleUserSelect = async (selectedUser: User) => {
-    setSelectedUser(selectedUser);
-    await fetchUserDetails(selectedUser.id);
+  const handleUserSelect = async (u: AdminUser) => {
+    setSelectedUser(u);
+    try {
+      const [chats, jobs] = await Promise.all([
+        adminApi.getUserChats(u.id),
+        adminApi.getUserJobs(u.id),
+      ]);
+      setUserChats(chats); setUserJobs(jobs);
+    } catch (e) { console.error('Error fetching user details:', e); }
   };
+
+  // ─── Access denied / loading ─────────────────────────────────────────────
 
   if (!user?.isAdmin) {
     return (
-      <View style={styles.container}>
-        <View style={styles.accessDenied}>
-          <Ionicons name="lock-closed" size={64} color="#ef4444" />
-          <Text style={styles.accessDeniedTitle}>Admin Access Required</Text>
-          <Text style={styles.accessDeniedText}>
-            You do not have permission to view this page.
-          </Text>
+      <View style={s.container}>
+        <View style={s.accessDenied}>
+          <Ionicons name="lock-closed" size={64} color={colors.status.error} />
+          <Text style={s.accessDeniedTitle}>Admin Access Required</Text>
+          <Text style={s.accessDeniedText}>You do not have permission to view this page.</Text>
         </View>
       </View>
     );
   }
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#f59e0b" />
-          <Text style={styles.loadingText}>Loading admin data...</Text>
-        </View>
-      </View>
-    );
-  }
+  if (loading) return <LoadingScreen message="Loading admin data..." />;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  // ─── User detail overlay ─────────────────────────────────────────────────
 
   const renderUserDetail = () => {
     if (!selectedUser) return null;
-
     return (
-      <View style={styles.userDetailModal}>
-        <View style={styles.userDetailHeader}>
-          <TouchableOpacity onPress={() => setSelectedUser(null)} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#f59e0b" />
+      <View style={s.detailOverlay}>
+        <View style={s.detailHeader}>
+          <TouchableOpacity onPress={() => setSelectedUser(null)} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={colors.accent} />
           </TouchableOpacity>
-          <View style={styles.userDetailInfo}>
-            {selectedUser.profileImageUrl && (
-              <Image source={{ uri: selectedUser.profileImageUrl }} style={styles.userDetailAvatar} />
-            )}
+          <View style={s.detailInfo}>
+            {selectedUser.profileImageUrl && <Image source={{ uri: selectedUser.profileImageUrl }} style={s.detailAvatar} />}
             <View>
-              <Text style={styles.userDetailName}>
-                {selectedUser.firstName} {selectedUser.lastName}
-              </Text>
-              <Text style={styles.userDetailEmail}>{selectedUser.email}</Text>
+              <Text style={s.detailName}>{selectedUser.firstName} {selectedUser.lastName}</Text>
+              <Text style={s.detailEmail}>{selectedUser.email}</Text>
             </View>
           </View>
         </View>
-
-        <ScrollView style={styles.userDetailContent}>
-          <Text style={styles.sectionTitle}>Chats ({userChats.length})</Text>
-          {userChats.length === 0 ? (
-            <Text style={styles.emptyText}>No chats</Text>
-          ) : (
-            userChats.map((chat) => (
-              <TouchableOpacity key={chat.id} style={styles.itemCard} onPress={() => navigateToChat(chat.id)}>
-                <Text style={styles.itemTitle}>{chat.title}</Text>
-                <View style={styles.itemFooter}>
-                  <Text style={styles.itemSubtitle}>
-                    {chat.isStandalone ? 'Standalone' : 'Job Chat'} - {formatDate(chat.updatedAt)}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+        <ScrollView style={s.detailContent}>
+          <Text style={s.sectionTitle}>Chats ({userChats.length})</Text>
+          {userChats.length === 0
+            ? <Text style={s.emptyText}>No chats</Text>
+            : userChats.map((chat) => (
+              <TouchableOpacity key={chat.id} style={s.itemCard} onPress={() => router.push(`/chat/${chat.id}` as any)}>
+                <Text style={s.itemTitle}>{chat.title}</Text>
+                <View style={s.itemFooter}>
+                  <Text style={s.itemSub}>{chat.isStandalone ? 'Standalone' : 'Job Chat'} - {formatDate(chat.updatedAt)}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
                 </View>
               </TouchableOpacity>
             ))
-          )}
-
-          <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Jobs ({userJobs.length})</Text>
-          {userJobs.length === 0 ? (
-            <Text style={styles.emptyText}>No jobs</Text>
-          ) : (
-            userJobs.map(({ job, ampProfile }) => (
-              <TouchableOpacity key={job.id} style={styles.itemCard} onPress={() => navigateToJob(job.id)}>
-                <Text style={styles.itemTitle}>
-                  {ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}
-                </Text>
-                <View style={styles.itemFooter}>
-                  <Text style={styles.itemSubtitle}>
-                    Status: {job.status} - {formatDate(job.createdAt)}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
+          }
+          <Text style={[s.sectionTitle, { marginTop: 20 }]}>Jobs ({userJobs.length})</Text>
+          {userJobs.length === 0
+            ? <Text style={s.emptyText}>No jobs</Text>
+            : userJobs.map(({ job, ampProfile }) => (
+              <TouchableOpacity key={job.id} style={s.itemCard} onPress={() => router.push(`/job/${job.id}` as any)}>
+                <Text style={s.itemTitle}>{ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}</Text>
+                <View style={s.itemFooter}>
+                  <Text style={s.itemSub}>Status: {job.status} - {formatDate(job.createdAt)}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
                 </View>
               </TouchableOpacity>
             ))
-          )}
+          }
         </ScrollView>
       </View>
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Admin Dashboard</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{users.length}</Text>
-            <Text style={styles.statLabel}>Users</Text>
+  // ─── Tab content renderers ───────────────────────────────────────────────
+
+  const renderUsersTab = () => users.map((u) => (
+    <TouchableOpacity key={u.id} style={s.userCard} onPress={() => handleUserSelect(u)}>
+      <View style={s.userInfo}>
+        <View style={s.avatarWrap}>
+          {u.profileImageUrl
+            ? <Image source={{ uri: u.profileImageUrl }} style={s.avatar} />
+            : <View style={s.avatarPlaceholder}><Ionicons name="person" size={20} color={colors.text.secondary} /></View>
+          }
+          {u.isActive && <View style={s.activeIndicator} />}
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={s.nameRow}>
+            <Text style={s.userName}>{u.firstName} {u.lastName}</Text>
+            {u.isAdmin && <View style={s.adminTag}><Text style={s.adminTagText}>Admin</Text></View>}
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{allChats.length}</Text>
-            <Text style={styles.statLabel}>Chats</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{allJobs.length}</Text>
-            <Text style={styles.statLabel}>Jobs</Text>
+          <Text style={s.userEmail}>{u.email}</Text>
+          <View style={s.userStats}>
+            <StatChip icon="chatbubble-outline" label={`${u.chatCount} chats`} />
+            <StatChip icon="briefcase-outline" label={`${u.jobCount} jobs`} />
+            <StatChip icon="flash-outline" label={`${((u.totalTokensUsed || 0) / 1000).toFixed(1)}k tokens`} iconColor={colors.accent} />
           </View>
         </View>
       </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
+    </TouchableOpacity>
+  ));
 
-      <View style={styles.tabBar}>
+  const renderChatsTab = () => allChats.map(({ chat, user: chatUser }) => (
+    <TouchableOpacity key={chat.id} style={s.itemCard} onPress={() => router.push(`/chat/${chat.id}` as any)}>
+      <View style={s.itemHeader}>
+        <Text style={s.itemTitle}>{chat.title}</Text>
+        <View style={[s.badge, { backgroundColor: chat.isStandalone ? colors.status.info : colors.status.purple }]}>
+          <Text style={s.badgeText}>{chat.isStandalone ? 'Standalone' : 'Job Chat'}</Text>
+        </View>
+      </View>
+      <Text style={s.itemSub}>User: {chatUser?.firstName} {chatUser?.lastName} ({chatUser?.email})</Text>
+      <View style={s.itemFooter}>
+        <Text style={s.itemDate}>Updated: {formatDate(chat.updatedAt)}</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
+      </View>
+    </TouchableOpacity>
+  ));
+
+  const renderJobsTab = () => allJobs.map(({ job, ampProfile, user: jobUser }) => {
+    const statusCfg = getStatusConfig(job.status);
+    return (
+      <TouchableOpacity key={job.id} style={s.itemCard} onPress={() => router.push(`/job/${job.id}` as any)}>
+        <View style={s.itemHeader}>
+          <Text style={s.itemTitle}>{ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}</Text>
+          <View style={[s.badge, { backgroundColor: statusCfg.color }]}><Text style={s.badgeText}>{job.status}</Text></View>
+        </View>
+        <Text style={s.itemSub}>User: {jobUser?.firstName} {jobUser?.lastName} ({jobUser?.email})</Text>
+        {job.ownerSymptoms && <Text style={s.itemDesc} numberOfLines={2}>Symptoms: {job.ownerSymptoms}</Text>}
+        <View style={s.itemFooter}>
+          <Text style={s.itemDate}>Created: {formatDate(job.createdAt)}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
+        </View>
+      </TouchableOpacity>
+    );
+  });
+
+  return (
+    <View style={s.container}>
+      {/* Header with stats */}
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Admin Dashboard</Text>
+        <View style={s.statsRow}>
+          {[{ n: users.length, l: 'Users' }, { n: allChats.length, l: 'Chats' }, { n: allJobs.length, l: 'Jobs' }].map(({ n, l }) => (
+            <View key={l} style={s.statCard}><Text style={s.statNum}>{n}</Text><Text style={s.statLabel}>{l}</Text></View>
+          ))}
+        </View>
+      </View>
+
+      {/* Tab bar */}
+      <View style={s.tabBar}>
         {(['users', 'chats', 'jobs'] as TabType[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </Text>
+          <TouchableOpacity key={tab} style={[s.tab, activeTab === tab && s.activeTab]} onPress={() => setActiveTab(tab)}>
+            <Text style={[s.tabText, activeTab === tab && s.activeTabText]}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f59e0b" />}
-      >
-        {activeTab === 'users' && (
-          <>
-            {users.map((u) => (
-              <TouchableOpacity key={u.id} style={styles.userCard} onPress={() => handleUserSelect(u)}>
-                <View style={styles.userInfo}>
-                  <View style={styles.avatarContainer}>
-                    {u.profileImageUrl ? (
-                      <Image source={{ uri: u.profileImageUrl }} style={styles.userAvatar} />
-                    ) : (
-                      <View style={styles.userAvatarPlaceholder}>
-                        <Ionicons name="person" size={20} color="#9ca3af" />
-                      </View>
-                    )}
-                    {u.isActive && <View style={styles.activeIndicator} />}
-                  </View>
-                  <View style={styles.userDetails}>
-                    <View style={styles.userNameRow}>
-                      <Text style={styles.userName}>
-                        {u.firstName} {u.lastName}
-                      </Text>
-                      {u.isAdmin && <View style={styles.adminBadgeTag}><Text style={styles.adminBadgeText}>Admin</Text></View>}
-                    </View>
-                    <Text style={styles.userEmail}>{u.email}</Text>
-                    <View style={styles.userStatsRow}>
-                      <View style={styles.userStat}>
-                        <Ionicons name="chatbubble-outline" size={14} color="#9ca3af" />
-                        <Text style={styles.userStatText}>{u.chatCount} chats</Text>
-                      </View>
-                      <View style={styles.userStat}>
-                        <Ionicons name="briefcase-outline" size={14} color="#9ca3af" />
-                        <Text style={styles.userStatText}>{u.jobCount} jobs</Text>
-                      </View>
-                      <View style={styles.userStat}>
-                        <Ionicons name="flash-outline" size={14} color="#f59e0b" />
-                        <Text style={styles.userStatText}>{((u.totalTokensUsed || 0) / 1000).toFixed(1)}k tokens</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-
-        {activeTab === 'chats' && (
-          <>
-            {allChats.map(({ chat, user: chatUser }) => (
-              <TouchableOpacity key={chat.id} style={styles.itemCard} onPress={() => navigateToChat(chat.id)}>
-                <View style={styles.itemHeader}>
-                  <Text style={styles.itemTitle}>{chat.title}</Text>
-                  {chat.isStandalone ? (
-                    <View style={styles.standaloneBadge}>
-                      <Text style={styles.badgeText}>Standalone</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.jobChatBadge}>
-                      <Text style={styles.badgeText}>Job Chat</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.itemSubtitle}>
-                  User: {chatUser?.firstName} {chatUser?.lastName} ({chatUser?.email})
-                </Text>
-                <View style={styles.itemFooter}>
-                  <Text style={styles.itemDate}>Updated: {formatDate(chat.updatedAt)}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-
-        {activeTab === 'jobs' && (
-          <>
-            {allJobs.map(({ job, ampProfile, user: jobUser }) => (
-              <TouchableOpacity key={job.id} style={styles.itemCard} onPress={() => navigateToJob(job.id)}>
-                <View style={styles.itemHeader}>
-                  <Text style={styles.itemTitle}>
-                    {ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}
-                  </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) }]}>
-                    <Text style={styles.badgeText}>{job.status}</Text>
-                  </View>
-                </View>
-                <Text style={styles.itemSubtitle}>
-                  User: {jobUser?.firstName} {jobUser?.lastName} ({jobUser?.email})
-                </Text>
-                {job.ownerSymptoms && (
-                  <Text style={styles.itemDescription} numberOfLines={2}>
-                    Symptoms: {job.ownerSymptoms}
-                  </Text>
-                )}
-                <View style={styles.itemFooter}>
-                  <Text style={styles.itemDate}>Created: {formatDate(job.createdAt)}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#6b7280" />
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
+      {/* Content */}
+      <ScrollView style={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
+        {activeTab === 'users' && renderUsersTab()}
+        {activeTab === 'chats' && renderChatsTab()}
+        {activeTab === 'jobs' && renderJobsTab()}
       </ScrollView>
 
       {selectedUser && renderUserDetail()}
@@ -397,325 +219,73 @@ export default function AdminScreen() {
   );
 }
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'active': return '#3b82f6';
-    case 'in_progress': return '#f59e0b';
-    case 'waiting_parts': return '#8b5cf6';
-    case 'completed': return '#22c55e';
-    case 'archived': return '#6b7280';
-    default: return '#6b7280';
-  }
-};
+// ─── Small helper ────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111827',
-  },
-  header: {
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#1f2937',
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-    marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#374151',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 4,
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#1f2937',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: '#f59e0b',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  activeTabText: {
-    color: '#f59e0b',
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#1f2937',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  userAvatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#374151',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f3f4f6',
-  },
-  adminBadge: {
-    color: '#f59e0b',
-    fontWeight: 'bold',
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  userJoined: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  itemCard: {
-    backgroundColor: '#1f2937',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f3f4f6',
-    flex: 1,
-  },
-  itemSubtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginBottom: 4,
-  },
-  itemDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  itemDate: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  itemFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  standaloneBadge: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  jobChatBadge: {
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#9ca3af',
-    marginTop: 12,
-    fontSize: 16,
-  },
-  accessDenied: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  accessDeniedTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ef4444',
-    marginTop: 16,
-  },
-  accessDeniedText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  userDetailModal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#111827',
-  },
-  userDetailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#1f2937',
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  backButton: {
-    marginRight: 16,
-  },
-  userDetailInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  userDetailAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
-  },
-  userDetailName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#f3f4f6',
-  },
-  userDetailEmail: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  userDetailContent: {
-    flex: 1,
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-    marginBottom: 12,
-  },
-  emptyText: {
-    color: '#6b7280',
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#22c55e',
-    borderWidth: 2,
-    borderColor: '#1f2937',
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  adminBadgeTag: {
-    backgroundColor: '#f59e0b',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  adminBadgeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  userStatsRow: {
-    flexDirection: 'row',
-    marginTop: 8,
-    gap: 12,
-  },
-  userStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  userStatText: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
+function StatChip({ icon, label, iconColor = colors.text.secondary }: { icon: string; label: string; iconColor?: string }) {
+  return (
+    <View style={s.statChip}>
+      <Ionicons name={icon as any} size={14} color={iconColor} />
+      <Text style={s.statChipText}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.bg.primary },
+  // Header
+  header: { padding: 20, paddingTop: 60, backgroundColor: colors.bg.surface, borderBottomWidth: 1, borderBottomColor: colors.border.default },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: colors.accent, marginBottom: 16 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  statCard: { flex: 1, backgroundColor: colors.bg.elevated, padding: 16, borderRadius: 12, alignItems: 'center' },
+  statNum: { fontSize: 24, fontWeight: 'bold', color: colors.accent },
+  statLabel: { fontSize: 14, color: colors.text.secondary, marginTop: 4 },
+  // Tab bar
+  tabBar: { flexDirection: 'row', backgroundColor: colors.bg.surface, paddingHorizontal: 16, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border.default },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: colors.transparent },
+  activeTab: { borderBottomColor: colors.accent },
+  tabText: { fontSize: 16, fontWeight: '600', color: colors.text.muted },
+  activeTabText: { color: colors.accent },
+  content: { flex: 1, padding: 16 },
+  // User cards
+  userCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bg.surface, padding: 16, borderRadius: 12, marginBottom: 12 },
+  userInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  avatarWrap: { position: 'relative', marginRight: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24 },
+  avatarPlaceholder: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.bg.elevated, justifyContent: 'center', alignItems: 'center' },
+  activeIndicator: { position: 'absolute', bottom: 2, right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.status.success, borderWidth: 2, borderColor: colors.bg.surface },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  userName: { fontSize: 16, fontWeight: '600', color: colors.text.primary },
+  adminTag: { backgroundColor: colors.accent, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  adminTagText: { fontSize: 10, fontWeight: 'bold', color: colors.bg.primary },
+  userEmail: { fontSize: 14, color: colors.text.secondary, marginTop: 2 },
+  userStats: { flexDirection: 'row', marginTop: 8, gap: 12 },
+  statChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statChipText: { fontSize: 12, color: colors.text.secondary },
+  // Item cards (chats / jobs)
+  itemCard: { backgroundColor: colors.bg.surface, padding: 16, borderRadius: 12, marginBottom: 12 },
+  itemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  itemTitle: { fontSize: 16, fontWeight: '600', color: colors.text.primary, flex: 1 },
+  itemSub: { fontSize: 14, color: colors.text.secondary, marginBottom: 4 },
+  itemDesc: { fontSize: 14, color: colors.text.muted, marginTop: 4 },
+  itemDate: { fontSize: 12, color: colors.text.muted },
+  itemFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badgeText: { fontSize: 12, fontWeight: '600', color: colors.white },
+  // Access denied
+  accessDenied: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  accessDeniedTitle: { fontSize: 24, fontWeight: 'bold', color: colors.status.error, marginTop: 16 },
+  accessDeniedText: { fontSize: 16, color: colors.text.secondary, marginTop: 8, textAlign: 'center' },
+  // User detail overlay
+  detailOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg.primary },
+  detailHeader: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: 60, backgroundColor: colors.bg.surface, borderBottomWidth: 1, borderBottomColor: colors.border.default },
+  backBtn: { marginRight: 16 },
+  detailInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  detailAvatar: { width: 48, height: 48, borderRadius: 24, marginRight: 12 },
+  detailName: { fontSize: 18, fontWeight: 'bold', color: colors.text.primary },
+  detailEmail: { fontSize: 14, color: colors.text.secondary, marginTop: 2 },
+  detailContent: { flex: 1, padding: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: colors.accent, marginBottom: 12 },
+  emptyText: { color: colors.text.muted, fontSize: 14, fontStyle: 'italic' },
 });

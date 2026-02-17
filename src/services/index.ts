@@ -7,3 +7,4 @@ export { articlesApi, podcastApi } from './endpoints/reference';
 export { communityApi } from './endpoints/community';
 export { troubleshootingApi } from './endpoints/troubleshooting';
 export { authApi } from './endpoints/auth';
+export { adminApi } from './endpoints/admin';
