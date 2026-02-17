@@ -6,57 +6,30 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   RefreshControl,
   Image,
-  Platform,
   Modal,
   Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-const getApiUrl = () => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  return process.env.EXPO_PUBLIC_API_URL || '';
-};
+import { communityApi, jobsApi } from '../../src/services';
+import { colors } from '../../src/theme';
+import { getStatusConfig } from '../../src/types/common';
+import type { CommunityJob } from '../../src/types';
+import { formatDate } from '../../src/utils';
+import { LoadingScreen, EmptyState, SearchBar, StatusBadge } from '../../src/components/shared';
 
-const API_URL = getApiUrl();
-
-interface CommunityJob {
-  id: string;
-  status: string;
-  ownerSymptoms: string | null;
-  techNotes: string | null;
-  createdAt: string;
-  updatedAt: string;
-  shareAnonymously: boolean;
-  ampProfile: {
-    make: string | null;
-    model: string | null;
-    year: string | null;
-    circuitFamily: string | null;
-  } | null;
-  owner: {
-    firstName: string | null;
-    lastName: string | null;
-    profileImageUrl: string | null;
-  } | null;
-}
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 interface MyJob {
   id: string;
   status: string;
   isPublic: boolean;
   shareAnonymously: boolean;
-  ampProfile: {
-    make: string | null;
-    model: string | null;
-    year: string | null;
-  } | null;
+  ampProfile: { make: string | null; model: string | null; year: string | null } | null;
 }
 
 export default function CommunityScreen() {
@@ -70,19 +43,12 @@ export default function CommunityScreen() {
   const [loadingMyJobs, setLoadingMyJobs] = useState(false);
   const [togglingJob, setTogglingJob] = useState<string | null>(null);
 
+  // ─── Data ───────────────────────────────────────────────────────────────
+
   const fetchCommunityJobs = async () => {
     try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      
-      const response = await fetch(
-        `${API_URL}/api/community/jobs?${params.toString()}`,
-        { credentials: 'include' }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setJobs(data);
-      }
+      const data = await communityApi.list(searchQuery ? { search: searchQuery } : undefined);
+      setJobs(data);
     } catch (error) {
       console.error('Error fetching community jobs:', error);
     } finally {
@@ -94,18 +60,15 @@ export default function CommunityScreen() {
   const fetchMyJobs = async () => {
     setLoadingMyJobs(true);
     try {
-      const response = await fetch(`${API_URL}/api/bench-jobs`, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        const mapped = data.map((item: any) => ({
-          id: item.job.id,
-          status: item.job.status,
-          isPublic: item.job.isPublic || false,
-          shareAnonymously: item.job.shareAnonymously || false,
-          ampProfile: item.ampProfile,
-        }));
-        setMyJobs(mapped);
-      }
+      const data = await jobsApi.list();
+      const mapped: MyJob[] = data.map((item: any) => ({
+        id: item.job.id,
+        status: item.job.status,
+        isPublic: item.job.isPublic || false,
+        shareAnonymously: item.job.shareAnonymously || false,
+        ampProfile: item.ampProfile,
+      }));
+      setMyJobs(mapped);
     } catch (error) {
       console.error('Error fetching my jobs:', error);
     } finally {
@@ -116,18 +79,9 @@ export default function CommunityScreen() {
   const toggleJobSharing = async (jobId: string, isPublic: boolean) => {
     setTogglingJob(jobId);
     try {
-      const response = await fetch(`${API_URL}/api/bench-jobs/${jobId}/sharing`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ isPublic }),
-      });
-      if (response.ok) {
-        setMyJobs(prev => prev.map(job => 
-          job.id === jobId ? { ...job, isPublic } : job
-        ));
-        fetchCommunityJobs();
-      }
+      await jobsApi.updateSharing(jobId, { isPublic });
+      setMyJobs(prev => prev.map(j => j.id === jobId ? { ...j, isPublic } : j));
+      fetchCommunityJobs();
     } catch (error) {
       console.error('Error toggling job sharing:', error);
     } finally {
@@ -135,21 +89,10 @@ export default function CommunityScreen() {
     }
   };
 
-  const openManageModal = () => {
-    setShowManageModal(true);
-    fetchMyJobs();
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchCommunityJobs();
-    }, [searchQuery])
-  );
+  useFocusEffect(useCallback(() => { fetchCommunityJobs(); }, [searchQuery]));
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCommunityJobs();
-    }, 300);
+    const timer = setTimeout(() => fetchCommunityJobs(), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -158,70 +101,37 @@ export default function CommunityScreen() {
     fetchCommunityJobs();
   }, [searchQuery]);
 
-  const navigateToJob = (jobId: string) => {
-    router.push(`/community-job/${jobId}` as any);
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return '#3b82f6';
-      case 'in_progress': return '#f59e0b';
-      case 'waiting_parts': return '#8b5cf6';
-      case 'completed': return '#22c55e';
-      case 'archived': return '#6b7280';
-      default: return '#6b7280';
-    }
-  };
+  // ─── Render ─────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Ionicons name="globe-outline" size={28} color="#f59e0b" />
-          <Text style={styles.headerTitle}>Community Bench</Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#f59e0b" />
-          <Text style={styles.loadingText}>Loading shared jobs...</Text>
-        </View>
+        <ScreenHeader />
+        <LoadingScreen message="Loading shared jobs..." />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="globe-outline" size={28} color="#f59e0b" />
-        <Text style={styles.headerTitle}>Community Bench</Text>
-      </View>
-      
+      <ScreenHeader />
       <Text style={styles.subtitle}>
         Browse jobs shared by other technicians. Learn from real troubleshooting cases.
       </Text>
 
       <View style={styles.searchRow}>
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by amp, symptom, circuit..."
-            placeholderTextColor="#6b7280"
+        <View style={styles.searchWrapper}>
+          <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
+            placeholder="Search by amp, symptom, circuit..."
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#6b7280" />
-            </TouchableOpacity>
-          )}
         </View>
-        <TouchableOpacity style={styles.manageButton} onPress={openManageModal}>
-          <Ionicons name="settings-outline" size={20} color="#f59e0b" />
+        <TouchableOpacity
+          style={styles.manageButton}
+          onPress={() => { setShowManageModal(true); fetchMyJobs(); }}
+        >
+          <Ionicons name="settings-outline" size={20} color={colors.accent} />
         </TouchableOpacity>
       </View>
 
@@ -229,101 +139,50 @@ export default function CommunityScreen() {
         style={styles.jobsList}
         contentContainerStyle={styles.jobsListContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f59e0b" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
       >
         {jobs.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="folder-open-outline" size={64} color="#6b7280" />
-            <Text style={styles.emptyTitle}>No shared jobs yet</Text>
-            <Text style={styles.emptyText}>
-              Be the first to share! Open a job and enable sharing in the Notes tab.
-            </Text>
-          </View>
+          <EmptyState
+            icon="folder-open-outline"
+            title="No shared jobs yet"
+            subtitle="Be the first to share! Open a job and enable sharing in the Notes tab."
+          />
         ) : (
           jobs.map((job) => (
-            <TouchableOpacity
+            <CommunityJobCard
               key={job.id}
-              style={styles.jobCard}
-              onPress={() => navigateToJob(job.id)}
-            >
-              <View style={styles.jobHeader}>
-                <View style={styles.jobTitleRow}>
-                  <Text style={styles.jobTitle}>
-                    {job.ampProfile?.make || 'Unknown'} {job.ampProfile?.model || 'Amp'}
-                  </Text>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) + '20' }]}>
-                    <Text style={[styles.statusBadgeText, { color: getStatusColor(job.status) }]}>
-                      {job.status.replace('_', ' ')}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.jobMeta}>
-                  {job.ampProfile?.circuitFamily && `${job.ampProfile.circuitFamily} • `}
-                  {job.ampProfile?.year || 'Unknown year'}
-                </Text>
-              </View>
-
-              {job.ownerSymptoms && (
-                <Text style={styles.jobSymptoms} numberOfLines={2}>
-                  {job.ownerSymptoms}
-                </Text>
-              )}
-
-              <View style={styles.jobFooter}>
-                <View style={styles.ownerInfo}>
-                  {job.owner ? (
-                    <>
-                      {job.owner.profileImageUrl ? (
-                        <Image source={{ uri: job.owner.profileImageUrl }} style={styles.ownerAvatar} />
-                      ) : (
-                        <View style={styles.ownerAvatarPlaceholder}>
-                          <Ionicons name="person" size={12} color="#6b7280" />
-                        </View>
-                      )}
-                      <Text style={styles.ownerName}>
-                        {job.owner.firstName} {job.owner.lastName?.charAt(0)}.
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.ownerAvatarPlaceholder}>
-                        <Ionicons name="person" size={12} color="#6b7280" />
-                      </View>
-                      <Text style={styles.ownerName}>Anonymous</Text>
-                    </>
-                  )}
-                </View>
-                <Text style={styles.jobDate}>{formatDate(job.updatedAt)}</Text>
-              </View>
-            </TouchableOpacity>
+              job={job}
+              onPress={() => router.push(`/community-job/${job.id}` as any)}
+            />
           ))
         )}
       </ScrollView>
 
+      {/* Manage Sharing Modal */}
       <Modal visible={showManageModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Manage My Shared Jobs</Text>
               <TouchableOpacity onPress={() => setShowManageModal(false)}>
-                <Ionicons name="close" size={24} color="#9ca3af" />
+                <Ionicons name="close" size={24} color={colors.text.secondary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
               Toggle sharing for your jobs. Shared jobs appear in Community Bench.
             </Text>
-            
+
             {loadingMyJobs ? (
               <View style={styles.modalLoading}>
-                <ActivityIndicator size="large" color="#f59e0b" />
+                <ActivityIndicator size="large" color={colors.accent} />
               </View>
             ) : myJobs.length === 0 ? (
-              <View style={styles.modalEmpty}>
-                <Ionicons name="briefcase-outline" size={48} color="#6b7280" />
-                <Text style={styles.modalEmptyText}>No jobs yet</Text>
-                <Text style={styles.modalEmptyHint}>Create a job first, then share it here.</Text>
-              </View>
+              <EmptyState
+                icon="briefcase-outline"
+                title="No jobs yet"
+                subtitle="Create a job first, then share it here."
+              />
             ) : (
               <ScrollView style={styles.modalList}>
                 {myJobs.map((job) => (
@@ -338,13 +197,13 @@ export default function CommunityScreen() {
                     </View>
                     <View style={styles.shareToggle}>
                       {togglingJob === job.id ? (
-                        <ActivityIndicator size="small" color="#f59e0b" />
+                        <ActivityIndicator size="small" color={colors.accent} />
                       ) : (
                         <Switch
                           value={job.isPublic}
                           onValueChange={(value) => toggleJobSharing(job.id, value)}
-                          trackColor={{ false: '#374151', true: '#f59e0b' }}
-                          thumbColor={job.isPublic ? '#fff' : '#9ca3af'}
+                          trackColor={{ false: colors.bg.elevated, true: colors.accent }}
+                          thumbColor={job.isPublic ? colors.white : colors.text.secondary}
                         />
                       )}
                     </View>
@@ -359,80 +218,110 @@ export default function CommunityScreen() {
   );
 }
 
+// ─── Sub-Components ─────────────────────────────────────────────────────────
+
+function ScreenHeader() {
+  return (
+    <View style={styles.header}>
+      <Ionicons name="globe-outline" size={28} color={colors.accent} />
+      <Text style={styles.headerTitle}>Community Bench</Text>
+    </View>
+  );
+}
+
+function CommunityJobCard({ job, onPress }: { job: CommunityJob; onPress: () => void }) {
+  const statusConfig = getStatusConfig(job.status);
+
+  return (
+    <TouchableOpacity style={styles.jobCard} onPress={onPress}>
+      <View style={styles.jobHeader}>
+        <View style={styles.jobTitleRow}>
+          <Text style={styles.jobTitle}>
+            {job.ampProfile?.make || 'Unknown'} {job.ampProfile?.model || 'Amp'}
+          </Text>
+          <StatusBadge status={job.status} />
+        </View>
+        <Text style={styles.jobMeta}>
+          {job.ampProfile?.circuitFamily && `${job.ampProfile.circuitFamily} • `}
+          {job.ampProfile?.year || 'Unknown year'}
+        </Text>
+      </View>
+
+      {job.ownerSymptoms && (
+        <Text style={styles.jobSymptoms} numberOfLines={2}>{job.ownerSymptoms}</Text>
+      )}
+
+      <View style={styles.jobFooter}>
+        <View style={styles.ownerInfo}>
+          {job.owner?.profileImageUrl ? (
+            <Image source={{ uri: job.owner.profileImageUrl }} style={styles.ownerAvatar} />
+          ) : (
+            <View style={styles.ownerAvatarPlaceholder}>
+              <Ionicons name="person" size={12} color={colors.text.muted} />
+            </View>
+          )}
+          <Text style={styles.ownerName}>
+            {job.owner
+              ? `${job.owner.firstName} ${job.owner.lastName?.charAt(0)}.`
+              : 'Anonymous'}
+          </Text>
+        </View>
+        <Text style={styles.jobDate}>{formatDate(job.updatedAt)}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111827',
-  },
+  container: { flex: 1, backgroundColor: colors.bg.primary },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 8,
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
     gap: 12,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#f59e0b',
+    color: colors.accent,
   },
   subtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: colors.text.secondary,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 8,
+    paddingRight: 16,
     gap: 8,
   },
-  searchContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#374151',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-  },
+  searchWrapper: { flex: 1 },
   manageButton: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.bg.elevated,
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    color: '#f3f4f6',
-    fontSize: 16,
-  },
-  jobsList: {
-    flex: 1,
-    marginTop: 12,
-  },
-  jobsListContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
+  // Job list
+  jobsList: { flex: 1, marginTop: 12 },
+  jobsListContent: { padding: 16, paddingBottom: 100 },
   jobCard: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
   },
-  jobHeader: {
-    marginBottom: 8,
-  },
+  jobHeader: { marginBottom: 8 },
   jobTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -441,28 +330,17 @@ const styles = StyleSheet.create({
   jobTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#f3f4f6',
+    color: colors.text.primary,
     flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  statusBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
   },
   jobMeta: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: colors.text.secondary,
     marginTop: 4,
   },
   jobSymptoms: {
     fontSize: 14,
-    color: '#6b7280',
+    color: colors.text.muted,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -472,69 +350,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#374151',
+    borderTopColor: colors.border.default,
   },
   ownerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  ownerAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-  },
+  ownerAvatar: { width: 24, height: 24, borderRadius: 12 },
   ownerAvatarPlaceholder: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#374151',
+    backgroundColor: colors.bg.elevated,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ownerName: {
-    fontSize: 13,
-    color: '#9ca3af',
-  },
-  jobDate: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#9ca3af',
-    marginTop: 12,
-    fontSize: 16,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#9ca3af',
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
+  ownerName: { fontSize: 13, color: colors.text.secondary },
+  jobDate: { fontSize: 12, color: colors.text.muted },
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
@@ -551,58 +392,34 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#f3f4f6',
+    color: colors.text.primary,
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: colors.text.secondary,
     marginBottom: 20,
   },
-  modalLoading: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  modalEmpty: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  modalEmptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9ca3af',
-    marginTop: 12,
-  },
-  modalEmptyHint: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  modalList: {
-    maxHeight: 400,
-  },
+  modalLoading: { paddingVertical: 40, alignItems: 'center' },
+  modalList: { maxHeight: 400 },
   myJobCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#374151',
+    backgroundColor: colors.bg.elevated,
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
   },
-  myJobInfo: {
-    flex: 1,
-  },
+  myJobInfo: { flex: 1 },
   myJobTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#f3f4f6',
+    color: colors.text.primary,
   },
   myJobYear: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: colors.text.secondary,
     marginTop: 2,
   },
-  shareToggle: {
-    marginLeft: 12,
-  },
+  shareToggle: { marginLeft: 12 },
 });
