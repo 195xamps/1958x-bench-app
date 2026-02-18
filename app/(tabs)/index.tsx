@@ -608,10 +608,10 @@ const styles = StyleSheet.create({
   chatTitle: { color: colors.text.bright, fontSize: 16, fontWeight: '500', flex: 1 },
   chatDate: { color: colors.text.muted, fontSize: 12 },
   linkedBadge: {
-    alignSelf: 'flex-start', backgroundColor: '#065f46',
+    alignSelf: 'flex-start', backgroundColor: colors.status.successDark,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginTop: 8,
   },
-  linkedBadgeText: { color: '#a7f3d0', fontSize: 11, fontWeight: '600' },
+  linkedBadgeText: { color: colors.status.successLight, fontSize: 11, fontWeight: '600' },
   // Full-screen chat
   fullScreenOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

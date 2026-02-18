@@ -1,0 +1,629 @@
+diff --git a/app/(tabs)/_layout.tsx b/app/(tabs)/_layout.tsx
+index 8def255..d44b5ea 100644
+--- a/app/(tabs)/_layout.tsx
++++ b/app/(tabs)/_layout.tsx
+@@ -1,6 +1,7 @@
+ import { Tabs } from 'expo-router';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useAuth } from '../../src/contexts/AuthContext';
++import { colors } from '../../src/theme/colors';
+ 
+ export default function TabLayout() {
+   const { user } = useAuth();
+@@ -9,19 +10,19 @@ export default function TabLayout() {
+   return (
+     <Tabs
+       screenOptions={{
+-        tabBarActiveTintColor: '#f59e0b',
+-        tabBarInactiveTintColor: '#9ca3af',
++        tabBarActiveTintColor: colors.accent,
++        tabBarInactiveTintColor: colors.text.secondary,
+         tabBarStyle: {
+-          backgroundColor: '#1f2937',
+-          borderTopColor: '#374151',
++          backgroundColor: colors.bg.surface,
++          borderTopColor: colors.border.default,
+           height: 90,
+           paddingBottom: 20,
+           paddingTop: 10,
+         },
+         headerStyle: {
+-          backgroundColor: '#1f2937',
++          backgroundColor: colors.bg.surface,
+         },
+-        headerTintColor: '#f59e0b',
++        headerTintColor: colors.accent,
+         tabBarLabelStyle: {
+           fontSize: 12,
+           fontWeight: '600',
+diff --git a/app/(tabs)/community.tsx b/app/(tabs)/community.tsx
+index bf476b0..903be92 100644
+--- a/app/(tabs)/community.tsx
++++ b/app/(tabs)/community.tsx
+@@ -18,20 +18,12 @@ import { useRouter } from 'expo-router';
+ import { communityApi, jobsApi } from '../../src/services';
+ import { colors } from '../../src/theme';
+ import { getStatusConfig } from '../../src/types/common';
+-import type { CommunityJob } from '../../src/types';
++import type { CommunityJob, MyJob } from '../../src/types';
+ import { formatDate } from '../../src/utils';
+ import { LoadingScreen, EmptyState, SearchBar, StatusBadge } from '../../src/components/shared';
+ 
+ // ─── Main Component ─────────────────────────────────────────────────────────
+ 
+-interface MyJob {
+-  id: string;
+-  status: string;
+-  isPublic: boolean;
+-  shareAnonymously: boolean;
+-  ampProfile: { make: string | null; model: string | null; year: string | null } | null;
+-}
+-
+ export default function CommunityScreen() {
+   const router = useRouter();
+   const [jobs, setJobs] = useState<CommunityJob[]>([]);
+diff --git a/app/(tabs)/index.tsx b/app/(tabs)/index.tsx
+index 39c06a9..87b7e3e 100644
+--- a/app/(tabs)/index.tsx
++++ b/app/(tabs)/index.tsx
+@@ -608,10 +608,10 @@ const styles = StyleSheet.create({
+   chatTitle: { color: colors.text.bright, fontSize: 16, fontWeight: '500', flex: 1 },
+   chatDate: { color: colors.text.muted, fontSize: 12 },
+   linkedBadge: {
+-    alignSelf: 'flex-start', backgroundColor: '#065f46',
++    alignSelf: 'flex-start', backgroundColor: colors.status.successDark,
+     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginTop: 8,
+   },
+-  linkedBadgeText: { color: '#a7f3d0', fontSize: 11, fontWeight: '600' },
++  linkedBadgeText: { color: colors.status.successLight, fontSize: 11, fontWeight: '600' },
+   // Full-screen chat
+   fullScreenOverlay: {
+     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+diff --git a/app/(tabs)/jobs.tsx b/app/(tabs)/jobs.tsx
+index 7320614..d8f2586 100644
+--- a/app/(tabs)/jobs.tsx
++++ b/app/(tabs)/jobs.tsx
+@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
+   fab: {
+     position: 'absolute', right: 20, bottom: 30, width: 60, height: 60, borderRadius: 30,
+     backgroundColor: colors.accent, justifyContent: 'center', alignItems: 'center',
+-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8,
++    shadowColor: colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8,
+   },
+ 
+   // Modal common
+diff --git a/app/_layout.tsx b/app/_layout.tsx
+index ec71744..047552e 100644
+--- a/app/_layout.tsx
++++ b/app/_layout.tsx
+@@ -1,30 +1,13 @@
+-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
++import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+ import { useFonts } from 'expo-font';
+ import { Stack } from 'expo-router';
+ import { StatusBar } from 'expo-status-bar';
+ import 'react-native-reanimated';
+ 
+ import { useColorScheme } from '@/hooks/useColorScheme';
+-import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
+-import LoginScreen from './login';
+-import { ActivityIndicator, View } from 'react-native';
++import { AuthProvider } from '../src/contexts/AuthContext';
+ 
+ function RootLayoutNav() {
+-  // TODO: Re-enable auth when backend is configured
+-  // const { isLoading, isAuthenticated } = useAuth();
+-  //
+-  // if (isLoading) {
+-  //   return (
+-  //     <View style={{ flex: 1, backgroundColor: '#111827', justifyContent: 'center', alignItems: 'center' }}>
+-  //       <ActivityIndicator size="large" color="#f59e0b" />
+-  //     </View>
+-  //   );
+-  // }
+-  //
+-  // if (!isAuthenticated) {
+-  //   return <LoginScreen />;
+-  // }
+-
+   return (
+     <Stack>
+       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+diff --git a/app/article/[id].tsx b/app/article/[id].tsx
+index a9bba47..9e5a96d 100644
+--- a/app/article/[id].tsx
++++ b/app/article/[id].tsx
+@@ -255,8 +255,8 @@ export default function ArticleDetailScreen() {
+ const HEADER_STYLES = [
+   { color: colors.accent, fontSize: 22, fontWeight: '700' as const, marginTop: 24, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border.default, paddingBottom: 8 },
+   { color: colors.accent, fontSize: 18, fontWeight: '600' as const, marginTop: 20, marginBottom: 10 },
+-  { color: '#fbbf24', fontSize: 16, fontWeight: '600' as const, marginTop: 16, marginBottom: 8 },
+-  { color: '#fbbf24', fontSize: 15, fontWeight: '600' as const, marginTop: 12, marginBottom: 6 },
++  { color: colors.accentLight, fontSize: 16, fontWeight: '600' as const, marginTop: 16, marginBottom: 8 },
++  { color: colors.accentLight, fontSize: 15, fontWeight: '600' as const, marginTop: 12, marginBottom: 6 },
+ ];
+ 
+ const s = StyleSheet.create({
+@@ -283,7 +283,7 @@ const s = StyleSheet.create({
+   paragraph: { color: colors.text.bright, fontSize: 15, lineHeight: 24, marginBottom: 16 },
+   separator: { height: 1, backgroundColor: colors.border.default, marginVertical: 20 },
+   imageContainer: { marginVertical: 16, backgroundColor: colors.bg.surface, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border.default },
+-  articleImage: { width: screenWidth - 34, height: 250, backgroundColor: '#0f172a' },
++  articleImage: { width: screenWidth - 34, height: 250, backgroundColor: colors.bg.dark },
+   imageTapHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 8, gap: 6, backgroundColor: colors.bg.surface },
+   imageTapText: { color: colors.accent, fontSize: 12, fontWeight: '500' },
+   imageCaption: { color: colors.text.secondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 12, paddingBottom: 12, fontStyle: 'italic' },
+diff --git a/app/community-job/[id].tsx b/app/community-job/[id].tsx
+index 188d7a0..52dcad1 100644
+--- a/app/community-job/[id].tsx
++++ b/app/community-job/[id].tsx
+@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
+   pdfAttachment: {
+     flexDirection: 'row',
+     alignItems: 'center',
+-    backgroundColor: '#4b5563',
++    backgroundColor: colors.bg.muted,
+     padding: 12,
+     borderRadius: 8,
+     gap: 8,
+@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
+     marginBottom: 12,
+   },
+   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.accent, marginBottom: 12 },
+-  sectionText: { fontSize: 15, color: '#d1d5db', lineHeight: 22 },
++  sectionText: { fontSize: 15, color: colors.text.light, lineHeight: 22 },
+   schematicCard: {
+     flexDirection: 'row',
+     alignItems: 'center',
+diff --git a/app/login.tsx b/app/login.tsx
+index 1208793..0830f33 100644
+--- a/app/login.tsx
++++ b/app/login.tsx
+@@ -68,7 +68,7 @@ const s = StyleSheet.create({
+   featureTitle: { fontSize: 16, fontWeight: '600', color: colors.white, marginBottom: 4 },
+   featureDesc: { fontSize: 14, color: colors.text.secondary },
+   loginButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 8, width: '100%', maxWidth: 320, justifyContent: 'center' },
+-  googleIcon: { width: 24, height: 24, backgroundColor: '#4285f4', borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
++  googleIcon: { width: 24, height: 24, backgroundColor: colors.brand.google, borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+   googleLetter: { color: colors.white, fontSize: 16, fontWeight: '700' },
+   loginButtonText: { fontSize: 16, fontWeight: '600', color: colors.bg.surface },
+   disclaimer: { marginTop: 24, fontSize: 12, color: colors.text.muted, textAlign: 'center', lineHeight: 18 },
+diff --git a/app/measurement.tsx b/app/measurement.tsx
+index 6b47ad0..6633d91 100644
+--- a/app/measurement.tsx
++++ b/app/measurement.tsx
+@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
+   },
+   scrollView: { flex: 1, padding: 16 },
+   diagnosticButton: {
+-    backgroundColor: '#292524',
++    backgroundColor: colors.bg.warm,
+     borderRadius: 12,
+     padding: 16,
+     marginBottom: 20,
+@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
+     justifyContent: 'center',
+     alignItems: 'center',
+     elevation: 8,
+-    shadowColor: '#000',
++    shadowColor: colors.shadow,
+     shadowOffset: { width: 0, height: 4 },
+     shadowOpacity: 0.3,
+     shadowRadius: 4,
+diff --git a/app/schematic/[id].tsx b/app/schematic/[id].tsx
+index e69c44c..41cefa5 100644
+--- a/app/schematic/[id].tsx
++++ b/app/schematic/[id].tsx
+@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
+   editInput: { color: colors.white, fontSize: 14, backgroundColor: colors.bg.elevated, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
+   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+   tag: { backgroundColor: colors.bg.elevated, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+-  tagText: { color: '#d1d5db', fontSize: 14 },
++  tagText: { color: colors.text.light, fontSize: 14 },
+ 
+   // Circuit family picker
+   circuitScroll: { marginTop: 8 },
+diff --git a/src/components/ImageViewer.tsx b/src/components/ImageViewer.tsx
+index 6d842f8..b8a19ad 100644
+--- a/src/components/ImageViewer.tsx
++++ b/src/components/ImageViewer.tsx
+@@ -11,6 +11,7 @@ import {
+   ScrollView,
+ } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
++import { colors } from '../theme/colors';
+ 
+ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+ 
+@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
+     padding: 10,
+   },
+   zoomText: {
+-    color: '#fff',
++    color: colors.white,
+     fontSize: 14,
+     fontWeight: '600',
+     minWidth: 50,
+@@ -129,14 +130,14 @@ const styles = StyleSheet.create({
+     alignItems: 'center',
+   },
+   image: {
+-    backgroundColor: '#1f2937',
++    backgroundColor: colors.bg.surface,
+   },
+   footer: {
+     padding: 16,
+     alignItems: 'center',
+   },
+   footerText: {
+-    color: '#6b7280',
++    color: colors.text.muted,
+     fontSize: 13,
+   },
+ });
+diff --git a/src/components/MarkdownContent.tsx b/src/components/MarkdownContent.tsx
+index b529feb..ec2c7a2 100644
+--- a/src/components/MarkdownContent.tsx
++++ b/src/components/MarkdownContent.tsx
+@@ -1,6 +1,7 @@
+ import React from 'react';
+ import { StyleSheet, Platform } from 'react-native';
+ import Markdown from 'react-native-markdown-display';
++import { colors } from '../theme/colors';
+ 
+ interface MarkdownContentProps {
+   content: string;
+@@ -8,46 +9,46 @@ interface MarkdownContentProps {
+ 
+ const markdownStyles = StyleSheet.create({
+   body: {
+-    color: '#e5e7eb',
++    color: colors.text.bright,
+     fontSize: 15,
+     lineHeight: 24,
+   },
+   heading1: {
+-    color: '#f59e0b',
++    color: colors.accent,
+     fontSize: 22,
+     fontWeight: '700',
+     marginTop: 16,
+     marginBottom: 8,
+     borderBottomWidth: 1,
+-    borderBottomColor: '#374151',
++    borderBottomColor: colors.border.default,
+     paddingBottom: 8,
+   },
+   heading2: {
+-    color: '#f59e0b',
++    color: colors.accent,
+     fontSize: 18,
+     fontWeight: '600',
+     marginTop: 14,
+     marginBottom: 6,
+   },
+   heading3: {
+-    color: '#fbbf24',
++    color: colors.accentLight,
+     fontSize: 16,
+     fontWeight: '600',
+     marginTop: 12,
+     marginBottom: 4,
+   },
+   paragraph: {
+-    color: '#e5e7eb',
++    color: colors.text.bright,
+     fontSize: 15,
+     lineHeight: 24,
+     marginBottom: 12,
+   },
+   strong: {
+-    color: '#ffffff',
++    color: colors.white,
+     fontWeight: '700',
+   },
+   em: {
+-    color: '#d1d5db',
++    color: colors.text.light,
+     fontStyle: 'italic',
+   },
+   bullet_list: {
+@@ -61,12 +62,12 @@ const markdownStyles = StyleSheet.create({
+     marginBottom: 6,
+   },
+   bullet_list_icon: {
+-    color: '#f59e0b',
++    color: colors.accent,
+     fontSize: 15,
+     marginRight: 8,
+   },
+   ordered_list_icon: {
+-    color: '#f59e0b',
++    color: colors.accent,
+     fontSize: 15,
+     fontWeight: '600',
+     marginRight: 8,
+@@ -78,8 +79,8 @@ const markdownStyles = StyleSheet.create({
+     flex: 1,
+   },
+   code_inline: {
+-    backgroundColor: '#374151',
+-    color: '#fbbf24',
++    backgroundColor: colors.bg.elevated,
++    color: colors.accentLight,
+     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+     fontSize: 13,
+     paddingHorizontal: 6,
+@@ -87,65 +88,65 @@ const markdownStyles = StyleSheet.create({
+     borderRadius: 4,
+   },
+   code_block: {
+-    backgroundColor: '#1f2937',
++    backgroundColor: colors.bg.surface,
+     borderRadius: 8,
+     padding: 12,
+     marginVertical: 8,
+   },
+   fence: {
+-    backgroundColor: '#1f2937',
++    backgroundColor: colors.bg.surface,
+     borderRadius: 8,
+     padding: 12,
+     marginVertical: 8,
+     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+     fontSize: 13,
+-    color: '#e5e7eb',
++    color: colors.text.bright,
+   },
+   blockquote: {
+-    backgroundColor: '#1f2937',
++    backgroundColor: colors.bg.surface,
+     borderLeftWidth: 4,
+-    borderLeftColor: '#f59e0b',
++    borderLeftColor: colors.accent,
+     paddingLeft: 12,
+     paddingVertical: 8,
+     marginVertical: 8,
+   },
+   hr: {
+-    backgroundColor: '#374151',
++    backgroundColor: colors.border.default,
+     height: 1,
+     marginVertical: 16,
+   },
+   link: {
+-    color: '#60a5fa',
++    color: colors.status.infoLight,
+     textDecorationLine: 'underline',
+   },
+   table: {
+     borderWidth: 1,
+-    borderColor: '#374151',
++    borderColor: colors.border.default,
+     borderRadius: 8,
+     marginVertical: 8,
+   },
+   thead: {
+-    backgroundColor: '#1f2937',
++    backgroundColor: colors.bg.surface,
+   },
+   th: {
+-    color: '#f59e0b',
++    color: colors.accent,
+     fontWeight: '600',
+     padding: 8,
+     borderBottomWidth: 1,
+-    borderBottomColor: '#374151',
++    borderBottomColor: colors.border.default,
+   },
+   td: {
+-    color: '#e5e7eb',
++    color: colors.text.bright,
+     padding: 8,
+     borderBottomWidth: 1,
+-    borderBottomColor: '#374151',
++    borderBottomColor: colors.border.default,
+   },
+   tr: {
+     borderBottomWidth: 1,
+-    borderBottomColor: '#374151',
++    borderBottomColor: colors.border.default,
+   },
+   text: {
+-    color: '#e5e7eb',
++    color: colors.text.bright,
+   },
+ });
+ 
+diff --git a/src/components/measurement/AddMeasurementModal.tsx b/src/components/measurement/AddMeasurementModal.tsx
+index 8c5a22e..3a71c40 100644
+--- a/src/components/measurement/AddMeasurementModal.tsx
++++ b/src/components/measurement/AddMeasurementModal.tsx
+@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
+   },
+   // Diagnostic
+   diagnosticBanner: {
+-    backgroundColor: '#292524',
++    backgroundColor: colors.bg.warm,
+     borderRadius: 12,
+     padding: 12,
+     marginBottom: 16,
+@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
+     gap: 8,
+   },
+   nodeChip: {
+-    backgroundColor: '#4b5563',
++    backgroundColor: colors.bg.muted,
+     paddingHorizontal: 10,
+     paddingVertical: 6,
+     borderRadius: 6,
+@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
+     backgroundColor: colors.accent,
+   },
+   nodeChipText: {
+-    color: '#d1d5db',
++    color: colors.text.light,
+     fontSize: 12,
+   },
+   nodeChipTextSelected: {
+diff --git a/src/components/reference/CalculatorTab.tsx b/src/components/reference/CalculatorTab.tsx
+index a29b736..d7cb6b1 100644
+--- a/src/components/reference/CalculatorTab.tsx
++++ b/src/components/reference/CalculatorTab.tsx
+@@ -1,6 +1,7 @@
+ import React from 'react';
+ import { View, Text, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
++import { colors } from '../../theme/colors';
+ import { useCalculators, TUBE_TYPES, WIRING_OPTIONS } from '../../hooks/useCalculators';
+ import { styles } from './referenceStyles';
+ 
+@@ -227,7 +228,7 @@ export function CalculatorTab() {
+                 <ResultLine label="Time to Target" value={`${discharge.timeToTarget} sec`} />
+                 <ResultLine label="Initial Power" value={`${discharge.initialPower} W`} />
+                 <ResultLine label="Stored Energy" value={`${discharge.energy} J`} />
+-                <ResultLine label="Danger Level" value={discharge.dangerLevel} color={discharge.dangerLevel === 'LETHAL' ? '#ef4444' : discharge.dangerLevel === 'Dangerous' ? '#f59e0b' : '#22c55e'} />
++                <ResultLine label="Danger Level" value={discharge.dangerLevel} color={discharge.dangerLevel === 'LETHAL' ? colors.status.error : discharge.dangerLevel === 'Dangerous' ? colors.status.warning : colors.status.success} />
+               </Result>
+             )}
+           </CalcCard>
+diff --git a/src/components/reference/referenceStyles.ts b/src/components/reference/referenceStyles.ts
+index 0376f9a..2ced16e 100644
+--- a/src/components/reference/referenceStyles.ts
++++ b/src/components/reference/referenceStyles.ts
+@@ -40,7 +40,7 @@ export const styles = StyleSheet.create({
+   answerButton: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
+   yesButton: { backgroundColor: colors.status.success },
+   noButton: { backgroundColor: colors.status.error },
+-  answerButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
++  answerButtonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+ 
+   // ── Voltages ──────────────────────────────────────────────────────────
+   voltageList: { padding: 16 },
+diff --git a/src/theme/colors.ts b/src/theme/colors.ts
+index 73a49f3..427eee2 100644
+--- a/src/theme/colors.ts
++++ b/src/theme/colors.ts
+@@ -3,27 +3,40 @@ export const colors = {
+     primary: '#111827',
+     surface: '#1f2937',
+     elevated: '#374151',
++    muted: '#4b5563',
++    dark: '#0f172a',
++    warm: '#292524',
+   },
+   text: {
+     primary: '#f3f4f6',
+     bright: '#e5e7eb',
++    light: '#d1d5db',
+     secondary: '#9ca3af',
+     muted: '#6b7280',
+     onAccent: '#1f2937',
+   },
+   accent: '#f59e0b',
++  accentLight: '#fbbf24',
+   border: {
+     default: '#374151',
+   },
+   status: {
+     success: '#22c55e',
++    successDark: '#065f46',
++    successLight: '#a7f3d0',
+     warning: '#f59e0b',
+     error: '#ef4444',
+     info: '#3b82f6',
++    infoLight: '#60a5fa',
+     purple: '#8b5cf6',
+   },
++  shadow: '#000000',
+   white: '#ffffff',
++  black: '#000000',
+   transparent: 'transparent',
++  brand: {
++    google: '#4285f4',
++  },
+ } as const;
+ 
+ export type Colors = typeof colors;
+diff --git a/src/services/endpoints/admin.ts b/src/services/endpoints/admin.ts
+new file mode 100644
+index 0000000..052d84d
+--- /dev/null
++++ b/src/services/endpoints/admin.ts
+@@ -0,0 +1,29 @@
++import { apiClient } from '../api';
++import type { AdminUser, AdminChat, AdminJob } from '../../types/admin';
++
++export const adminApi = {
++  async getUsers(): Promise<AdminUser[]> {
++    const { data } = await apiClient.get('/api/admin/users');
++    return data;
++  },
++
++  async getAllChats(): Promise<{ chat: AdminChat; user: AdminUser | null }[]> {
++    const { data } = await apiClient.get('/api/admin/all-chats');
++    return data;
++  },
++
++  async getAllJobs(): Promise<AdminJob[]> {
++    const { data } = await apiClient.get('/api/admin/all-jobs');
++    return data;
++  },
++
++  async getUserChats(userId: string): Promise<AdminChat[]> {
++    const { data } = await apiClient.get(`/api/admin/users/${userId}/chats`);
++    return data;
++  },
++
++  async getUserJobs(userId: string): Promise<AdminJob[]> {
++    const { data } = await apiClient.get(`/api/admin/users/${userId}/jobs`);
++    return data;
++  },
++};
+diff --git a/src/types/admin.ts b/src/types/admin.ts
+new file mode 100644
+index 0000000..7a0fdb1
+--- /dev/null
++++ b/src/types/admin.ts
+@@ -0,0 +1,41 @@
++export interface AdminUser {
++  id: string;
++  email: string | null;
++  firstName: string | null;
++  lastName: string | null;
++  profileImageUrl: string | null;
++  isAdmin: boolean;
++  createdAt: string;
++  totalTokensUsed: number | null;
++  chatCount: number;
++  jobCount: number;
++  isActive: boolean;
++}
++
++export interface AdminChat {
++  id: string;
++  userId: string | null;
++  title: string;
++  benchJobId: string | null;
++  isStandalone: boolean;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export interface AdminJob {
++  job: {
++    id: string;
++    userId: string | null;
++    status: string;
++    ownerSymptoms: string | null;
++    techNotes: string | null;
++    createdAt: string;
++  };
++  ampProfile: {
++    make: string | null;
++    model: string | null;
++    year: string | null;
++    circuitFamily: string | null;
++  } | null;
++  user?: AdminUser;
++}

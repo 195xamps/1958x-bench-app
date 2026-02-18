@@ -11,6 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   zoomText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '600',
     minWidth: 50,
@@ -129,14 +130,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   image: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
   },
   footer: {
     padding: 16,
     alignItems: 'center',
   },
   footerText: {
-    color: '#6b7280',
+    color: colors.text.muted,
     fontSize: 13,
   },
 });

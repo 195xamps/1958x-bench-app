@@ -68,7 +68,7 @@ const s = StyleSheet.create({
   featureTitle: { fontSize: 16, fontWeight: '600', color: colors.white, marginBottom: 4 },
   featureDesc: { fontSize: 14, color: colors.text.secondary },
   loginButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 8, width: '100%', maxWidth: 320, justifyContent: 'center' },
-  googleIcon: { width: 24, height: 24, backgroundColor: '#4285f4', borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  googleIcon: { width: 24, height: 24, backgroundColor: colors.brand.google, borderRadius: 4, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   googleLetter: { color: colors.white, fontSize: 16, fontWeight: '700' },
   loginButtonText: { fontSize: 16, fontWeight: '600', color: colors.bg.surface },
   disclaimer: { marginTop: 24, fontSize: 12, color: colors.text.muted, textAlign: 'center', lineHeight: 18 },

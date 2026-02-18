@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Platform } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import { colors } from '../theme/colors';
 
 interface MarkdownContentProps {
   content: string;
@@ -8,46 +9,46 @@ interface MarkdownContentProps {
 
 const markdownStyles = StyleSheet.create({
   body: {
-    color: '#e5e7eb',
+    color: colors.text.bright,
     fontSize: 15,
     lineHeight: 24,
   },
   heading1: {
-    color: '#f59e0b',
+    color: colors.accent,
     fontSize: 22,
     fontWeight: '700',
     marginTop: 16,
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border.default,
     paddingBottom: 8,
   },
   heading2: {
-    color: '#f59e0b',
+    color: colors.accent,
     fontSize: 18,
     fontWeight: '600',
     marginTop: 14,
     marginBottom: 6,
   },
   heading3: {
-    color: '#fbbf24',
+    color: colors.accentLight,
     fontSize: 16,
     fontWeight: '600',
     marginTop: 12,
     marginBottom: 4,
   },
   paragraph: {
-    color: '#e5e7eb',
+    color: colors.text.bright,
     fontSize: 15,
     lineHeight: 24,
     marginBottom: 12,
   },
   strong: {
-    color: '#ffffff',
+    color: colors.white,
     fontWeight: '700',
   },
   em: {
-    color: '#d1d5db',
+    color: colors.text.light,
     fontStyle: 'italic',
   },
   bullet_list: {
@@ -61,12 +62,12 @@ const markdownStyles = StyleSheet.create({
     marginBottom: 6,
   },
   bullet_list_icon: {
-    color: '#f59e0b',
+    color: colors.accent,
     fontSize: 15,
     marginRight: 8,
   },
   ordered_list_icon: {
-    color: '#f59e0b',
+    color: colors.accent,
     fontSize: 15,
     fontWeight: '600',
     marginRight: 8,
@@ -78,8 +79,8 @@ const markdownStyles = StyleSheet.create({
     flex: 1,
   },
   code_inline: {
-    backgroundColor: '#374151',
-    color: '#fbbf24',
+    backgroundColor: colors.bg.elevated,
+    color: colors.accentLight,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
     paddingHorizontal: 6,
@@ -87,65 +88,65 @@ const markdownStyles = StyleSheet.create({
     borderRadius: 4,
   },
   code_block: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
     borderRadius: 8,
     padding: 12,
     marginVertical: 8,
   },
   fence: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
     borderRadius: 8,
     padding: 12,
     marginVertical: 8,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
-    color: '#e5e7eb',
+    color: colors.text.bright,
   },
   blockquote: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
     borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
+    borderLeftColor: colors.accent,
     paddingLeft: 12,
     paddingVertical: 8,
     marginVertical: 8,
   },
   hr: {
-    backgroundColor: '#374151',
+    backgroundColor: colors.border.default,
     height: 1,
     marginVertical: 16,
   },
   link: {
-    color: '#60a5fa',
+    color: colors.status.infoLight,
     textDecorationLine: 'underline',
   },
   table: {
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: colors.border.default,
     borderRadius: 8,
     marginVertical: 8,
   },
   thead: {
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.bg.surface,
   },
   th: {
-    color: '#f59e0b',
+    color: colors.accent,
     fontWeight: '600',
     padding: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border.default,
   },
   td: {
-    color: '#e5e7eb',
+    color: colors.text.bright,
     padding: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border.default,
   },
   tr: {
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: colors.border.default,
   },
   text: {
-    color: '#e5e7eb',
+    color: colors.text.bright,
   },
 });
 

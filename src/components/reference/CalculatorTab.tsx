@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../theme/colors';
 import { useCalculators, TUBE_TYPES, WIRING_OPTIONS } from '../../hooks/useCalculators';
 import { styles } from './referenceStyles';
 
@@ -227,7 +228,7 @@ export function CalculatorTab() {
                 <ResultLine label="Time to Target" value={`${discharge.timeToTarget} sec`} />
                 <ResultLine label="Initial Power" value={`${discharge.initialPower} W`} />
                 <ResultLine label="Stored Energy" value={`${discharge.energy} J`} />
-                <ResultLine label="Danger Level" value={discharge.dangerLevel} color={discharge.dangerLevel === 'LETHAL' ? '#ef4444' : discharge.dangerLevel === 'Dangerous' ? '#f59e0b' : '#22c55e'} />
+                <ResultLine label="Danger Level" value={discharge.dangerLevel} color={discharge.dangerLevel === 'LETHAL' ? colors.status.error : discharge.dangerLevel === 'Dangerous' ? colors.status.warning : colors.status.success} />
               </Result>
             )}
           </CalcCard>

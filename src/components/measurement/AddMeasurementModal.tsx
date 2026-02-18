@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
   // Diagnostic
   diagnosticBanner: {
-    backgroundColor: '#292524',
+    backgroundColor: colors.bg.warm,
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   nodeChip: {
-    backgroundColor: '#4b5563',
+    backgroundColor: colors.bg.muted,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   nodeChipText: {
-    color: '#d1d5db',
+    color: colors.text.light,
     fontSize: 12,
   },
   nodeChipTextSelected: {

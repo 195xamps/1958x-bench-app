@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
   editInput: { color: colors.white, fontSize: 14, backgroundColor: colors.bg.elevated, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { backgroundColor: colors.bg.elevated, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  tagText: { color: '#d1d5db', fontSize: 14 },
+  tagText: { color: colors.text.light, fontSize: 14 },
 
   // Circuit family picker
   circuitScroll: { marginTop: 8 },

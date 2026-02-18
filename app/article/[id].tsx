@@ -255,8 +255,8 @@ export default function ArticleDetailScreen() {
 const HEADER_STYLES = [
   { color: colors.accent, fontSize: 22, fontWeight: '700' as const, marginTop: 24, marginBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border.default, paddingBottom: 8 },
   { color: colors.accent, fontSize: 18, fontWeight: '600' as const, marginTop: 20, marginBottom: 10 },
-  { color: '#fbbf24', fontSize: 16, fontWeight: '600' as const, marginTop: 16, marginBottom: 8 },
-  { color: '#fbbf24', fontSize: 15, fontWeight: '600' as const, marginTop: 12, marginBottom: 6 },
+  { color: colors.accentLight, fontSize: 16, fontWeight: '600' as const, marginTop: 16, marginBottom: 8 },
+  { color: colors.accentLight, fontSize: 15, fontWeight: '600' as const, marginTop: 12, marginBottom: 6 },
 ];
 
 const s = StyleSheet.create({
@@ -283,7 +283,7 @@ const s = StyleSheet.create({
   paragraph: { color: colors.text.bright, fontSize: 15, lineHeight: 24, marginBottom: 16 },
   separator: { height: 1, backgroundColor: colors.border.default, marginVertical: 20 },
   imageContainer: { marginVertical: 16, backgroundColor: colors.bg.surface, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: colors.border.default },
-  articleImage: { width: screenWidth - 34, height: 250, backgroundColor: '#0f172a' },
+  articleImage: { width: screenWidth - 34, height: 250, backgroundColor: colors.bg.dark },
   imageTapHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 8, gap: 6, backgroundColor: colors.bg.surface },
   imageTapText: { color: colors.accent, fontSize: 12, fontWeight: '500' },
   imageCaption: { color: colors.text.secondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 12, paddingBottom: 12, fontStyle: 'italic' },

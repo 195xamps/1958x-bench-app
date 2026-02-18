@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
   pdfAttachment: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4b5563',
+    backgroundColor: colors.bg.muted,
     padding: 12,
     borderRadius: 8,
     gap: 8,
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.accent, marginBottom: 12 },
-  sectionText: { fontSize: 15, color: '#d1d5db', lineHeight: 22 },
+  sectionText: { fontSize: 15, color: colors.text.light, lineHeight: 22 },
   schematicCard: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -18,19 +18,11 @@ import { useRouter } from 'expo-router';
 import { communityApi, jobsApi } from '../../src/services';
 import { colors } from '../../src/theme';
 import { getStatusConfig } from '../../src/types/common';
-import type { CommunityJob } from '../../src/types';
+import type { CommunityJob, MyJob } from '../../src/types';
 import { formatDate } from '../../src/utils';
 import { LoadingScreen, EmptyState, SearchBar, StatusBadge } from '../../src/components/shared';
 
 // ─── Main Component ─────────────────────────────────────────────────────────
-
-interface MyJob {
-  id: string;
-  status: string;
-  isPublic: boolean;
-  shareAnonymously: boolean;
-  ampProfile: { make: string | null; model: string | null; year: string | null } | null;
-}
 
 export default function CommunityScreen() {
   const router = useRouter();

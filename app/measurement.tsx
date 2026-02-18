@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   scrollView: { flex: 1, padding: 16 },
   diagnosticButton: {
-    backgroundColor: '#292524',
+    backgroundColor: colors.bg.warm,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,

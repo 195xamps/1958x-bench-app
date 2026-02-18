@@ -1,30 +1,13 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
-import LoginScreen from './login';
-import { ActivityIndicator, View } from 'react-native';
+import { AuthProvider } from '../src/contexts/AuthContext';
 
 function RootLayoutNav() {
-  // TODO: Re-enable auth when backend is configured
-  // const { isLoading, isAuthenticated } = useAuth();
-  //
-  // if (isLoading) {
-  //   return (
-  //     <View style={{ flex: 1, backgroundColor: '#111827', justifyContent: 'center', alignItems: 'center' }}>
-  //       <ActivityIndicator size="large" color="#f59e0b" />
-  //     </View>
-  //   );
-  // }
-  //
-  // if (!isAuthenticated) {
-  //   return <LoginScreen />;
-  // }
-
   return (
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

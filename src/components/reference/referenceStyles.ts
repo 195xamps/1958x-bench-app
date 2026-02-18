@@ -40,7 +40,7 @@ export const styles = StyleSheet.create({
   answerButton: { flex: 1, padding: 14, borderRadius: 10, alignItems: 'center' },
   yesButton: { backgroundColor: colors.status.success },
   noButton: { backgroundColor: colors.status.error },
-  answerButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  answerButtonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
 
   // ── Voltages ──────────────────────────────────────────────────────────
   voltageList: { padding: 16 },
