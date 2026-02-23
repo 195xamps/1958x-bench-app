@@ -38,19 +38,22 @@ router.post('/api/schematics', async (req, res) => {
 router.get('/api/schematics/search', async (req, res) => {
   try {
     const { q } = req.query;
-    const allSchematics = await db.select().from(schema.schematics);
     
     if (!q) {
+      const allSchematics = await db.select().from(schema.schematics);
       return res.json(allSchematics);
     }
     
-    const searchTerm = (q as string).toLowerCase();
-    const filtered = allSchematics.filter(s => 
-      s.name?.toLowerCase().includes(searchTerm) ||
-      s.ampModel?.toLowerCase().includes(searchTerm) ||
-      s.circuitFamily?.toLowerCase().includes(searchTerm) ||
-      s.tags?.toLowerCase().includes(searchTerm)
-    );
+    const searchTerm = `%${(q as string).toLowerCase()}%`;
+    const filtered = await db.select().from(schema.schematics)
+      .where(
+        or(
+          ilike(schema.schematics.name, searchTerm),
+          ilike(schema.schematics.ampModel, searchTerm),
+          ilike(schema.schematics.circuitFamily, searchTerm),
+          ilike(schema.schematics.tags, searchTerm)
+        )
+      );
     
     res.json(filtered);
   } catch (error) {

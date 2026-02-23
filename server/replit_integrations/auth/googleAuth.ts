@@ -93,13 +93,13 @@ export async function setupGoogleAuth(app: Express) {
   );
 
   passport.serializeUser((user: any, done) => {
-    done(null, user.id);
+    done(null, { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, isAdmin: user.isAdmin });
   });
 
-  passport.deserializeUser(async (id: string, done) => {
+  passport.deserializeUser(async (sessionUser: any, done) => {
     try {
-      const user = await authStorage.getUser(id);
-      done(null, user || null);
+      // User data is cached in the session — no DB query needed
+      done(null, sessionUser);
     } catch (error) {
       done(error);
     }

@@ -160,6 +160,9 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
       .where(eq(schema.chatMessages.chatId, chatId))
       .orderBy(schema.chatMessages.createdAt);
     
+    // Truncate to last 30 messages to control token usage and latency
+    const recentMessages = previousMessages.slice(-30);
+    
     let contextInfo = '';
     
     if (chat.benchJobId) {
@@ -207,7 +210,7 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
     
     const messages: any[] = [
       { role: 'system', content: CHAT_SYSTEM_PROMPT + contextInfo },
-      ...previousMessages.slice(0, -1).map(m => ({
+      ...recentMessages.slice(0, -1).map(m => ({
         role: m.role,
         content: buildMessageContent(m)
       })),

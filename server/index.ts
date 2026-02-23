@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import path from 'path';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { setupAuth, registerAuthRoutes } from './replit_integrations/auth';
@@ -17,7 +18,8 @@ import communityRoutes from './routes/community';
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+app.use(compression());
+app.use(express.json({ limit: '5mb' }));
 
 async function initServer() {
   await setupAuth(app);

@@ -50,7 +50,11 @@ export const benchJobs = pgTable('bench_jobs', {
   shareAnonymously: boolean('share_anonymously').default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_bench_jobs_user_id').on(table.userId),
+  index('idx_bench_jobs_status').on(table.status),
+  index('idx_bench_jobs_is_public').on(table.isPublic),
+]);
 
 export const symptoms = pgTable('symptoms', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -58,7 +62,9 @@ export const symptoms = pgTable('symptoms', {
   description: text('description').notNull(),
   category: text('category'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_symptoms_bench_job_id').on(table.benchJobId),
+]);
 
 export const troubleshootingSessions = pgTable('troubleshooting_sessions', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -69,7 +75,9 @@ export const troubleshootingSessions = pgTable('troubleshooting_sessions', {
   aiConversationHistory: jsonb('ai_conversation_history'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_troubleshooting_sessions_bench_job_id').on(table.benchJobId),
+]);
 
 export const testSteps = pgTable('test_steps', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -84,7 +92,9 @@ export const testSteps = pgTable('test_steps', {
   completed: boolean('completed').default(false),
   result: text('result'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_test_steps_session_id').on(table.sessionId),
+]);
 
 export const measurements = pgTable('measurements', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -101,7 +111,9 @@ export const measurements = pgTable('measurements', {
   notes: text('notes'),
   photoUrl: text('photo_url'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_measurements_bench_job_id').on(table.benchJobId),
+]);
 
 export const schematics = pgTable('schematics', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -123,14 +135,19 @@ export const schematicAttachments = pgTable('schematic_attachments', {
   fileName: text('file_name'),
   fileType: text('file_type'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_schematic_attachments_schematic_id').on(table.schematicId),
+]);
 
 export const jobSchematics = pgTable('job_schematics', {
   id: uuid('id').primaryKey().defaultRandom(),
   benchJobId: uuid('bench_job_id').references(() => benchJobs.id).notNull(),
   schematicId: uuid('schematic_id').references(() => schematics.id).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_job_schematics_bench_job_id').on(table.benchJobId),
+  index('idx_job_schematics_schematic_id').on(table.schematicId),
+]);
 
 export const repairActions = pgTable('repair_actions', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -145,7 +162,9 @@ export const repairActions = pgTable('repair_actions', {
   afterMeasurement: text('after_measurement'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_repair_actions_bench_job_id').on(table.benchJobId),
+]);
 
 export const referenceSources = pgTable('reference_sources', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -165,7 +184,9 @@ export const media = pgTable('media', {
   url: text('url'),
   caption: text('caption'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_media_bench_job_id').on(table.benchJobId),
+]);
 
 export const chats = pgTable('chats', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -175,7 +196,10 @@ export const chats = pgTable('chats', {
   isStandalone: boolean('is_standalone').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_chats_user_id').on(table.userId),
+  index('idx_chats_bench_job_id').on(table.benchJobId),
+]);
 
 export const chatMessages = pgTable('chat_messages', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -184,7 +208,9 @@ export const chatMessages = pgTable('chat_messages', {
   content: text('content').notNull(),
   attachments: jsonb('attachments'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_chat_messages_chat_id').on(table.chatId),
+]);
 
 export const referenceArticles = pgTable('reference_articles', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -215,4 +241,6 @@ export const podcastTopics = pgTable('podcast_topics', {
   timestampSeconds: integer('timestamp_seconds'),
   circuitFamily: text('circuit_family'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('idx_podcast_topics_episode_id').on(table.episodeId),
+]);
