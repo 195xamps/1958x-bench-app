@@ -403,6 +403,7 @@ function UploadModal({
               : <Text style={styles.saveBtnText}>Add to Library</Text>}
           </TouchableOpacity>
         </View>
+      </View>
       </KeyboardAvoidingView>
     </Modal>
   );
