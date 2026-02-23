@@ -42,8 +42,8 @@ export default function ChatDetailScreen() {
       setLoading(true);
       setError(null);
       const data = await chatsApi.get(id!);
-      setChat(data);
-      setMessages(data.messages || []);
+      setChat(data.chat);
+      setMessages(prev => [...prev, data.userMessage, data.assistantMessage]);
     } catch (err: any) {
       console.error('Error fetching chat:', err);
       if (err.response?.status === 403) {

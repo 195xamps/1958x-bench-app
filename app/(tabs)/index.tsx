@@ -136,18 +136,21 @@ export default function DashboardScreen() {
   };
 
   const deleteChat = async (chatId: string) => {
-    const doDelete = async () => {
-      try {
-        await chatsApi.delete(chatId);
-        setChats(prev => prev.filter(c => c.id !== chatId));
-        setShowOptionsModal(false);
-        if (activeChat?.id === chatId) { setShowChatModal(false); setActiveChat(null); }
-      } catch (error) {
-        console.error('Error deleting chat:', error);
-        showError('Failed to delete chat');
-      }
-    };
-    showConfirm('Delete Chat', 'Are you sure you want to delete this chat?', doDelete);
+    const confirmed = await showConfirm(
+      'Delete Chat',
+      'Are you sure you want to delete this chat?',
+      { confirmText: 'Delete', destructive: true },
+    );
+    if (!confirmed) return;
+    try {
+      await chatsApi.delete(chatId);
+      setChats(prev => prev.filter(c => c.id !== chatId));
+      setShowOptionsModal(false);
+      if (activeChat?.id === chatId) { setShowChatModal(false); setActiveChat(null); }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      showError('Failed to delete chat');
+    }
   };
 
   const convertToJob = async (chat: Chat) => {

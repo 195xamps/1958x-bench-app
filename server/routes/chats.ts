@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db, schema } from '../db';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, and } from 'drizzle-orm';
 import { openai } from '../lib/openai';
 import { CHAT_SYSTEM_PROMPT } from '../lib/systemPrompt';
 import { getRelevantDatabaseContext } from '../lib/dbContext';
