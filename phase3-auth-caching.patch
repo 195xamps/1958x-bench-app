@@ -1,0 +1,429 @@
+diff --git a/app/(tabs)/community.tsx b/app/(tabs)/community.tsx
+index 903be92..43ad198 100644
+--- a/app/(tabs)/community.tsx
++++ b/app/(tabs)/community.tsx
+@@ -1,4 +1,4 @@
+-import React, { useState, useEffect, useCallback } from 'react';
++import React, { useState, useEffect, useCallback, useRef } from 'react';
+ import { useFocusEffect } from '@react-navigation/native';
+ import {
+   View,
+@@ -37,10 +37,13 @@ export default function CommunityScreen() {
+ 
+   // ─── Data ───────────────────────────────────────────────────────────────
+ 
++  const lastFetchRef = useRef<number>(0);
++
+   const fetchCommunityJobs = async () => {
+     try {
+       const data = await communityApi.list(searchQuery ? { search: searchQuery } : undefined);
+       setJobs(data);
++      lastFetchRef.current = Date.now();
+     } catch (error) {
+       console.error('Error fetching community jobs:', error);
+     } finally {
+@@ -81,7 +84,10 @@ export default function CommunityScreen() {
+     }
+   };
+ 
+-  useFocusEffect(useCallback(() => { fetchCommunityJobs(); }, [searchQuery]));
++  useFocusEffect(useCallback(() => {
++    const elapsed = (Date.now() - lastFetchRef.current) / 1000;
++    if (elapsed > 30) { fetchCommunityJobs(); }
++  }, [searchQuery]));
+ 
+   useEffect(() => {
+     const timer = setTimeout(() => fetchCommunityJobs(), 300);
+diff --git a/app/(tabs)/index.tsx b/app/(tabs)/index.tsx
+index d98bd17..f50b401 100644
+--- a/app/(tabs)/index.tsx
++++ b/app/(tabs)/index.tsx
+@@ -80,12 +80,17 @@ export default function DashboardScreen() {
+ 
+   // ─── Data ───────────────────────────────────────────────────────────────
+ 
+-  useFocusEffect(useCallback(() => { fetchChats(); }, []));
++  const lastFetchRef = useRef<number>(0);
++  useFocusEffect(useCallback(() => {
++    const elapsed = (Date.now() - lastFetchRef.current) / 1000;
++    if (elapsed > 30 || !chats.length) { fetchChats(); }
++  }, []));
+ 
+   const fetchChats = async () => {
+     try {
+       const data = await chatsApi.list();
+       setChats(data);
++      lastFetchRef.current = Date.now();
+     } catch (error) {
+       console.error('Error fetching chats:', error);
+     } finally {
+diff --git a/app/(tabs)/jobs.tsx b/app/(tabs)/jobs.tsx
+index 563b429..2972491 100644
+--- a/app/(tabs)/jobs.tsx
++++ b/app/(tabs)/jobs.tsx
+@@ -1,4 +1,4 @@
+-import React, { useState, useEffect } from 'react';
++import React, { useState, useEffect, useRef } from 'react';
+ import {
+   View,
+   Text,
+@@ -76,10 +76,13 @@ export default function JobsScreen() {
+ 
+   // ── Data fetching ────────────────────────────────────────────────────────
+ 
++  const lastFetchRef = useRef<number>(0);
++
+   const fetchJobs = async () => {
+     try {
+       const data = await jobsApi.list({ status: statusFilter, search: searchQuery });
+       setJobs(data);
++      lastFetchRef.current = Date.now();
+     } catch (error) {
+       console.error('Error fetching jobs:', error);
+     } finally {
+@@ -93,7 +96,8 @@ export default function JobsScreen() {
+ 
+   useFocusEffect(
+     React.useCallback(() => {
+-      fetchJobs();
++      const elapsed = (Date.now() - lastFetchRef.current) / 1000;
++      if (elapsed > 30) { fetchJobs(); }
+     }, [statusFilter, searchQuery]),
+   );
+ 
+diff --git a/server/index.ts b/server/index.ts
+index 69a9f40..6f5d176 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -4,7 +4,7 @@ import cors from 'cors';
+ import compression from 'compression';
+ import path from 'path';
+ import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
+-import { setupAuth, registerAuthRoutes } from './replit_integrations/auth';
++import { setupAuth, registerAuthRoutes, tokenAuth } from './replit_integrations/auth';
+ 
+ // Route modules
+ import jobRoutes from './routes/jobs';
+@@ -24,6 +24,7 @@ app.use(express.json({ limit: '5mb' }));
+ async function initServer() {
+   await setupAuth(app);
+   registerAuthRoutes(app);
++  app.use(tokenAuth); // JWT fallback for mobile when sessions aren't available
+   registerObjectStorageRoutes(app);
+ 
+   app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));
+diff --git a/server/replit_integrations/auth/googleAuth.ts b/server/replit_integrations/auth/googleAuth.ts
+index 6a471e4..89fdc3b 100644
+--- a/server/replit_integrations/auth/googleAuth.ts
++++ b/server/replit_integrations/auth/googleAuth.ts
+@@ -4,8 +4,12 @@ import session from "express-session";
+ import type { Express, RequestHandler } from "express";
+ import connectPg from "connect-pg-simple";
+ import crypto from "crypto";
++import jwt from "jsonwebtoken";
+ import { authStorage } from "./storage";
+ 
++const JWT_SECRET = process.env.SESSION_SECRET || 'fallback-secret-change-me';
++const JWT_EXPIRY = '90d'; // Mobile tokens last 90 days
++
+ // Store mobile auth tokens temporarily (in production, use Redis or DB)
+ const mobileAuthTokens = new Map<string, { userId: string; expires: number }>();
+ 
+@@ -19,6 +23,34 @@ setInterval(() => {
+   }
+ }, 60000); // Clean up every minute
+ 
++/** Sign a persistent JWT for mobile auth */
++export function signMobileToken(userId: string): string {
++  return jwt.sign({ sub: userId, type: 'mobile' }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
++}
++
++/** Middleware: populate req.user from Bearer JWT if no session */
++export const tokenAuth: RequestHandler = async (req: any, res, next) => {
++  // If passport already authenticated via session, skip
++  if (req.user) return next();
++
++  const authHeader = req.headers.authorization;
++  if (!authHeader?.startsWith('Bearer ')) return next();
++
++  try {
++    const token = authHeader.slice(7);
++    const payload = jwt.verify(token, JWT_SECRET) as { sub: string; type: string };
++    if (payload.type !== 'mobile') return next();
++
++    const user = await authStorage.getUser(payload.sub);
++    if (user) {
++      req.user = user;
++    }
++  } catch {
++    // Invalid token — continue without auth
++  }
++  next();
++};
++
+ export function getSession() {
+   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+   const pgStore = connectPg(session);
+@@ -188,8 +220,10 @@ export async function setupGoogleAuth(app: Express) {
+         console.error("Mobile login error:", err);
+         return res.status(500).json({ error: "Login failed" });
+       }
++      // Return a persistent JWT for mobile storage
++      const apiToken = signMobileToken(user.id);
+       console.log("Mobile user logged in:", user.email);
+-      res.json({ success: true, user });
++      res.json({ success: true, user, apiToken });
+     });
+   });
+ 
+diff --git a/server/replit_integrations/auth/index.ts b/server/replit_integrations/auth/index.ts
+index 7c103d8..4f991b7 100644
+--- a/server/replit_integrations/auth/index.ts
++++ b/server/replit_integrations/auth/index.ts
+@@ -1,3 +1,3 @@
+-export { setupGoogleAuth as setupAuth, isAuthenticated, getSession } from "./googleAuth";
++export { setupGoogleAuth as setupAuth, isAuthenticated, getSession, tokenAuth } from "./googleAuth";
+ export { authStorage, type IAuthStorage } from "./storage";
+ export { registerAuthRoutes } from "./routes";
+diff --git a/src/contexts/AuthContext.tsx b/src/contexts/AuthContext.tsx
+index 105f4e6..d749e5a 100644
+--- a/src/contexts/AuthContext.tsx
++++ b/src/contexts/AuthContext.tsx
+@@ -1,7 +1,9 @@
+-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
++import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+ import { Platform } from 'react-native';
+ import * as Linking from 'expo-linking';
+ import * as WebBrowser from 'expo-web-browser';
++import * as SecureStore from 'expo-secure-store';
++import { apiClient } from '../services/api';
+ 
+ const getApiUrl = () => {
+   if (Platform.OS === 'web' && typeof window !== 'undefined') {
+@@ -11,6 +13,7 @@ const getApiUrl = () => {
+ };
+ 
+ const API_URL = getApiUrl();
++const TOKEN_KEY = 'benchapp_api_token';
+ 
+ interface User {
+   id: string;
+@@ -32,6 +35,36 @@ interface AuthContextType {
+ 
+ const AuthContext = createContext<AuthContextType | undefined>(undefined);
+ 
++/** Store API token and set as default header */
++async function saveToken(token: string) {
++  if (Platform.OS !== 'web') {
++    await SecureStore.setItemAsync(TOKEN_KEY, token);
++  }
++  apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
++}
++
++/** Load saved token and set as default header */
++async function loadToken(): Promise<string | null> {
++  if (Platform.OS === 'web') return null;
++  try {
++    const token = await SecureStore.getItemAsync(TOKEN_KEY);
++    if (token) {
++      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
++    }
++    return token;
++  } catch {
++    return null;
++  }
++}
++
++/** Clear saved token */
++async function clearToken() {
++  if (Platform.OS !== 'web') {
++    await SecureStore.deleteItemAsync(TOKEN_KEY);
++  }
++  delete apiClient.defaults.headers.common['Authorization'];
++}
++
+ export function AuthProvider({ children }: { children: ReactNode }) {
+   const [user, setUser] = useState<User | null>(null);
+   const [isLoading, setIsLoading] = useState(true);
+@@ -40,6 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+     try {
+       const response = await fetch(`${API_URL}/api/auth/user`, {
+         credentials: 'include',
++        headers: apiClient.defaults.headers.common['Authorization']
++          ? { Authorization: apiClient.defaults.headers.common['Authorization'] as string }
++          : {},
+       });
+       
+       if (response.ok) {
+@@ -47,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+         setUser(userData);
+       } else {
+         setUser(null);
++        await clearToken();
+       }
+     } catch (error) {
+       console.error('Error fetching user:', error);
+@@ -57,7 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+   };
+ 
+   useEffect(() => {
+-    fetchUser();
++    const init = async () => {
++      await loadToken();
++      await fetchUser();
++    };
++    init();
+   }, []);
+ 
+   const login = async () => {
+@@ -70,18 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+       );
+       console.log('Auth session result:', result);
+       if (result.type === 'success' && result.url) {
+-        // Parse token from the redirect URL
+         const url = new URL(result.url);
+         const token = url.searchParams.get('token');
+         
+         if (token) {
+           try {
+-            // Exchange token for session
+             const response = await fetch(`${API_URL}/api/auth/mobile-token`, {
+               method: 'POST',
+-              headers: {
+-                'Content-Type': 'application/json',
+-              },
++              headers: { 'Content-Type': 'application/json' },
+               credentials: 'include',
+               body: JSON.stringify({ token }),
+             });
+@@ -89,6 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+             if (response.ok) {
+               const data = await response.json();
+               console.log('Mobile auth successful:', data.user?.email);
++              if (data.apiToken) {
++                await saveToken(data.apiToken);
++              }
+               setUser(data.user);
+             } else {
+               console.error('Token exchange failed:', await response.text());
+@@ -97,18 +137,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
+             console.error('Error exchanging token:', error);
+           }
+         } else {
+-          // Fallback to refreshing user
+           await refreshUser();
+         }
+       }
+     }
+   };
+ 
+-  const logout = () => {
++  const logout = async () => {
++    await clearToken();
++    setUser(null);
+     if (Platform.OS === 'web') {
+       window.location.href = `${API_URL}/api/logout`;
+     } else {
+-      Linking.openURL(`${API_URL}/api/logout`);
++      try {
++        await fetch(`${API_URL}/api/logout`, { credentials: 'include' });
++      } catch {}
+     }
+   };
+ 
+diff --git a/src/hooks/index.ts b/src/hooks/index.ts
+index 82d229a..a867ddc 100644
+--- a/src/hooks/index.ts
++++ b/src/hooks/index.ts
+@@ -1,2 +1,3 @@
+ export { useFileUpload } from './useFileUpload';
+ export { useDebounce } from './useDebounce';
++export { useCachedFetch } from './useCachedFetch';
+diff --git a/src/hooks/useCachedFetch.ts b/src/hooks/useCachedFetch.ts
+new file mode 100644
+index 0000000..d3f5216
+--- /dev/null
++++ b/src/hooks/useCachedFetch.ts
+@@ -0,0 +1,55 @@
++import { useState, useRef, useCallback } from 'react';
++
++interface CachedFetchOptions {
++  /** Minimum seconds before refetching on focus. Default 30. */
++  staleTime?: number;
++}
++
++/**
++ * Hook that returns cached data immediately and refreshes in background.
++ * Use with useFocusEffect to avoid re-fetching on every tab switch.
++ */
++export function useCachedFetch<T>(
++  fetchFn: () => Promise<T>,
++  options: CachedFetchOptions = {},
++) {
++  const { staleTime = 30 } = options;
++  const [data, setData] = useState<T | null>(null);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState<string | null>(null);
++  const lastFetchRef = useRef<number>(0);
++  const initialLoadDone = useRef(false);
++
++  const refresh = useCallback(async (force = false) => {
++    const now = Date.now();
++    const elapsed = (now - lastFetchRef.current) / 1000;
++
++    // If data exists and it's fresh, skip
++    if (!force && initialLoadDone.current && elapsed < staleTime) {
++      return;
++    }
++
++    // Only show loading spinner on first load
++    if (!initialLoadDone.current) {
++      setLoading(true);
++    }
++
++    try {
++      setError(null);
++      const result = await fetchFn();
++      setData(result);
++      lastFetchRef.current = Date.now();
++      initialLoadDone.current = true;
++    } catch (err: any) {
++      setError(err?.message || 'Failed to fetch');
++      // Keep stale data visible on error
++    } finally {
++      setLoading(false);
++    }
++  }, [fetchFn, staleTime]);
++
++  /** Force a fresh fetch regardless of staleTime */
++  const forceRefresh = useCallback(() => refresh(true), [refresh]);
++
++  return { data, loading, error, refresh, forceRefresh, setData };
++}
+diff --git a/src/services/endpoints/chats.ts b/src/services/endpoints/chats.ts
+index 83e6793..3af8be7 100644
+--- a/src/services/endpoints/chats.ts
++++ b/src/services/endpoints/chats.ts
+@@ -1,6 +1,11 @@
+ import { apiClient } from '../api';
+ import { API_URL } from '../../utils/config';
+ 
++// Helper to get the current auth token from apiClient defaults
++function getAuthHeader(): string | null {
++  return (apiClient.defaults.headers.common['Authorization'] as string) || null;
++}
++
+ export const chatsApi = {
+   async list() {
+     const { data } = await apiClient.get('/api/chats');
+@@ -50,6 +55,10 @@ export const chatsApi = {
+     const promise = new Promise<{ userMessage: any; assistantMessage: any }>((resolve, reject) => {
+       xhr.open('POST', `${API_URL}/api/chats/${chatId}/messages?stream=true`);
+       xhr.setRequestHeader('Content-Type', 'application/json');
++      const authHeader = getAuthHeader();
++      if (authHeader) {
++        xhr.setRequestHeader('Authorization', authHeader);
++      }
+       xhr.withCredentials = true;
+ 
+       xhr.onprogress = () => {

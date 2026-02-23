@@ -4,7 +4,11 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { authStorage } from "./storage";
+
+const JWT_SECRET = process.env.SESSION_SECRET || 'fallback-secret-change-me';
+const JWT_EXPIRY = '90d'; // Mobile tokens last 90 days
 
 // Store mobile auth tokens temporarily (in production, use Redis or DB)
 const mobileAuthTokens = new Map<string, { userId: string; expires: number }>();
@@ -18,6 +22,34 @@ setInterval(() => {
     }
   }
 }, 60000); // Clean up every minute
+
+/** Sign a persistent JWT for mobile auth */
+export function signMobileToken(userId: string): string {
+  return jwt.sign({ sub: userId, type: 'mobile' }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+}
+
+/** Middleware: populate req.user from Bearer JWT if no session */
+export const tokenAuth: RequestHandler = async (req: any, res, next) => {
+  // If passport already authenticated via session, skip
+  if (req.user) return next();
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return next();
+
+  try {
+    const token = authHeader.slice(7);
+    const payload = jwt.verify(token, JWT_SECRET) as { sub: string; type: string };
+    if (payload.type !== 'mobile') return next();
+
+    const user = await authStorage.getUser(payload.sub);
+    if (user) {
+      req.user = user;
+    }
+  } catch {
+    // Invalid token — continue without auth
+  }
+  next();
+};
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
@@ -188,8 +220,10 @@ export async function setupGoogleAuth(app: Express) {
         console.error("Mobile login error:", err);
         return res.status(500).json({ error: "Login failed" });
       }
+      // Return a persistent JWT for mobile storage
+      const apiToken = signMobileToken(user.id);
       console.log("Mobile user logged in:", user.email);
-      res.json({ success: true, user });
+      res.json({ success: true, user, apiToken });
     });
   });
 

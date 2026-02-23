@@ -80,12 +80,17 @@ export default function DashboardScreen() {
 
   // ─── Data ───────────────────────────────────────────────────────────────
 
-  useFocusEffect(useCallback(() => { fetchChats(); }, []));
+  const lastFetchRef = useRef<number>(0);
+  useFocusEffect(useCallback(() => {
+    const elapsed = (Date.now() - lastFetchRef.current) / 1000;
+    if (elapsed > 30 || !chats.length) { fetchChats(); }
+  }, []));
 
   const fetchChats = async () => {
     try {
       const data = await chatsApi.list();
       setChats(data);
+      lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching chats:', error);
     } finally {

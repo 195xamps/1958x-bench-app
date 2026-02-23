@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import * as SecureStore from 'expo-secure-store';
+import { apiClient } from '../services/api';
 
 const getApiUrl = () => {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -11,6 +13,7 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
+const TOKEN_KEY = 'benchapp_api_token';
 
 interface User {
   id: string;
@@ -32,6 +35,36 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Store API token and set as default header */
+async function saveToken(token: string) {
+  if (Platform.OS !== 'web') {
+    await SecureStore.setItemAsync(TOKEN_KEY, token);
+  }
+  apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+}
+
+/** Load saved token and set as default header */
+async function loadToken(): Promise<string | null> {
+  if (Platform.OS === 'web') return null;
+  try {
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (token) {
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+/** Clear saved token */
+async function clearToken() {
+  if (Platform.OS !== 'web') {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+  }
+  delete apiClient.defaults.headers.common['Authorization'];
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch(`${API_URL}/api/auth/user`, {
         credentials: 'include',
+        headers: apiClient.defaults.headers.common['Authorization']
+          ? { Authorization: apiClient.defaults.headers.common['Authorization'] as string }
+          : {},
       });
       
       if (response.ok) {
@@ -47,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
       } else {
         setUser(null);
+        await clearToken();
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -57,7 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    fetchUser();
+    const init = async () => {
+      await loadToken();
+      await fetchUser();
+    };
+    init();
   }, []);
 
   const login = async () => {
@@ -70,18 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       console.log('Auth session result:', result);
       if (result.type === 'success' && result.url) {
-        // Parse token from the redirect URL
         const url = new URL(result.url);
         const token = url.searchParams.get('token');
         
         if (token) {
           try {
-            // Exchange token for session
             const response = await fetch(`${API_URL}/api/auth/mobile-token`, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
               body: JSON.stringify({ token }),
             });
@@ -89,6 +126,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (response.ok) {
               const data = await response.json();
               console.log('Mobile auth successful:', data.user?.email);
+              if (data.apiToken) {
+                await saveToken(data.apiToken);
+              }
               setUser(data.user);
             } else {
               console.error('Token exchange failed:', await response.text());
@@ -97,18 +137,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.error('Error exchanging token:', error);
           }
         } else {
-          // Fallback to refreshing user
           await refreshUser();
         }
       }
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await clearToken();
+    setUser(null);
     if (Platform.OS === 'web') {
       window.location.href = `${API_URL}/api/logout`;
     } else {
-      Linking.openURL(`${API_URL}/api/logout`);
+      try {
+        await fetch(`${API_URL}/api/logout`, { credentials: 'include' });
+      } catch {}
     }
   };
 

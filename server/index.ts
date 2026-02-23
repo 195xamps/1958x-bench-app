@@ -4,7 +4,7 @@ import cors from 'cors';
 import compression from 'compression';
 import path from 'path';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
-import { setupAuth, registerAuthRoutes } from './replit_integrations/auth';
+import { setupAuth, registerAuthRoutes, tokenAuth } from './replit_integrations/auth';
 
 // Route modules
 import jobRoutes from './routes/jobs';
@@ -24,6 +24,7 @@ app.use(express.json({ limit: '5mb' }));
 async function initServer() {
   await setupAuth(app);
   registerAuthRoutes(app);
+  app.use(tokenAuth); // JWT fallback for mobile when sessions aren't available
   registerObjectStorageRoutes(app);
 
   app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -37,10 +37,13 @@ export default function CommunityScreen() {
 
   // ─── Data ───────────────────────────────────────────────────────────────
 
+  const lastFetchRef = useRef<number>(0);
+
   const fetchCommunityJobs = async () => {
     try {
       const data = await communityApi.list(searchQuery ? { search: searchQuery } : undefined);
       setJobs(data);
+      lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching community jobs:', error);
     } finally {
@@ -81,7 +84,10 @@ export default function CommunityScreen() {
     }
   };
 
-  useFocusEffect(useCallback(() => { fetchCommunityJobs(); }, [searchQuery]));
+  useFocusEffect(useCallback(() => {
+    const elapsed = (Date.now() - lastFetchRef.current) / 1000;
+    if (elapsed > 30) { fetchCommunityJobs(); }
+  }, [searchQuery]));
 
   useEffect(() => {
     const timer = setTimeout(() => fetchCommunityJobs(), 300);

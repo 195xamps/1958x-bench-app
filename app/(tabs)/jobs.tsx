@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -76,10 +76,13 @@ export default function JobsScreen() {
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
+  const lastFetchRef = useRef<number>(0);
+
   const fetchJobs = async () => {
     try {
       const data = await jobsApi.list({ status: statusFilter, search: searchQuery });
       setJobs(data);
+      lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
@@ -93,7 +96,8 @@ export default function JobsScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchJobs();
+      const elapsed = (Date.now() - lastFetchRef.current) / 1000;
+      if (elapsed > 30) { fetchJobs(); }
     }, [statusFilter, searchQuery]),
   );
 

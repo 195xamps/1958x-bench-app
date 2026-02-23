@@ -1,6 +1,11 @@
 import { apiClient } from '../api';
 import { API_URL } from '../../utils/config';
 
+// Helper to get the current auth token from apiClient defaults
+function getAuthHeader(): string | null {
+  return (apiClient.defaults.headers.common['Authorization'] as string) || null;
+}
+
 export const chatsApi = {
   async list() {
     const { data } = await apiClient.get('/api/chats');
@@ -50,6 +55,10 @@ export const chatsApi = {
     const promise = new Promise<{ userMessage: any; assistantMessage: any }>((resolve, reject) => {
       xhr.open('POST', `${API_URL}/api/chats/${chatId}/messages?stream=true`);
       xhr.setRequestHeader('Content-Type', 'application/json');
+      const authHeader = getAuthHeader();
+      if (authHeader) {
+        xhr.setRequestHeader('Authorization', authHeader);
+      }
       xhr.withCredentials = true;
 
       xhr.onprogress = () => {
