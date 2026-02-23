@@ -301,31 +301,33 @@ export default function JobsScreen() {
 
       {/* ── New Job Modal ──────────────────────────────────────────────── */}
       <Modal visible={showNewJobModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Bench Job</Text>
-              <TouchableOpacity onPress={() => setShowNewJobModal(false)}>
-                <Ionicons name="close" size={28} color={colors.text.secondary} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>New Bench Job</Text>
+                <TouchableOpacity onPress={() => setShowNewJobModal(false)}>
+                  <Ionicons name="close" size={28} color={colors.text.secondary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+                <Text style={styles.sectionTitle}>Amp Identification</Text>
+                {renderInput('Make', newJob.ampMake, (t) => setNewJob({ ...newJob, ampMake: t }), 'e.g., Fender, Marshall, Vox')}
+                {renderInput('Model', newJob.ampModel, (t) => setNewJob({ ...newJob, ampModel: t }), 'e.g., Deluxe Reverb, JCM800')}
+                {renderInput('Year (if known)', newJob.ampYear || '', (t) => setNewJob({ ...newJob, ampYear: t }), 'e.g., 1965, 1970s')}
+                {renderInput('Circuit Family', newJob.circuitFamily || '', (t) => setNewJob({ ...newJob, circuitFamily: t }), 'e.g., AB763, 5E3, JTM45')}
+                <Text style={styles.sectionTitle}>Problem Description</Text>
+                {renderInput('Owner Symptoms', newJob.ownerSymptoms || '', (t) => setNewJob({ ...newJob, ownerSymptoms: t }), 'What is the owner experiencing?', true)}
+                {renderInput('Known Mods', newJob.knownMods || '', (t) => setNewJob({ ...newJob, knownMods: t }), 'Any modifications to the original circuit?', true)}
+                {renderInput('Prior Tech Work', newJob.priorWork || '', (t) => setNewJob({ ...newJob, priorWork: t }), 'Any previous repair attempts?', true)}
+                {renderInput('Tech Notes', newJob.techNotes || '', (t) => setNewJob({ ...newJob, techNotes: t }), 'Initial observations...', true)}
+              </ScrollView>
+              <TouchableOpacity style={styles.createButton} onPress={createJob}>
+                <Text style={styles.createButtonText}>Create Job & Safety Check</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalScroll}>
-              <Text style={styles.sectionTitle}>Amp Identification</Text>
-              {renderInput('Make', newJob.ampMake, (t) => setNewJob({ ...newJob, ampMake: t }), 'e.g., Fender, Marshall, Vox')}
-              {renderInput('Model', newJob.ampModel, (t) => setNewJob({ ...newJob, ampModel: t }), 'e.g., Deluxe Reverb, JCM800')}
-              {renderInput('Year (if known)', newJob.ampYear || '', (t) => setNewJob({ ...newJob, ampYear: t }), 'e.g., 1965, 1970s')}
-              {renderInput('Circuit Family', newJob.circuitFamily || '', (t) => setNewJob({ ...newJob, circuitFamily: t }), 'e.g., AB763, 5E3, JTM45')}
-              <Text style={styles.sectionTitle}>Problem Description</Text>
-              {renderInput('Owner Symptoms', newJob.ownerSymptoms || '', (t) => setNewJob({ ...newJob, ownerSymptoms: t }), 'What is the owner experiencing?', true)}
-              {renderInput('Known Mods', newJob.knownMods || '', (t) => setNewJob({ ...newJob, knownMods: t }), 'Any modifications to the original circuit?', true)}
-              {renderInput('Prior Tech Work', newJob.priorWork || '', (t) => setNewJob({ ...newJob, priorWork: t }), 'Any previous repair attempts?', true)}
-              {renderInput('Tech Notes', newJob.techNotes || '', (t) => setNewJob({ ...newJob, techNotes: t }), 'Initial observations...', true)}
-            </ScrollView>
-            <TouchableOpacity style={styles.createButton} onPress={createJob}>
-              <Text style={styles.createButtonText}>Create Job & Safety Check</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Safety Checklist Modal ─────────────────────────────────────── */}

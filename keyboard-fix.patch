@@ -1,0 +1,247 @@
+diff --git a/app/(tabs)/index.tsx b/app/(tabs)/index.tsx
+index e542ff4..d98bd17 100644
+--- a/app/(tabs)/index.tsx
++++ b/app/(tabs)/index.tsx
+@@ -469,27 +469,29 @@ function RenameModal({ visible, title, onChangeTitle, onSave, onCancel }: {
+ }) {
+   return (
+     <Modal visible={visible} transparent animationType="fade">
+-      <View style={styles.modalOverlay}>
+-        <View style={styles.modalContent}>
+-          <Text style={styles.modalTitle}>Rename Chat</Text>
+-          <TextInput
+-            style={styles.renameInput}
+-            value={title}
+-            onChangeText={onChangeTitle}
+-            placeholder="Enter chat name"
+-            placeholderTextColor={colors.text.muted}
+-            autoFocus
+-          />
+-          <View style={styles.modalButtons}>
+-            <TouchableOpacity style={styles.modalCancelBtn} onPress={onCancel}>
+-              <Text style={styles.modalCancelText}>Cancel</Text>
+-            </TouchableOpacity>
+-            <TouchableOpacity style={styles.modalSaveBtn} onPress={onSave}>
+-              <Text style={styles.modalSaveText}>Save</Text>
+-            </TouchableOpacity>
++      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
++        <View style={styles.modalOverlay}>
++          <View style={styles.modalContent}>
++            <Text style={styles.modalTitle}>Rename Chat</Text>
++            <TextInput
++              style={styles.renameInput}
++              value={title}
++              onChangeText={onChangeTitle}
++              placeholder="Enter chat name"
++              placeholderTextColor={colors.text.muted}
++              autoFocus
++            />
++            <View style={styles.modalButtons}>
++              <TouchableOpacity style={styles.modalCancelBtn} onPress={onCancel}>
++                <Text style={styles.modalCancelText}>Cancel</Text>
++              </TouchableOpacity>
++              <TouchableOpacity style={styles.modalSaveBtn} onPress={onSave}>
++                <Text style={styles.modalSaveText}>Save</Text>
++              </TouchableOpacity>
++            </View>
+           </View>
+         </View>
+-      </View>
++      </KeyboardAvoidingView>
+     </Modal>
+   );
+ }
+diff --git a/app/(tabs)/jobs.tsx b/app/(tabs)/jobs.tsx
+index d8f2586..563b429 100644
+--- a/app/(tabs)/jobs.tsx
++++ b/app/(tabs)/jobs.tsx
+@@ -301,31 +301,33 @@ export default function JobsScreen() {
+ 
+       {/* ── New Job Modal ──────────────────────────────────────────────── */}
+       <Modal visible={showNewJobModal} animationType="slide" transparent>
+-        <View style={styles.modalOverlay}>
+-          <View style={styles.modalContent}>
+-            <View style={styles.modalHeader}>
+-              <Text style={styles.modalTitle}>New Bench Job</Text>
+-              <TouchableOpacity onPress={() => setShowNewJobModal(false)}>
+-                <Ionicons name="close" size={28} color={colors.text.secondary} />
++        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
++          <View style={styles.modalOverlay}>
++            <View style={styles.modalContent}>
++              <View style={styles.modalHeader}>
++                <Text style={styles.modalTitle}>New Bench Job</Text>
++                <TouchableOpacity onPress={() => setShowNewJobModal(false)}>
++                  <Ionicons name="close" size={28} color={colors.text.secondary} />
++                </TouchableOpacity>
++              </View>
++              <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
++                <Text style={styles.sectionTitle}>Amp Identification</Text>
++                {renderInput('Make', newJob.ampMake, (t) => setNewJob({ ...newJob, ampMake: t }), 'e.g., Fender, Marshall, Vox')}
++                {renderInput('Model', newJob.ampModel, (t) => setNewJob({ ...newJob, ampModel: t }), 'e.g., Deluxe Reverb, JCM800')}
++                {renderInput('Year (if known)', newJob.ampYear || '', (t) => setNewJob({ ...newJob, ampYear: t }), 'e.g., 1965, 1970s')}
++                {renderInput('Circuit Family', newJob.circuitFamily || '', (t) => setNewJob({ ...newJob, circuitFamily: t }), 'e.g., AB763, 5E3, JTM45')}
++                <Text style={styles.sectionTitle}>Problem Description</Text>
++                {renderInput('Owner Symptoms', newJob.ownerSymptoms || '', (t) => setNewJob({ ...newJob, ownerSymptoms: t }), 'What is the owner experiencing?', true)}
++                {renderInput('Known Mods', newJob.knownMods || '', (t) => setNewJob({ ...newJob, knownMods: t }), 'Any modifications to the original circuit?', true)}
++                {renderInput('Prior Tech Work', newJob.priorWork || '', (t) => setNewJob({ ...newJob, priorWork: t }), 'Any previous repair attempts?', true)}
++                {renderInput('Tech Notes', newJob.techNotes || '', (t) => setNewJob({ ...newJob, techNotes: t }), 'Initial observations...', true)}
++              </ScrollView>
++              <TouchableOpacity style={styles.createButton} onPress={createJob}>
++                <Text style={styles.createButtonText}>Create Job & Safety Check</Text>
+               </TouchableOpacity>
+             </View>
+-            <ScrollView style={styles.modalScroll}>
+-              <Text style={styles.sectionTitle}>Amp Identification</Text>
+-              {renderInput('Make', newJob.ampMake, (t) => setNewJob({ ...newJob, ampMake: t }), 'e.g., Fender, Marshall, Vox')}
+-              {renderInput('Model', newJob.ampModel, (t) => setNewJob({ ...newJob, ampModel: t }), 'e.g., Deluxe Reverb, JCM800')}
+-              {renderInput('Year (if known)', newJob.ampYear || '', (t) => setNewJob({ ...newJob, ampYear: t }), 'e.g., 1965, 1970s')}
+-              {renderInput('Circuit Family', newJob.circuitFamily || '', (t) => setNewJob({ ...newJob, circuitFamily: t }), 'e.g., AB763, 5E3, JTM45')}
+-              <Text style={styles.sectionTitle}>Problem Description</Text>
+-              {renderInput('Owner Symptoms', newJob.ownerSymptoms || '', (t) => setNewJob({ ...newJob, ownerSymptoms: t }), 'What is the owner experiencing?', true)}
+-              {renderInput('Known Mods', newJob.knownMods || '', (t) => setNewJob({ ...newJob, knownMods: t }), 'Any modifications to the original circuit?', true)}
+-              {renderInput('Prior Tech Work', newJob.priorWork || '', (t) => setNewJob({ ...newJob, priorWork: t }), 'Any previous repair attempts?', true)}
+-              {renderInput('Tech Notes', newJob.techNotes || '', (t) => setNewJob({ ...newJob, techNotes: t }), 'Initial observations...', true)}
+-            </ScrollView>
+-            <TouchableOpacity style={styles.createButton} onPress={createJob}>
+-              <Text style={styles.createButtonText}>Create Job & Safety Check</Text>
+-            </TouchableOpacity>
+           </View>
+-        </View>
++        </KeyboardAvoidingView>
+       </Modal>
+ 
+       {/* ── Safety Checklist Modal ─────────────────────────────────────── */}
+diff --git a/app/(tabs)/schematics.tsx b/app/(tabs)/schematics.tsx
+index d950796..98c0eb0 100644
+--- a/app/(tabs)/schematics.tsx
++++ b/app/(tabs)/schematics.tsx
+@@ -8,6 +8,8 @@ import {
+   TextInput,
+   Modal,
+   ActivityIndicator,
++  KeyboardAvoidingView,
++  Platform,
+ } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useRouter } from 'expo-router';
+@@ -298,16 +300,17 @@ function UploadModal({
+ }: any) {
+   return (
+     <Modal visible={visible} animationType="slide" transparent>
+-      <View style={styles.modalOverlay}>
+-        <View style={styles.modalContent}>
+-          <View style={styles.modalHeader}>
+-            <Text style={styles.modalTitle}>Add Schematic</Text>
+-            <TouchableOpacity onPress={onClose}>
+-              <Ionicons name="close" size={28} color={colors.text.secondary} />
+-            </TouchableOpacity>
+-          </View>
++      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
++        <View style={styles.modalOverlay}>
++          <View style={styles.modalContent}>
++            <View style={styles.modalHeader}>
++              <Text style={styles.modalTitle}>Add Schematic</Text>
++              <TouchableOpacity onPress={onClose}>
++                <Ionicons name="close" size={28} color={colors.text.secondary} />
++              </TouchableOpacity>
++            </View>
+ 
+-          <ScrollView style={styles.modalScroll}>
++            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+             <Text style={styles.label}>Name *</Text>
+             <TextInput style={styles.input} value={form.name}
+               onChangeText={(t) => updateForm('name', t)}
+@@ -400,7 +403,7 @@ function UploadModal({
+               : <Text style={styles.saveBtnText}>Add to Library</Text>}
+           </TouchableOpacity>
+         </View>
+-      </View>
++      </KeyboardAvoidingView>
+     </Modal>
+   );
+ }
+diff --git a/app/article/[id].tsx b/app/article/[id].tsx
+index 9e5a96d..3edfabe 100644
+--- a/app/article/[id].tsx
++++ b/app/article/[id].tsx
+@@ -1,7 +1,7 @@
+ import React, { useState, useEffect } from 'react';
+ import {
+   View, Text, StyleSheet, ScrollView, TouchableOpacity,
+-  Image, Dimensions, Modal, TextInput,
++  Image, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform,
+ } from 'react-native';
+ import { useLocalSearchParams, useRouter } from 'expo-router';
+ import { Ionicons } from '@expo/vector-icons';
+@@ -224,6 +224,7 @@ export default function ArticleDetailScreen() {
+ 
+       {/* Rename modal */}
+       <Modal visible={renameModalVisible} transparent animationType="fade" onRequestClose={() => setRenameModalVisible(false)}>
++        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+         <View style={s.modalOverlay}>
+           <View style={s.modalContent}>
+             <Text style={s.modalTitle}>Edit Article Title</Text>
+@@ -245,6 +246,7 @@ export default function ArticleDetailScreen() {
+             </View>
+           </View>
+         </View>
++        </KeyboardAvoidingView>
+       </Modal>
+     </View>
+   );
+diff --git a/src/components/measurement/AddMeasurementModal.tsx b/src/components/measurement/AddMeasurementModal.tsx
+index 3a71c40..dba81d9 100644
+--- a/src/components/measurement/AddMeasurementModal.tsx
++++ b/src/components/measurement/AddMeasurementModal.tsx
+@@ -8,6 +8,8 @@ import {
+   TextInput,
+   Modal,
+   ActivityIndicator,
++  KeyboardAvoidingView,
++  Platform,
+ } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { colors } from '../../theme';
+@@ -79,6 +81,7 @@ export function AddMeasurementModal({
+ 
+   return (
+     <Modal visible={visible} animationType="slide" transparent>
++      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+       <View style={styles.overlay}>
+         <View style={styles.content}>
+           {/* Header */}
+@@ -261,6 +264,7 @@ export function AddMeasurementModal({
+           </View>
+         </View>
+       </View>
++      </KeyboardAvoidingView>
+     </Modal>
+   );
+ }
+diff --git a/src/components/reference/ArticlesTab.tsx b/src/components/reference/ArticlesTab.tsx
+index fff7329..43c8e45 100644
+--- a/src/components/reference/ArticlesTab.tsx
++++ b/src/components/reference/ArticlesTab.tsx
+@@ -1,5 +1,5 @@
+ import React, { useState, useEffect } from 'react';
+-import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Linking } from 'react-native';
++import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, ActivityIndicator, Linking, KeyboardAvoidingView, Platform } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useRouter } from 'expo-router';
+ import { articlesApi } from '../../services/endpoints/reference';
+@@ -125,6 +125,7 @@ export function ArticlesTab() {
+       </ScrollView>
+ 
+       <Modal visible={showImportModal} transparent animationType="fade" onRequestClose={() => setShowImportModal(false)}>
++        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+         <View style={styles.modalOverlay}>
+           <View style={styles.modalContent}>
+             <View style={styles.modalHeader}>
+@@ -148,6 +149,7 @@ export function ArticlesTab() {
+             </TouchableOpacity>
+           </View>
+         </View>
++        </KeyboardAvoidingView>
+       </Modal>
+     </>
+   );

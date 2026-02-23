@@ -469,27 +469,29 @@ function RenameModal({ visible, title, onChangeTitle, onSave, onCancel }: {
 }) {
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Rename Chat</Text>
-          <TextInput
-            style={styles.renameInput}
-            value={title}
-            onChangeText={onChangeTitle}
-            placeholder="Enter chat name"
-            placeholderTextColor={colors.text.muted}
-            autoFocus
-          />
-          <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={onCancel}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSaveBtn} onPress={onSave}>
-              <Text style={styles.modalSaveText}>Save</Text>
-            </TouchableOpacity>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Rename Chat</Text>
+            <TextInput
+              style={styles.renameInput}
+              value={title}
+              onChangeText={onChangeTitle}
+              placeholder="Enter chat name"
+              placeholderTextColor={colors.text.muted}
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={onCancel}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={onSave}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

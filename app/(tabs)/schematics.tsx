@@ -8,6 +8,8 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -298,16 +300,17 @@ function UploadModal({
 }: any) {
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Schematic</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={28} color={colors.text.secondary} />
-            </TouchableOpacity>
-          </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Schematic</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name="close" size={28} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={styles.modalScroll}>
+            <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
             <Text style={styles.label}>Name *</Text>
             <TextInput style={styles.input} value={form.name}
               onChangeText={(t) => updateForm('name', t)}
@@ -400,7 +403,7 @@ function UploadModal({
               : <Text style={styles.saveBtnText}>Add to Library</Text>}
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
