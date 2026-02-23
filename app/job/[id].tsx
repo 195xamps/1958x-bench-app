@@ -80,6 +80,8 @@ export default function JobDetailScreen() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [chatInput, setChatInputText] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
+  const streamAbortRef = useRef<(() => void) | null>(null);
 
   // File upload hook
   const {
@@ -276,6 +278,7 @@ export default function JobDetailScreen() {
     setChatInputText('');
     clearAttachments();
     setSendingChat(true);
+    setStreamingText('');
 
     const tempUserMessage: ChatMessage = {
       id: 'temp-user',
@@ -288,15 +291,27 @@ export default function JobDetailScreen() {
     setChatMessages((prev) => [...prev, tempUserMessage]);
 
     try {
-      const data = await chatsApi.sendMessage(chatId, messageText, attachmentsToSend.length > 0 ? attachmentsToSend : null);
+      const { promise, abort } = chatsApi.streamMessage(
+        chatId,
+        messageText,
+        (token) => { setStreamingText(prev => prev + token); },
+        attachmentsToSend.length > 0 ? attachmentsToSend : null,
+      );
+      streamAbortRef.current = abort;
+
+      const data = await promise;
+      streamAbortRef.current = null;
+
       setChatMessages((prev) => [
         ...prev.filter((m) => m.id !== 'temp-user'),
         data.userMessage,
         data.assistantMessage,
       ]);
+      setStreamingText('');
     } catch (error) {
       console.error('Error sending message:', error);
       setChatMessages((prev) => prev.filter((m) => m.id !== 'temp-user'));
+      setStreamingText('');
     } finally {
       setSendingChat(false);
     }
@@ -346,6 +361,7 @@ export default function JobDetailScreen() {
       <MessageList
         messages={chatMessages}
         sending={sendingChat}
+        streamingText={streamingText}
         assistantName="Assistant"
         emptyContent={
           <View style={styles.welcomeContainer}>

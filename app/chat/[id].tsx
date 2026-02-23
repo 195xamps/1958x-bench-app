@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,12 +29,15 @@ export default function ChatDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<(() => void) | null>(null);
 
   // ─── Data ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (id) fetchChat();
+    return () => { abortRef.current?.(); };
   }, [id]);
 
   const fetchChat = async () => {
@@ -43,7 +46,7 @@ export default function ChatDetailScreen() {
       setError(null);
       const data = await chatsApi.get(id!);
       setChat(data.chat);
-      setMessages(prev => [...prev, data.userMessage, data.assistantMessage]);
+      setMessages(data.messages || []);
     } catch (err: any) {
       console.error('Error fetching chat:', err);
       if (err.response?.status === 403) {
@@ -66,13 +69,43 @@ export default function ChatDetailScreen() {
     const messageContent = input.trim();
     setInput('');
     setSending(true);
+    setStreamingText('');
+
+    // Optimistic user message
+    const tempUserMsg: ChatMessage = {
+      id: 'temp-user',
+      chatId: id!,
+      role: 'user',
+      content: messageContent,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, tempUserMsg]);
 
     try {
-      const data = await chatsApi.sendMessage(id!, messageContent);
-      setMessages(data.messages || []);
+      const { promise, abort } = chatsApi.streamMessage(
+        id!,
+        messageContent,
+        (token) => {
+          setStreamingText(prev => prev + token);
+        },
+      );
+      abortRef.current = abort;
+
+      const data = await promise;
+      abortRef.current = null;
+
+      // Replace temp message and add final messages
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== 'temp-user'),
+        data.userMessage,
+        data.assistantMessage,
+      ]);
+      setStreamingText('');
     } catch (err) {
       console.error('Error sending message:', err);
+      setMessages(prev => prev.filter(m => m.id !== 'temp-user'));
       setInput(messageContent);
+      setStreamingText('');
     } finally {
       setSending(false);
     }
@@ -127,6 +160,7 @@ export default function ChatDetailScreen() {
       <MessageList
         messages={messages}
         sending={sending}
+        streamingText={streamingText}
         sendingText="Thinking..."
         showAssistantLabel={false}
         emptyContent={

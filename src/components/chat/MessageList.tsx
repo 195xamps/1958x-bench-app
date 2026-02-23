@@ -8,6 +8,7 @@ interface MessageListProps {
   messages: ChatMessage[];
   sending?: boolean;
   sendingText?: string;
+  streamingText?: string;
   showAssistantLabel?: boolean;
   assistantName?: string;
   emptyContent?: React.ReactNode;
@@ -18,6 +19,7 @@ export function MessageList({
   messages,
   sending = false,
   sendingText = 'Thinking...',
+  streamingText = '',
   showAssistantLabel = true,
   assistantName,
   emptyContent,
@@ -31,7 +33,7 @@ export function MessageList({
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
     return () => clearTimeout(timer);
-  }, [messages, sending]);
+  }, [messages, sending, streamingText]);
 
   return (
     <ScrollView
@@ -40,7 +42,7 @@ export function MessageList({
       contentContainerStyle={[styles.content, contentContainerStyle]}
       keyboardShouldPersistTaps="handled"
     >
-      {messages.length === 0 && emptyContent}
+      {messages.length === 0 && !streamingText && emptyContent}
 
       {messages.map((msg) => (
         <MessageBubble
@@ -51,12 +53,24 @@ export function MessageList({
         />
       ))}
 
-      {sending && (
+      {sending && streamingText ? (
+        <MessageBubble
+          message={{
+            id: 'streaming',
+            chatId: '',
+            role: 'assistant',
+            content: streamingText,
+            createdAt: new Date().toISOString(),
+          }}
+          showAssistantLabel={showAssistantLabel}
+          assistantName={assistantName}
+        />
+      ) : sending ? (
         <View style={styles.typingIndicator}>
           <ActivityIndicator size="small" color={colors.accent} />
           <Text style={styles.typingText}>{sendingText}</Text>
         </View>
-      )}
+      ) : null}
     </ScrollView>
   );
 }

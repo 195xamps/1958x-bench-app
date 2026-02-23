@@ -126,6 +126,7 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
     const isAdmin = req.user?.isAdmin;
     const { content, attachments } = req.body;
     const chatId = req.params.id;
+    const wantStream = req.query.stream === 'true';
     
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
     if (!chat) {
@@ -219,34 +220,93 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
     const currentMessageContent = buildMessageContent({ content, attachments: validatedAttachments });
     messages.push({ role: 'user', content: currentMessageContent });
     
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages,
-      temperature: 0.7,
-      max_tokens: 4000,
-    });
-    
-    const tokensUsed = completion.usage?.total_tokens || 0;
-    if (userId && tokensUsed > 0) {
-      await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${tokensUsed} WHERE id = ${userId}`);
+    if (wantStream) {
+      // ── Streaming response ──────────────────────────────────────────
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+      
+      // Send user message immediately so client can display it
+      res.write(`data: ${JSON.stringify({ type: 'userMessage', message: userMessage })}\n\n`);
+      
+      let assistantContent = '';
+      
+      const stream = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages,
+        temperature: 0.7,
+        max_tokens: 4000,
+        stream: true,
+      });
+      
+      for await (const chunk of stream) {
+        const token = chunk.choices[0]?.delta?.content;
+        if (token) {
+          assistantContent += token;
+          res.write(`data: ${JSON.stringify({ type: 'token', token })}\n\n`);
+        }
+      }
+      
+      if (!assistantContent) {
+        assistantContent = 'I apologize, but I could not generate a response. Please try again.';
+      }
+      
+      const [assistantMessage] = await db.insert(schema.chatMessages).values({
+        chatId,
+        role: 'assistant',
+        content: assistantContent,
+      }).returning();
+      
+      await db.update(schema.chats)
+        .set({ updatedAt: new Date() })
+        .where(eq(schema.chats.id, chatId));
+      
+      // Token tracking (no usage info in streaming mode, estimate from content)
+      if (userId) {
+        const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
+        await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);
+      }
+      
+      res.write(`data: ${JSON.stringify({ type: 'done', message: assistantMessage })}\n\n`);
+      res.end();
+      
+    } else {
+      // ── Non-streaming response (backward compatible) ────────────────
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages,
+        temperature: 0.7,
+        max_tokens: 4000,
+      });
+      
+      const tokensUsed = completion.usage?.total_tokens || 0;
+      if (userId && tokensUsed > 0) {
+        await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${tokensUsed} WHERE id = ${userId}`);
+      }
+      
+      const assistantContent = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
+      
+      const [assistantMessage] = await db.insert(schema.chatMessages).values({
+        chatId,
+        role: 'assistant',
+        content: assistantContent,
+      }).returning();
+      
+      await db.update(schema.chats)
+        .set({ updatedAt: new Date() })
+        .where(eq(schema.chats.id, chatId));
+      
+      res.json({ userMessage, assistantMessage });
     }
-    
-    const assistantContent = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
-    
-    const [assistantMessage] = await db.insert(schema.chatMessages).values({
-      chatId,
-      role: 'assistant',
-      content: assistantContent,
-    }).returning();
-    
-    await db.update(schema.chats)
-      .set({ updatedAt: new Date() })
-      .where(eq(schema.chats.id, chatId));
-    
-    res.json({ userMessage, assistantMessage });
   } catch (error) {
     console.error('Error sending message:', error);
-    res.status(500).json({ error: 'Failed to send message' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to send message' });
+    } else {
+      res.write(`data: ${JSON.stringify({ type: 'error', error: 'Failed to generate response' })}\n\n`);
+      res.end();
+    }
   }
 });
 
