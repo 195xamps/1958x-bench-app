@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, Platform, Image, View, ActivityIndicator, TouchableOpacity, Dimensions, Linking } from 'react-native';
+import { StyleSheet, Platform, Image, View, Text, ActivityIndicator, TouchableOpacity, Dimensions, Linking } from 'react-native';
 import Markdown from 'react-native-markdown-display';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 
 interface MarkdownContentProps {
@@ -29,17 +30,30 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
     }
   }, []);
 
-  if (error || !src) return null;
+  const openInBrowser = () => {
+    if (src) Linking.openURL(src).catch(() => {});
+  };
+
+  if (!src) return null;
+
+  // Show tappable fallback when image fails to load
+  if (error) {
+    return (
+      <TouchableOpacity onPress={openInBrowser} activeOpacity={0.7} style={imgStyles.errorContainer}>
+        <Ionicons name="image-outline" size={24} color={colors.accent} />
+        <Text style={imgStyles.errorText} numberOfLines={1}>
+          {alt || 'View image'}
+        </Text>
+        <Ionicons name="open-outline" size={16} color={colors.text.muted} />
+      </TouchableOpacity>
+    );
+  }
 
   return (
-    <TouchableOpacity
-      onPress={() => Linking.openURL(src).catch(() => {})}
-      activeOpacity={0.8}
-      style={{ marginVertical: 8 }}
-    >
+    <TouchableOpacity onPress={openInBrowser} activeOpacity={0.8} style={{ marginVertical: 8 }}>
       <View style={{ width: dimensions.width, height: dimensions.height, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.bg.elevated }}>
         {loading && (
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={imgStyles.loadingOverlay}>
             <ActivityIndicator size="small" color={colors.accent} />
           </View>
         )}
@@ -55,12 +69,39 @@ function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
   );
 }
 
+const imgStyles = StyleSheet.create({
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  errorText: {
+    flex: 1,
+    color: colors.status.infoLight,
+    fontSize: 14,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+});
+
 // ── Custom render rules ─────────────────────────────────────────────────────
 
 const renderRules = {
-  image: (node: any) => {
+  image: (node: any, children: any, parent: any, styles: any) => {
+    // react-native-markdown-display puts src/alt in node.attributes
     const src = node.attributes?.src || '';
-    const alt = node.attributes?.alt || '';
+    const alt = node.attributes?.alt || node.content || '';
     return <MarkdownImage key={node.key} src={src} alt={alt} />;
   },
 };

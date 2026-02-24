@@ -271,6 +271,14 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
           }
         }
         
+        // Debug: log image URLs in streamed response
+        const imgMatches = assistantContent.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
+        if (imgMatches) {
+          console.log('[Chat/Stream] Image markdown found:', imgMatches);
+        } else if (assistantContent.includes('image') || assistantContent.includes('photo') || assistantContent.includes('gut')) {
+          console.log('[Chat/Stream] Mentions images but no markdown found. First 800 chars:', assistantContent.substring(0, 800));
+        }
+        
         if (!assistantContent) {
           assistantContent = 'I apologize, but I could not generate a response. Please try again.';
         }
@@ -304,6 +312,14 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
         } as any);
         
         const assistantContent = (response as any).output_text || 'I apologize, but I could not generate a response. Please try again.';
+        
+        // Debug: log image URLs in non-streamed response
+        const imgMatchesNs = assistantContent.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
+        if (imgMatchesNs) {
+          console.log('[Chat/NonStream] Image markdown found:', imgMatchesNs);
+        } else if (assistantContent.includes('image') || assistantContent.includes('photo') || assistantContent.includes('gut')) {
+          console.log('[Chat/NonStream] Mentions images but no markdown found. First 800 chars:', assistantContent.substring(0, 800));
+        }
         
         if (userId) {
           const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);

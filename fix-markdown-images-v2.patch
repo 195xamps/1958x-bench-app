@@ -1,0 +1,146 @@
+diff --git a/server/routes/chats.ts b/server/routes/chats.ts
+index 1bb0825..45d7ae7 100644
+--- a/server/routes/chats.ts
++++ b/server/routes/chats.ts
+@@ -270,6 +270,14 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
+             }
+           }
+         }
++
++        // Debug: log image URLs in streamed response
++        const imgMatches = assistantContent.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
++        if (imgMatches) {
++          console.log("[Chat/Stream] Image markdown found:", imgMatches);
++        } else if (assistantContent.includes("image") || assistantContent.includes("photo")) {
++          console.log("[Chat/Stream] Mentions images but no markdown found. Start:", assistantContent.substring(0, 500));
++        }
+         
+         if (!assistantContent) {
+           assistantContent = 'I apologize, but I could not generate a response. Please try again.';
+diff --git a/src/components/MarkdownContent.tsx b/src/components/MarkdownContent.tsx
+index b558f11..1a57722 100644
+--- a/src/components/MarkdownContent.tsx
++++ b/src/components/MarkdownContent.tsx
+@@ -1,12 +1,111 @@
+-import React from 'react';
+-import { StyleSheet, Platform } from 'react-native';
++import React, { useState, useCallback } from 'react';
++import { StyleSheet, Platform, Image, View, Text, ActivityIndicator, TouchableOpacity, Dimensions, Linking } from 'react-native';
+ import Markdown from 'react-native-markdown-display';
++import { Ionicons } from '@expo/vector-icons';
+ import { colors } from '../theme/colors';
+ 
+ interface MarkdownContentProps {
+   content: string;
+ }
+ 
++const SCREEN_WIDTH = Dimensions.get('window').width;
++const MAX_IMAGE_WIDTH = Math.min(SCREEN_WIDTH * 0.7, 280);
++
++// ── Custom Image Component ──────────────────────────────────────────────────
++
++function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState(false);
++  const [dimensions, setDimensions] = useState({ width: MAX_IMAGE_WIDTH, height: 200 });
++
++  const onLoad = useCallback((event: any) => {
++    setLoading(false);
++    const { width, height } = event.nativeEvent.source;
++    if (width && height) {
++      const ratio = MAX_IMAGE_WIDTH / width;
++      setDimensions({
++        width: MAX_IMAGE_WIDTH,
++        height: Math.min(height * ratio, 400),
++      });
++    }
++  }, []);
++
++  const openInBrowser = () => {
++    if (src) Linking.openURL(src).catch(() => {});
++  };
++
++  if (!src) return null;
++
++  // Show tappable fallback when image fails to load
++  if (error) {
++    return (
++      <TouchableOpacity onPress={openInBrowser} activeOpacity={0.7} style={imgStyles.errorContainer}>
++        <Ionicons name="image-outline" size={24} color={colors.accent} />
++        <Text style={imgStyles.errorText} numberOfLines={1}>
++          {alt || 'View image'}
++        </Text>
++        <Ionicons name="open-outline" size={16} color={colors.text.muted} />
++      </TouchableOpacity>
++    );
++  }
++
++  return (
++    <TouchableOpacity onPress={openInBrowser} activeOpacity={0.8} style={{ marginVertical: 8 }}>
++      <View style={{ width: dimensions.width, height: dimensions.height, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.bg.elevated }}>
++        {loading && (
++          <View style={imgStyles.loadingOverlay}>
++            <ActivityIndicator size="small" color={colors.accent} />
++          </View>
++        )}
++        <Image
++          source={{ uri: src }}
++          style={{ width: dimensions.width, height: dimensions.height }}
++          resizeMode="contain"
++          onLoad={onLoad}
++          onError={() => { setError(true); setLoading(false); }}
++        />
++      </View>
++    </TouchableOpacity>
++  );
++}
++
++const imgStyles = StyleSheet.create({
++  errorContainer: {
++    flexDirection: 'row',
++    alignItems: 'center',
++    gap: 8,
++    backgroundColor: colors.bg.elevated,
++    borderRadius: 8,
++    padding: 12,
++    marginVertical: 6,
++    borderWidth: 1,
++    borderColor: colors.border.default,
++  },
++  errorText: {
++    flex: 1,
++    color: colors.status.infoLight,
++    fontSize: 14,
++  },
++  loadingOverlay: {
++    position: 'absolute',
++    top: 0, left: 0, right: 0, bottom: 0,
++    justifyContent: 'center',
++    alignItems: 'center',
++    zIndex: 1,
++  },
++});
++
++// ── Custom render rules ─────────────────────────────────────────────────────
++
++const renderRules = {
++  image: (node: any, children: any, parent: any, styles: any) => {
++    // react-native-markdown-display puts src/alt in node.attributes
++    const src = node.attributes?.src || '';
++    const alt = node.attributes?.alt || node.content || '';
++    return <MarkdownImage key={node.key} src={src} alt={alt} />;
++  },
++};
++
+ const markdownStyles = StyleSheet.create({
+   body: {
+     color: colors.text.bright,
+@@ -161,7 +260,7 @@ function MarkdownContent({ content }: MarkdownContentProps) {
+     return null;
+   }
+   return (
+-    <Markdown style={markdownStyles}>
++    <Markdown style={markdownStyles} rules={renderRules}>
+       {content}
+     </Markdown>
+   );
