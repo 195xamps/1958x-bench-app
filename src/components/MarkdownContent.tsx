@@ -1,11 +1,69 @@
-import React from 'react';
-import { StyleSheet, Platform } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Platform, Image, View, ActivityIndicator, TouchableOpacity, Dimensions, Linking } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 import { colors } from '../theme/colors';
 
 interface MarkdownContentProps {
   content: string;
 }
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const MAX_IMAGE_WIDTH = Math.min(SCREEN_WIDTH * 0.7, 280);
+
+// ── Custom Image Component ──────────────────────────────────────────────────
+
+function MarkdownImage({ src, alt }: { src: string; alt?: string }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: MAX_IMAGE_WIDTH, height: 200 });
+
+  const onLoad = useCallback((event: any) => {
+    setLoading(false);
+    const { width, height } = event.nativeEvent.source;
+    if (width && height) {
+      const ratio = MAX_IMAGE_WIDTH / width;
+      setDimensions({
+        width: MAX_IMAGE_WIDTH,
+        height: Math.min(height * ratio, 400),
+      });
+    }
+  }, []);
+
+  if (error || !src) return null;
+
+  return (
+    <TouchableOpacity
+      onPress={() => Linking.openURL(src).catch(() => {})}
+      activeOpacity={0.8}
+      style={{ marginVertical: 8 }}
+    >
+      <View style={{ width: dimensions.width, height: dimensions.height, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.bg.elevated }}>
+        {loading && (
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={colors.accent} />
+          </View>
+        )}
+        <Image
+          source={{ uri: src }}
+          style={{ width: dimensions.width, height: dimensions.height }}
+          resizeMode="contain"
+          onLoad={onLoad}
+          onError={() => { setError(true); setLoading(false); }}
+        />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// ── Custom render rules ─────────────────────────────────────────────────────
+
+const renderRules = {
+  image: (node: any) => {
+    const src = node.attributes?.src || '';
+    const alt = node.attributes?.alt || '';
+    return <MarkdownImage key={node.key} src={src} alt={alt} />;
+  },
+};
 
 const markdownStyles = StyleSheet.create({
   body: {
@@ -161,7 +219,7 @@ function MarkdownContent({ content }: MarkdownContentProps) {
     return null;
   }
   return (
-    <Markdown style={markdownStyles}>
+    <Markdown style={markdownStyles} rules={renderRules}>
       {content}
     </Markdown>
   );
