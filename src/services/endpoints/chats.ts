@@ -49,6 +49,7 @@ export const chatsApi = {
     content: string,
     onToken: (token: string) => void,
     attachments?: any[] | null,
+    onStatus?: (status: string) => void,
   ): { promise: Promise<{ userMessage: any; assistantMessage: any }>; abort: () => void } {
     const xhr = new XMLHttpRequest();
     let userMessage: any = null;
@@ -77,6 +78,8 @@ export const chatsApi = {
               userMessage = event.message;
             } else if (event.type === 'token') {
               onToken(event.token);
+            } else if (event.type === 'status') {
+              onStatus?.(event.status);
             } else if (event.type === 'done') {
               assistantMessage = event.message;
             } else if (event.type === 'error') {

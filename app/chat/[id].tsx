@@ -30,6 +30,7 @@ export default function ChatDetailScreen() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [sendingText, setSendingText] = useState('Thinking...');
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<(() => void) | null>(null);
 
@@ -70,6 +71,7 @@ export default function ChatDetailScreen() {
     setInput('');
     setSending(true);
     setStreamingText('');
+    setSendingText('Thinking...');
 
     // Optimistic user message
     const tempUserMsg: ChatMessage = {
@@ -88,6 +90,8 @@ export default function ChatDetailScreen() {
         (token) => {
           setStreamingText(prev => prev + token);
         },
+        undefined,
+        (status) => { setSendingText(status); },
       );
       abortRef.current = abort;
 
@@ -161,7 +165,7 @@ export default function ChatDetailScreen() {
         messages={messages}
         sending={sending}
         streamingText={streamingText}
-        sendingText="Thinking..."
+        sendingText={sendingText}
         showAssistantLabel={false}
         emptyContent={
           <EmptyState

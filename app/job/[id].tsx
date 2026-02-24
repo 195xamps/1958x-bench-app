@@ -81,6 +81,7 @@ export default function JobDetailScreen() {
   const [chatInput, setChatInputText] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [chatSendingText, setChatSendingText] = useState('Thinking...');
   const streamAbortRef = useRef<(() => void) | null>(null);
 
   // File upload hook
@@ -279,6 +280,7 @@ export default function JobDetailScreen() {
     clearAttachments();
     setSendingChat(true);
     setStreamingText('');
+    setChatSendingText('Thinking...');
 
     const tempUserMessage: ChatMessage = {
       id: 'temp-user',
@@ -296,6 +298,7 @@ export default function JobDetailScreen() {
         messageText,
         (token) => { setStreamingText(prev => prev + token); },
         attachmentsToSend.length > 0 ? attachmentsToSend : null,
+        (status) => { setChatSendingText(status); },
       );
       streamAbortRef.current = abort;
 
@@ -361,6 +364,7 @@ export default function JobDetailScreen() {
       <MessageList
         messages={chatMessages}
         sending={sendingChat}
+        sendingText={chatSendingText}
         streamingText={streamingText}
         assistantName="Assistant"
         emptyContent={

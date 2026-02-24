@@ -197,119 +197,247 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
       : '';
     
-    const buildMessageContent = (msg: any): any => {
-      const msgAttachments = msg.attachments as any[] | null;
-      if (msgAttachments && msgAttachments.length > 0) {
-        const contentParts: any[] = [];
-        if (msg.content) {
-          contentParts.push({ type: 'text', text: msg.content });
-        }
-        for (const attachment of msgAttachments) {
-          if (attachment.type === 'image' && attachment.url) {
-            let imageUrl = attachment.url;
-            if (imageUrl.startsWith('/') && publicBaseUrl) {
-              imageUrl = publicBaseUrl + imageUrl;
+    // ── Feature flag: Responses API vs Chat Completions ────────────────
+    const useResponsesApi = process.env.USE_RESPONSES_API !== 'false';
+    
+    if (useResponsesApi) {
+      // ═══════════════════════════════════════════════════════════════════
+      // RESPONSES API PATH (with web_search)
+      // ═══════════════════════════════════════════════════════════════════
+      
+      const buildResponsesInput = (msg: any): any => {
+        const msgAttachments = msg.attachments as any[] | null;
+        if (msgAttachments && msgAttachments.length > 0) {
+          const contentParts: any[] = [];
+          if (msg.content) {
+            contentParts.push({ type: 'input_text', text: msg.content });
+          }
+          for (const attachment of msgAttachments) {
+            if (attachment.type === 'image' && attachment.url) {
+              let imageUrl = attachment.url;
+              if (imageUrl.startsWith('/') && publicBaseUrl) {
+                imageUrl = publicBaseUrl + imageUrl;
+              }
+              contentParts.push({ type: 'input_image', image_url: imageUrl });
             }
-            contentParts.push({
-              type: 'image_url',
-              image_url: { url: imageUrl, detail: 'high' }
-            });
+          }
+          return contentParts.length > 0 ? contentParts : msg.content;
+        }
+        return msg.content;
+      };
+      
+      const input: any[] = [
+        { role: 'developer', content: CHAT_SYSTEM_PROMPT + contextInfo },
+        ...recentMessages.slice(0, -1).map(m => ({
+          role: m.role,
+          content: buildResponsesInput(m)
+        })),
+      ];
+      
+      const currentMessageContent = buildResponsesInput({ content, attachments: validatedAttachments });
+      input.push({ role: 'user', content: currentMessageContent });
+      
+      if (wantStream) {
+        // ── Streaming with Responses API ────────────────────────────────
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+        
+        res.write(`data: ${JSON.stringify({ type: 'userMessage', message: userMessage })}\n\n`);
+        
+        let assistantContent = '';
+        let searchingNotified = false;
+        
+        const stream = await openai.responses.create({
+          model: 'gpt-4o',
+          input,
+          tools: [{ type: 'web_search' }],
+          temperature: 0.7,
+          max_output_tokens: 4000,
+          stream: true,
+        } as any);
+        
+        for await (const event of stream as any) {
+          if (event.type === 'response.web_search_call.searching' && !searchingNotified) {
+            res.write(`data: ${JSON.stringify({ type: 'status', status: 'Searching the web...' })}\n\n`);
+            searchingNotified = true;
+          } else if (event.type === 'response.output_text.delta') {
+            const token = event.delta;
+            if (token) {
+              assistantContent += token;
+              res.write(`data: ${JSON.stringify({ type: 'token', token })}\n\n`);
+            }
           }
         }
-        return contentParts.length > 0 ? contentParts : msg.content;
-      }
-      return msg.content;
-    };
-    
-    const messages: any[] = [
-      { role: 'system', content: CHAT_SYSTEM_PROMPT + contextInfo },
-      ...recentMessages.slice(0, -1).map(m => ({
-        role: m.role,
-        content: buildMessageContent(m)
-      })),
-    ];
-    
-    const currentMessageContent = buildMessageContent({ content, attachments: validatedAttachments });
-    messages.push({ role: 'user', content: currentMessageContent });
-    
-    if (wantStream) {
-      // ── Streaming response ──────────────────────────────────────────
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.flushHeaders();
-      
-      // Send user message immediately so client can display it
-      res.write(`data: ${JSON.stringify({ type: 'userMessage', message: userMessage })}\n\n`);
-      
-      let assistantContent = '';
-      
-      const stream = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages,
-        temperature: 0.7,
-        max_tokens: 4000,
-        stream: true,
-      });
-      
-      for await (const chunk of stream) {
-        const token = chunk.choices[0]?.delta?.content;
-        if (token) {
-          assistantContent += token;
-          res.write(`data: ${JSON.stringify({ type: 'token', token })}\n\n`);
+        
+        if (!assistantContent) {
+          assistantContent = 'I apologize, but I could not generate a response. Please try again.';
         }
+        
+        const [assistantMessage] = await db.insert(schema.chatMessages).values({
+          chatId,
+          role: 'assistant',
+          content: assistantContent,
+        }).returning();
+        
+        await db.update(schema.chats)
+          .set({ updatedAt: new Date() })
+          .where(eq(schema.chats.id, chatId));
+        
+        if (userId) {
+          const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
+          await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);
+        }
+        
+        res.write(`data: ${JSON.stringify({ type: 'done', message: assistantMessage })}\n\n`);
+        res.end();
+        
+      } else {
+        // ── Non-streaming with Responses API ────────────────────────────
+        const response = await openai.responses.create({
+          model: 'gpt-4o',
+          input,
+          tools: [{ type: 'web_search' }],
+          temperature: 0.7,
+          max_output_tokens: 4000,
+        } as any);
+        
+        const assistantContent = (response as any).output_text || 'I apologize, but I could not generate a response. Please try again.';
+        
+        if (userId) {
+          const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
+          await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);
+        }
+        
+        const [assistantMessage] = await db.insert(schema.chatMessages).values({
+          chatId,
+          role: 'assistant',
+          content: assistantContent,
+        }).returning();
+        
+        await db.update(schema.chats)
+          .set({ updatedAt: new Date() })
+          .where(eq(schema.chats.id, chatId));
+        
+        res.json({ userMessage, assistantMessage });
       }
-      
-      if (!assistantContent) {
-        assistantContent = 'I apologize, but I could not generate a response. Please try again.';
-      }
-      
-      const [assistantMessage] = await db.insert(schema.chatMessages).values({
-        chatId,
-        role: 'assistant',
-        content: assistantContent,
-      }).returning();
-      
-      await db.update(schema.chats)
-        .set({ updatedAt: new Date() })
-        .where(eq(schema.chats.id, chatId));
-      
-      // Token tracking (no usage info in streaming mode, estimate from content)
-      if (userId) {
-        const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
-        await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);
-      }
-      
-      res.write(`data: ${JSON.stringify({ type: 'done', message: assistantMessage })}\n\n`);
-      res.end();
       
     } else {
-      // ── Non-streaming response (backward compatible) ────────────────
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages,
-        temperature: 0.7,
-        max_tokens: 4000,
-      });
+      // ═══════════════════════════════════════════════════════════════════
+      // LEGACY CHAT COMPLETIONS PATH (fallback — set USE_RESPONSES_API=false)
+      // ═══════════════════════════════════════════════════════════════════
       
-      const tokensUsed = completion.usage?.total_tokens || 0;
-      if (userId && tokensUsed > 0) {
-        await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${tokensUsed} WHERE id = ${userId}`);
+      const buildMessageContent = (msg: any): any => {
+        const msgAttachments = msg.attachments as any[] | null;
+        if (msgAttachments && msgAttachments.length > 0) {
+          const contentParts: any[] = [];
+          if (msg.content) {
+            contentParts.push({ type: 'text', text: msg.content });
+          }
+          for (const attachment of msgAttachments) {
+            if (attachment.type === 'image' && attachment.url) {
+              let imageUrl = attachment.url;
+              if (imageUrl.startsWith('/') && publicBaseUrl) {
+                imageUrl = publicBaseUrl + imageUrl;
+              }
+              contentParts.push({
+                type: 'image_url',
+                image_url: { url: imageUrl, detail: 'high' }
+              });
+            }
+          }
+          return contentParts.length > 0 ? contentParts : msg.content;
+        }
+        return msg.content;
+      };
+      
+      const messages: any[] = [
+        { role: 'system', content: CHAT_SYSTEM_PROMPT + contextInfo },
+        ...recentMessages.slice(0, -1).map(m => ({
+          role: m.role,
+          content: buildMessageContent(m)
+        })),
+      ];
+      
+      const currentMessageContent = buildMessageContent({ content, attachments: validatedAttachments });
+      messages.push({ role: 'user', content: currentMessageContent });
+      
+      if (wantStream) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+        
+        res.write(`data: ${JSON.stringify({ type: 'userMessage', message: userMessage })}\n\n`);
+        
+        let assistantContent = '';
+        
+        const stream = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages,
+          temperature: 0.7,
+          max_tokens: 4000,
+          stream: true,
+        });
+        
+        for await (const chunk of stream) {
+          const token = chunk.choices[0]?.delta?.content;
+          if (token) {
+            assistantContent += token;
+            res.write(`data: ${JSON.stringify({ type: 'token', token })}\n\n`);
+          }
+        }
+        
+        if (!assistantContent) {
+          assistantContent = 'I apologize, but I could not generate a response. Please try again.';
+        }
+        
+        const [assistantMessage] = await db.insert(schema.chatMessages).values({
+          chatId,
+          role: 'assistant',
+          content: assistantContent,
+        }).returning();
+        
+        await db.update(schema.chats)
+          .set({ updatedAt: new Date() })
+          .where(eq(schema.chats.id, chatId));
+        
+        if (userId) {
+          const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
+          await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);
+        }
+        
+        res.write(`data: ${JSON.stringify({ type: 'done', message: assistantMessage })}\n\n`);
+        res.end();
+        
+      } else {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o',
+          messages,
+          temperature: 0.7,
+          max_tokens: 4000,
+        });
+        
+        const tokensUsed = completion.usage?.total_tokens || 0;
+        if (userId && tokensUsed > 0) {
+          await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${tokensUsed} WHERE id = ${userId}`);
+        }
+        
+        const assistantContent = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
+        
+        const [assistantMessage] = await db.insert(schema.chatMessages).values({
+          chatId,
+          role: 'assistant',
+          content: assistantContent,
+        }).returning();
+        
+        await db.update(schema.chats)
+          .set({ updatedAt: new Date() })
+          .where(eq(schema.chats.id, chatId));
+        
+        res.json({ userMessage, assistantMessage });
       }
-      
-      const assistantContent = completion.choices[0].message.content || 'I apologize, but I could not generate a response. Please try again.';
-      
-      const [assistantMessage] = await db.insert(schema.chatMessages).values({
-        chatId,
-        role: 'assistant',
-        content: assistantContent,
-      }).returning();
-      
-      await db.update(schema.chats)
-        .set({ updatedAt: new Date() })
-        .where(eq(schema.chats.id, chatId));
-      
-      res.json({ userMessage, assistantMessage });
     }
   } catch (error) {
     console.error('Error sending message:', error);

@@ -119,6 +119,12 @@ const markdownStyles = StyleSheet.create({
     color: colors.status.infoLight,
     textDecorationLine: 'underline',
   },
+  image: {
+    width: 280,
+    height: 200,
+    borderRadius: 8,
+    marginVertical: 8,
+  },
   table: {
     borderWidth: 1,
     borderColor: colors.border.default,
