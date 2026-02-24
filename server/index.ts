@@ -6,6 +6,15 @@ import path from 'path';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { setupAuth, registerAuthRoutes, tokenAuth } from './replit_integrations/auth';
 
+// ── Env var validation ──────────────────────────────────────────────────────
+const REQUIRED_ENV = ['DATABASE_URL', 'OPENAI_API_KEY'] as const;
+const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  console.error(`\n❌  Missing required environment variables: ${missing.join(', ')}`);
+  console.error('    Server cannot start without these. Check your .env file.\n');
+  process.exit(1);
+}
+
 // Route modules
 import jobRoutes from './routes/jobs';
 import troubleshootingRoutes from './routes/troubleshooting';
@@ -15,9 +24,16 @@ import chatRoutes from './routes/chats';
 import referenceRoutes from './routes/reference';
 import adminRoutes from './routes/admin';
 import communityRoutes from './routes/community';
+import repairActionRoutes from './routes/repairActions';
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : undefined;
+app.use(cors({
+  origin: ALLOWED_ORIGINS || true,
+  credentials: true,
+}));
 app.use(compression());
 app.use(express.json({ limit: '5mb' }));
 
@@ -44,6 +60,7 @@ async function initServer() {
   app.use(referenceRoutes);
   app.use(adminRoutes);
   app.use(communityRoutes);
+  app.use(repairActionRoutes);
 
   // SPA fallback
   app.get(/^\/(?!api).*/, (req, res) => {

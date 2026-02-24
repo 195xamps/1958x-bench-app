@@ -54,6 +54,7 @@ export interface JobDetail {
   job: BenchJob;
   ampProfile: AmpProfile | null;
   measurements: Measurement[];
+  repairActions: RepairAction[];
   sessions: any[];
 }
 
@@ -86,6 +87,34 @@ export interface CreateMeasurementPayload {
   meterMode?: string;
   notes?: string;
   testStepId?: string;
+}
+
+export interface RepairAction {
+  id: string;
+  benchJobId: string | null;
+  description: string;
+  partReplaced: string | null;
+  partValue: string | null;
+  partBrand: string | null;
+  voltageRating: string | null;
+  dateCode: string | null;
+  beforeMeasurement: string | null;
+  afterMeasurement: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface CreateRepairActionPayload {
+  benchJobId: string;
+  description: string;
+  partReplaced?: string;
+  partValue?: string;
+  partBrand?: string;
+  voltageRating?: string;
+  dateCode?: string;
+  beforeMeasurement?: string;
+  afterMeasurement?: string;
+  notes?: string;
 }
 
 export interface ExternalLink {

@@ -12,27 +12,26 @@ router.post('/api/troubleshooting/start', async (req: any, res) => {
     const isAdmin = req.user?.isAdmin;
     const { benchJobId, mode = 'guided' } = req.body;
     
-    if (!benchJobId) {
-      return res.status(400).json({ error: 'Bench job ID is required to start troubleshooting' });
-    }
-    
-    const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, benchJobId));
-    if (!benchJob) {
-      return res.status(404).json({ error: 'Bench job not found' });
-    }
-    if (benchJob.userId !== userId && !isAdmin) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-    
-    if (!benchJob.safetyChecklistCompleted) {
-      return res.status(403).json({ 
-        error: 'Safety checklist must be completed before starting troubleshooting',
-        safetyRequired: true
-      });
+    // If a benchJobId is provided, verify ownership and safety checklist
+    if (benchJobId) {
+      const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, benchJobId));
+      if (!benchJob) {
+        return res.status(404).json({ error: 'Bench job not found' });
+      }
+      if (benchJob.userId !== userId && !isAdmin) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+      
+      if (!benchJob.safetyChecklistCompleted) {
+        return res.status(403).json({ 
+          error: 'Safety checklist must be completed before starting troubleshooting',
+          safetyRequired: true
+        });
+      }
     }
     
     const [session] = await db.insert(schema.troubleshootingSessions).values({
-      benchJobId,
+      benchJobId: benchJobId || null,
       mode,
       aiConversationHistory: [],
     }).returning();

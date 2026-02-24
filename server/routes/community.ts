@@ -106,6 +106,10 @@ router.get('/api/community/jobs/:id', async (req: any, res) => {
       .where(eq(schema.measurements.benchJobId, id))
       .orderBy(schema.measurements.createdAt);
     
+    const repairActions = await db.select().from(schema.repairActions)
+      .where(eq(schema.repairActions.benchJobId, id))
+      .orderBy(desc(schema.repairActions.createdAt));
+    
     const jobSchematics = await db
       .select({ schematic: schema.schematics })
       .from(schema.jobSchematics)
@@ -165,6 +169,17 @@ router.get('/api/community/jobs/:id', async (req: any, res) => {
         name: js.schematic.name,
         ampModel: js.schematic.ampModel,
         circuitFamily: js.schematic.circuitFamily,
+      })),
+      repairActions: repairActions.map(ra => ({
+        description: ra.description,
+        partReplaced: ra.partReplaced,
+        partValue: ra.partValue,
+        partBrand: ra.partBrand,
+        voltageRating: ra.voltageRating,
+        beforeMeasurement: ra.beforeMeasurement,
+        afterMeasurement: ra.afterMeasurement,
+        notes: ra.notes,
+        createdAt: ra.createdAt,
       })),
       chatMessages,
     };

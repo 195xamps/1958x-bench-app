@@ -16,10 +16,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { jobsApi, chatsApi } from '../../src/services';
+import { jobsApi, chatsApi, repairActionsApi } from '../../src/services';
 import { colors } from '../../src/theme';
 import { JOB_STATUSES, getStatusConfig } from '../../src/types/common';
-import type { ChatMessage, Attachment, Measurement } from '../../src/types';
+import type { ChatMessage, Attachment, Measurement, RepairAction } from '../../src/types';
 import { useFileUpload } from '../../src/hooks';
 import {
   showAlert,
@@ -39,7 +39,7 @@ import { AttachmentPreview } from '../../src/components/chat/AttachmentPreview';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type TabType = 'chat' | 'notes' | 'measurements';
+type TabType = 'chat' | 'notes' | 'measurements' | 'repairs';
 
 interface JobData {
   job: {
@@ -63,6 +63,7 @@ interface JobData {
     circuitFamily: string;
   };
   measurements: Measurement[];
+  repairActions: RepairAction[];
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
@@ -118,6 +119,22 @@ export default function JobDetailScreen() {
 
   // Media gallery
   const [showMediaGallery, setShowMediaGallery] = useState(false);
+
+  // Repair actions
+  const [showAddRepair, setShowAddRepair] = useState(false);
+  const [editingRepair, setEditingRepair] = useState<RepairAction | null>(null);
+  const [repairForm, setRepairForm] = useState({
+    description: '',
+    partReplaced: '',
+    partValue: '',
+    partBrand: '',
+    voltageRating: '',
+    dateCode: '',
+    beforeMeasurement: '',
+    afterMeasurement: '',
+    notes: '',
+  });
+  const [savingRepair, setSavingRepair] = useState(false);
 
   // ── Data Fetching ────────────────────────────────────────────────────────
 
@@ -269,6 +286,94 @@ export default function JobDetailScreen() {
     }
   };
 
+  // ── Repair Actions ────────────────────────────────────────────────────────
+
+  const openAddRepairModal = () => {
+    setEditingRepair(null);
+    setRepairForm({
+      description: '',
+      partReplaced: '',
+      partValue: '',
+      partBrand: '',
+      voltageRating: '',
+      dateCode: '',
+      beforeMeasurement: '',
+      afterMeasurement: '',
+      notes: '',
+    });
+    setShowAddRepair(true);
+  };
+
+  const openEditRepairModal = (action: RepairAction) => {
+    setEditingRepair(action);
+    setRepairForm({
+      description: action.description,
+      partReplaced: action.partReplaced || '',
+      partValue: action.partValue || '',
+      partBrand: action.partBrand || '',
+      voltageRating: action.voltageRating || '',
+      dateCode: action.dateCode || '',
+      beforeMeasurement: action.beforeMeasurement || '',
+      afterMeasurement: action.afterMeasurement || '',
+      notes: action.notes || '',
+    });
+    setShowAddRepair(true);
+  };
+
+  const saveRepairAction = async () => {
+    if (!repairForm.description.trim()) {
+      showError('Description is required');
+      return;
+    }
+    setSavingRepair(true);
+    try {
+      if (editingRepair) {
+        const updated = await repairActionsApi.update(editingRepair.id, {
+          ...repairForm,
+          benchJobId: id!,
+        });
+        setJobData((prev) =>
+          prev ? {
+            ...prev,
+            repairActions: prev.repairActions.map((a) => a.id === updated.id ? updated : a),
+          } : null,
+        );
+      } else {
+        const created = await repairActionsApi.create({
+          ...repairForm,
+          benchJobId: id!,
+        });
+        setJobData((prev) =>
+          prev ? { ...prev, repairActions: [created, ...prev.repairActions] } : null,
+        );
+      }
+      setShowAddRepair(false);
+    } catch (error) {
+      console.error('Error saving repair action:', error);
+      showError('Failed to save repair action');
+    } finally {
+      setSavingRepair(false);
+    }
+  };
+
+  const deleteRepairAction = async (actionId: string) => {
+    const confirmed = await showConfirm(
+      'Delete Repair Action',
+      'Remove this repair action? This cannot be undone.',
+      { confirmText: 'Delete', destructive: true },
+    );
+    if (!confirmed) return;
+    try {
+      await repairActionsApi.remove(actionId);
+      setJobData((prev) =>
+        prev ? { ...prev, repairActions: prev.repairActions.filter((a) => a.id !== actionId) } : null,
+      );
+    } catch (error) {
+      console.error('Error deleting repair action:', error);
+      showError('Failed to delete repair action');
+    }
+  };
+
   // ── Chat ─────────────────────────────────────────────────────────────────
 
   const sendChatMessage = async () => {
@@ -351,7 +456,7 @@ export default function JobDetailScreen() {
     );
   }
 
-  const { job, ampProfile, measurements } = jobData;
+  const { job, ampProfile, measurements, repairActions } = jobData;
 
   // ── Tab Renderers ────────────────────────────────────────────────────────
 
@@ -524,6 +629,82 @@ export default function JobDetailScreen() {
 
   // ── Main Render ──────────────────────────────────────────────────────────
 
+  const renderRepairsTab = () => (
+    <ScrollView style={styles.measurementsContainer}>
+      <View style={styles.measurementsHeader}>
+        <Text style={styles.measurementsTitle}>Repair Actions</Text>
+        <TouchableOpacity style={styles.addMeasurementButton} onPress={openAddRepairModal}>
+          <Ionicons name="add" size={20} color={colors.text.onAccent} />
+          <Text style={styles.addMeasurementText}>Add</Text>
+        </TouchableOpacity>
+      </View>
+      {repairActions.length === 0 ? (
+        <View style={styles.emptyMeasurements}>
+          <Ionicons name="construct-outline" size={48} color={colors.bg.elevated} />
+          <Text style={styles.emptyText}>No repair actions recorded</Text>
+          <Text style={styles.emptySubtext}>Tap "Add" to log parts replaced, measurements, and notes</Text>
+        </View>
+      ) : (
+        repairActions.map((ra) => (
+          <TouchableOpacity
+            key={ra.id}
+            style={styles.repairCard}
+            onPress={() => openEditRepairModal(ra)}
+            onLongPress={() => deleteRepairAction(ra.id)}
+          >
+            <View style={styles.repairCardHeader}>
+              <Ionicons name="build" size={16} color={colors.accent} />
+              <Text style={styles.repairDescription} numberOfLines={2}>{ra.description}</Text>
+            </View>
+            {ra.partReplaced && (
+              <View style={styles.repairDetailRow}>
+                <Text style={styles.repairLabel}>Part</Text>
+                <Text style={styles.repairValue}>
+                  {ra.partReplaced}
+                  {ra.partValue ? ` (${ra.partValue})` : ''}
+                  {ra.partBrand ? ` — ${ra.partBrand}` : ''}
+                </Text>
+              </View>
+            )}
+            {ra.voltageRating && (
+              <View style={styles.repairDetailRow}>
+                <Text style={styles.repairLabel}>Rating</Text>
+                <Text style={styles.repairValue}>{ra.voltageRating}</Text>
+              </View>
+            )}
+            {(ra.beforeMeasurement || ra.afterMeasurement) && (
+              <View style={styles.repairMeasurements}>
+                {ra.beforeMeasurement && (
+                  <View style={styles.repairMeasBox}>
+                    <Text style={styles.repairMeasLabel}>Before</Text>
+                    <Text style={styles.repairMeasValue}>{ra.beforeMeasurement}</Text>
+                  </View>
+                )}
+                {ra.beforeMeasurement && ra.afterMeasurement && (
+                  <Ionicons name="arrow-forward" size={14} color={colors.text.muted} style={{ marginHorizontal: 6, marginTop: 14 }} />
+                )}
+                {ra.afterMeasurement && (
+                  <View style={styles.repairMeasBox}>
+                    <Text style={styles.repairMeasLabel}>After</Text>
+                    <Text style={[styles.repairMeasValue, { color: colors.status.success }]}>{ra.afterMeasurement}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+            {ra.dateCode && (
+              <View style={styles.repairDetailRow}>
+                <Text style={styles.repairLabel}>Date Code</Text>
+                <Text style={styles.repairValue}>{ra.dateCode}</Text>
+              </View>
+            )}
+            {ra.notes && <Text style={styles.repairNotes}>{ra.notes}</Text>}
+            <Text style={styles.repairTimestamp}>{formatTimestamp(ra.createdAt)}</Text>
+          </TouchableOpacity>
+        ))
+      )}
+    </ScrollView>
+  );
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -578,9 +759,9 @@ export default function JobDetailScreen() {
 
       {/* Tab bar */}
       <View style={styles.tabBar}>
-        {(['chat', 'notes', 'measurements'] as TabType[]).map((tab) => {
-          const icons: Record<TabType, string> = { chat: 'chatbubbles', notes: 'document-text', measurements: 'analytics' };
-          const labels: Record<TabType, string> = { chat: 'Chat', notes: 'Notes', measurements: 'Measurements' };
+        {(['chat', 'notes', 'measurements', 'repairs'] as TabType[]).map((tab) => {
+          const icons: Record<TabType, string> = { chat: 'chatbubbles', notes: 'document-text', measurements: 'analytics', repairs: 'construct' };
+          const labels: Record<TabType, string> = { chat: 'Chat', notes: 'Notes', measurements: 'Readings', repairs: 'Repairs' };
           return (
             <TouchableOpacity key={tab} style={[styles.tab, activeTab === tab && styles.activeTab]} onPress={() => setActiveTab(tab)}>
               <Ionicons name={icons[tab] as any} size={20} color={activeTab === tab ? colors.accent : colors.text.secondary} />
@@ -595,6 +776,7 @@ export default function JobDetailScreen() {
         {activeTab === 'chat' && renderChatTab()}
         {activeTab === 'notes' && renderNotesTab()}
         {activeTab === 'measurements' && renderMeasurementsTab()}
+        {activeTab === 'repairs' && renderRepairsTab()}
       </View>
 
       {/* ── Modals ─────────────────────────────────────────────────────── */}
@@ -736,6 +918,131 @@ export default function JobDetailScreen() {
                 <ActivityIndicator size="small" color={colors.text.onAccent} />
               ) : (
                 <Text style={styles.editSaveButtonText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Add/Edit Repair Action Modal */}
+      <Modal visible={showAddRepair} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.galleryOverlay}>
+          <View style={styles.galleryContainer}>
+            <View style={styles.galleryHeader}>
+              <Text style={styles.galleryTitle}>{editingRepair ? 'Edit Repair' : 'Add Repair Action'}</Text>
+              <TouchableOpacity onPress={() => setShowAddRepair(false)}>
+                <Ionicons name="close" size={28} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+              <Text style={styles.repairFormLabel}>What was done? *</Text>
+              <TextInput
+                style={[styles.editInput, { minHeight: 60 }]}
+                value={repairForm.description}
+                onChangeText={(t) => setRepairForm((f) => ({ ...f, description: t }))}
+                placeholder="e.g. Replaced coupling cap at V1 plate"
+                placeholderTextColor={colors.text.muted}
+                multiline
+              />
+
+              <Text style={styles.repairFormLabel}>Part Replaced</Text>
+              <TextInput
+                style={styles.editInput}
+                value={repairForm.partReplaced}
+                onChangeText={(t) => setRepairForm((f) => ({ ...f, partReplaced: t }))}
+                placeholder="e.g. Coupling capacitor C3"
+                placeholderTextColor={colors.text.muted}
+              />
+
+              <View style={styles.repairFormRow}>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.repairFormLabel}>Value</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={repairForm.partValue}
+                    onChangeText={(t) => setRepairForm((f) => ({ ...f, partValue: t }))}
+                    placeholder="e.g. 0.022µF"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.repairFormLabel}>Brand</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={repairForm.partBrand}
+                    onChangeText={(t) => setRepairForm((f) => ({ ...f, partBrand: t }))}
+                    placeholder="e.g. Sprague"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.repairFormRow}>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.repairFormLabel}>Voltage Rating</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={repairForm.voltageRating}
+                    onChangeText={(t) => setRepairForm((f) => ({ ...f, voltageRating: t }))}
+                    placeholder="e.g. 600V"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.repairFormLabel}>Date Code</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={repairForm.dateCode}
+                    onChangeText={(t) => setRepairForm((f) => ({ ...f, dateCode: t }))}
+                    placeholder="e.g. 6428"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.repairFormRow}>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.repairFormLabel}>Before</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={repairForm.beforeMeasurement}
+                    onChangeText={(t) => setRepairForm((f) => ({ ...f, beforeMeasurement: t }))}
+                    placeholder="e.g. 180V DC"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.repairFormLabel}>After</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={repairForm.afterMeasurement}
+                    onChangeText={(t) => setRepairForm((f) => ({ ...f, afterMeasurement: t }))}
+                    placeholder="e.g. 250V DC"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.repairFormLabel}>Notes</Text>
+              <TextInput
+                style={[styles.editInput, { minHeight: 60 }]}
+                value={repairForm.notes}
+                onChangeText={(t) => setRepairForm((f) => ({ ...f, notes: t }))}
+                placeholder="Additional notes..."
+                placeholderTextColor={colors.text.muted}
+                multiline
+              />
+              <View style={{ height: 20 }} />
+            </ScrollView>
+            <TouchableOpacity
+              style={[styles.editSaveButton, savingRepair && { opacity: 0.6 }]}
+              onPress={saveRepairAction}
+              disabled={savingRepair}
+            >
+              {savingRepair ? (
+                <ActivityIndicator size="small" color={colors.text.onAccent} />
+              ) : (
+                <Text style={styles.editSaveButtonText}>{editingRepair ? 'Save Changes' : 'Add Repair'}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -952,4 +1259,94 @@ const styles = StyleSheet.create({
   },
   editSaveButtonText: { color: colors.text.onAccent, fontSize: 16, fontWeight: '600' },
   buttonDisabled: { opacity: 0.5 },
+
+  // ── Repair Actions ──────────────────────────────────────────────────────
+  repairCard: {
+    backgroundColor: colors.bg.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  repairCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 8,
+  },
+  repairDescription: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text.bright,
+    lineHeight: 20,
+  },
+  repairDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+  },
+  repairLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    width: 52,
+  },
+  repairValue: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text.primary,
+  },
+  repairMeasurements: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 6,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 8,
+    padding: 10,
+  },
+  repairMeasBox: {
+    flex: 1,
+  },
+  repairMeasLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  repairMeasValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text.bright,
+  },
+  repairNotes: {
+    fontSize: 13,
+    color: colors.text.muted,
+    marginTop: 6,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  repairTimestamp: {
+    fontSize: 11,
+    color: colors.text.muted,
+    marginTop: 8,
+    textAlign: 'right',
+  },
+  repairFormLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  repairFormRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  repairFormHalf: {
+    flex: 1,
+  },
 });

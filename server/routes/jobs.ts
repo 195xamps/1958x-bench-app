@@ -116,8 +116,9 @@ router.get('/api/bench-jobs/:id', async (req: any, res) => {
     
     const measurements = await db.select().from(schema.measurements).where(eq(schema.measurements.benchJobId, job.id));
     const sessions = await db.select().from(schema.troubleshootingSessions).where(eq(schema.troubleshootingSessions.benchJobId, job.id));
+    const repairActions = await db.select().from(schema.repairActions).where(eq(schema.repairActions.benchJobId, job.id));
     
-    res.json({ job, ampProfile, measurements, sessions });
+    res.json({ job, ampProfile, measurements, sessions, repairActions });
   } catch (error) {
     console.error('Error fetching bench job:', error);
     res.status(500).json({ error: 'Failed to fetch bench job' });
@@ -245,17 +246,35 @@ router.delete('/api/bench-jobs/:id', async (req: any, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    await db.delete(schema.chatMessages)
-      .where(eq(schema.chatMessages.chatId, 
-        db.select({ id: schema.chats.id }).from(schema.chats).where(eq(schema.chats.benchJobId, jobId))
-      ));
-    await db.delete(schema.chats).where(eq(schema.chats.benchJobId, jobId));
-    await db.delete(schema.measurements).where(eq(schema.measurements.benchJobId, jobId));
-    await db.delete(schema.benchJobs).where(eq(schema.benchJobs.id, jobId));
-    
-    if (job.ampProfileId) {
-      await db.delete(schema.ampProfiles).where(eq(schema.ampProfiles.id, job.ampProfileId));
-    }
+    // Transaction-based cascade delete
+    await db.transaction(async (tx) => {
+      // Delete chat messages via subquery on chats
+      await tx.delete(schema.chatMessages)
+        .where(eq(schema.chatMessages.chatId, 
+          tx.select({ id: schema.chats.id }).from(schema.chats).where(eq(schema.chats.benchJobId, jobId))
+        ));
+      await tx.delete(schema.chats).where(eq(schema.chats.benchJobId, jobId));
+      
+      // Delete test steps via troubleshooting sessions
+      const sessions = await tx.select({ id: schema.troubleshootingSessions.id })
+        .from(schema.troubleshootingSessions)
+        .where(eq(schema.troubleshootingSessions.benchJobId, jobId));
+      for (const session of sessions) {
+        await tx.delete(schema.testSteps).where(eq(schema.testSteps.sessionId, session.id));
+      }
+      await tx.delete(schema.troubleshootingSessions).where(eq(schema.troubleshootingSessions.benchJobId, jobId));
+      
+      await tx.delete(schema.measurements).where(eq(schema.measurements.benchJobId, jobId));
+      await tx.delete(schema.repairActions).where(eq(schema.repairActions.benchJobId, jobId));
+      await tx.delete(schema.symptoms).where(eq(schema.symptoms.benchJobId, jobId));
+      await tx.delete(schema.jobSchematics).where(eq(schema.jobSchematics.benchJobId, jobId));
+      await tx.delete(schema.media).where(eq(schema.media.benchJobId, jobId));
+      await tx.delete(schema.benchJobs).where(eq(schema.benchJobs.id, jobId));
+      
+      if (job.ampProfileId) {
+        await tx.delete(schema.ampProfiles).where(eq(schema.ampProfiles.id, job.ampProfileId));
+      }
+    });
     
     res.json({ success: true });
   } catch (error) {
