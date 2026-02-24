@@ -14,10 +14,22 @@ router.get('/api/chats', async (req: any, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     
-    const allChats = await db.select().from(schema.chats)
-      .where(and(eq(schema.chats.userId, userId), eq(schema.chats.isStandalone, true)))
-      .orderBy(desc(schema.chats.updatedAt));
-    res.json(allChats);
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    const offset = parseInt(req.query.offset as string) || 0;
+    
+    const where = and(eq(schema.chats.userId, userId), eq(schema.chats.isStandalone, true));
+    
+    const [{ count: total }] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(schema.chats)
+      .where(where);
+    
+    const chats = await db.select().from(schema.chats)
+      .where(where)
+      .orderBy(desc(schema.chats.updatedAt))
+      .limit(limit)
+      .offset(offset);
+    
+    res.json({ data: chats, total, hasMore: offset + chats.length < total });
   } catch (error) {
     console.error('Error fetching chats:', error);
     res.status(500).json({ error: 'Failed to fetch chats' });

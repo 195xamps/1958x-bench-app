@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -37,6 +39,8 @@ export default function JobsScreen() {
   const router = useRouter();
   const [jobs, setJobs] = useState<JobWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
 
   // Search with debounce
@@ -76,21 +80,31 @@ export default function JobsScreen() {
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
+  const PAGE_SIZE = 20;
   const lastFetchRef = useRef<number>(0);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (loadMore = false) => {
+    if (loadMore) setLoadingMore(true);
     try {
-      const data = await jobsApi.list({ status: statusFilter, search: searchQuery });
-      setJobs(data);
+      const offset = loadMore ? jobs.length : 0;
+      const result = await jobsApi.list({ status: statusFilter, search: searchQuery, limit: PAGE_SIZE, offset });
+      if (loadMore) {
+        setJobs(prev => [...prev, ...result.data]);
+      } else {
+        setJobs(result.data);
+      }
+      setHasMore(result.hasMore);
       lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching jobs:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
+    setLoading(true);
     fetchJobs();
   }, [statusFilter, searchQuery]);
 
@@ -263,40 +277,48 @@ export default function JobsScreen() {
       </ScrollView>
 
       {/* Job list */}
-      <ScrollView style={styles.scrollView}>
-        {jobs.length === 0 ? (
+      <FlatList
+        data={jobs}
+        keyExtractor={(item) => item.job.id}
+        style={styles.scrollView}
+        contentContainerStyle={jobs.length === 0 ? { flex: 1 } : undefined}
+        renderItem={({ item: { job, ampProfile } }) => {
+          const statusCfg = getStatusConfig(job.status || 'active');
+          return (
+            <TouchableOpacity key={job.id} style={styles.jobCard} onPress={() => openJobDetail({ job, ampProfile })}>
+              <View style={styles.jobHeader}>
+                <Text style={styles.jobAmpName}>{formatAmpName(ampProfile)}</Text>
+                <View style={styles.jobBadges}>
+                  {job.safetyChecklistCompleted && (
+                    <Ionicons name="shield-checkmark" size={18} color={colors.status.success} style={{ marginRight: 6 }} />
+                  )}
+                  <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + '20' }]}>
+                    <View style={[styles.statusDot, { backgroundColor: statusCfg.color }]} />
+                    <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+                  </View>
+                </View>
+              </View>
+              {ampProfile?.circuitFamily && <Text style={styles.jobCircuitFamily}>{ampProfile.circuitFamily}</Text>}
+              <Text style={styles.jobSymptoms} numberOfLines={2}>
+                {job.ownerSymptoms || 'No symptoms recorded'}
+              </Text>
+              <Text style={styles.jobDate}>{formatDate(job.createdAt)}</Text>
+            </TouchableOpacity>
+          );
+        }}
+        ListEmptyComponent={
           <EmptyState
             icon="briefcase-outline"
             title="No bench jobs yet"
             subtitle="Start a new job to begin troubleshooting"
           />
-        ) : (
-          jobs.map(({ job, ampProfile }) => {
-            const statusCfg = getStatusConfig(job.status || 'active');
-            return (
-              <TouchableOpacity key={job.id} style={styles.jobCard} onPress={() => openJobDetail({ job, ampProfile })}>
-                <View style={styles.jobHeader}>
-                  <Text style={styles.jobAmpName}>{formatAmpName(ampProfile)}</Text>
-                  <View style={styles.jobBadges}>
-                    {job.safetyChecklistCompleted && (
-                      <Ionicons name="shield-checkmark" size={18} color={colors.status.success} style={{ marginRight: 6 }} />
-                    )}
-                    <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + '20' }]}>
-                      <View style={[styles.statusDot, { backgroundColor: statusCfg.color }]} />
-                      <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
-                    </View>
-                  </View>
-                </View>
-                {ampProfile?.circuitFamily && <Text style={styles.jobCircuitFamily}>{ampProfile.circuitFamily}</Text>}
-                <Text style={styles.jobSymptoms} numberOfLines={2}>
-                  {job.ownerSymptoms || 'No symptoms recorded'}
-                </Text>
-                <Text style={styles.jobDate}>{formatDate(job.createdAt)}</Text>
-              </TouchableOpacity>
-            );
-          })
-        )}
-      </ScrollView>
+        }
+        onEndReached={() => { if (hasMore && !loadingMore) fetchJobs(true); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={loadingMore ? (
+          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 16 }} />
+        ) : null}
+      />
 
       {/* FAB */}
       <TouchableOpacity style={styles.fab} onPress={() => setShowNewJobModal(true)}>

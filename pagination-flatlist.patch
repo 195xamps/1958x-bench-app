@@ -1,0 +1,670 @@
+diff --git a/app/(tabs)/community.tsx b/app/(tabs)/community.tsx
+index 43ad198..d7076f5 100644
+--- a/app/(tabs)/community.tsx
++++ b/app/(tabs)/community.tsx
+@@ -5,6 +5,7 @@ import {
+   Text,
+   StyleSheet,
+   ScrollView,
++  FlatList,
+   TouchableOpacity,
+   ActivityIndicator,
+   RefreshControl,
+@@ -28,6 +29,8 @@ export default function CommunityScreen() {
+   const router = useRouter();
+   const [jobs, setJobs] = useState<CommunityJob[]>([]);
+   const [loading, setLoading] = useState(true);
++  const [loadingMore, setLoadingMore] = useState(false);
++  const [hasMore, setHasMore] = useState(false);
+   const [refreshing, setRefreshing] = useState(false);
+   const [searchQuery, setSearchQuery] = useState('');
+   const [showManageModal, setShowManageModal] = useState(false);
+@@ -39,15 +42,29 @@ export default function CommunityScreen() {
+ 
+   const lastFetchRef = useRef<number>(0);
+ 
+-  const fetchCommunityJobs = async () => {
++  const PAGE_SIZE = 20;
++
++  const fetchCommunityJobs = async (loadMore = false) => {
++    if (loadMore) setLoadingMore(true);
+     try {
+-      const data = await communityApi.list(searchQuery ? { search: searchQuery } : undefined);
+-      setJobs(data);
++      const offset = loadMore ? jobs.length : 0;
++      const result = await communityApi.list({
++        ...(searchQuery ? { search: searchQuery } : {}),
++        limit: PAGE_SIZE,
++        offset,
++      });
++      if (loadMore) {
++        setJobs(prev => [...prev, ...result.data]);
++      } else {
++        setJobs(result.data);
++      }
++      setHasMore(result.hasMore);
+       lastFetchRef.current = Date.now();
+     } catch (error) {
+       console.error('Error fetching community jobs:', error);
+     } finally {
+       setLoading(false);
++      setLoadingMore(false);
+       setRefreshing(false);
+     }
+   };
+@@ -55,8 +72,9 @@ export default function CommunityScreen() {
+   const fetchMyJobs = async () => {
+     setLoadingMyJobs(true);
+     try {
+-      const data = await jobsApi.list();
+-      const mapped: MyJob[] = data.map((item: any) => ({
++      const result = await jobsApi.list();
++      const items = result.data || result;
++      const mapped: MyJob[] = items.map((item: any) => ({
+         id: item.job.id,
+         status: item.job.status,
+         isPublic: item.job.isPublic || false,
+@@ -133,29 +151,34 @@ export default function CommunityScreen() {
+         </TouchableOpacity>
+       </View>
+ 
+-      <ScrollView
++      <FlatList
++        data={jobs}
++        keyExtractor={(item) => item.id}
+         style={styles.jobsList}
+-        contentContainerStyle={styles.jobsListContent}
++        contentContainerStyle={[styles.jobsListContent, jobs.length === 0 ? { flex: 1 } : undefined]}
+         refreshControl={
+           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
+         }
+-      >
+-        {jobs.length === 0 ? (
++        renderItem={({ item: job }) => (
++          <CommunityJobCard
++            key={job.id}
++            job={job}
++            onPress={() => router.push(`/community-job/${job.id}` as any)}
++          />
++        )}
++        ListEmptyComponent={
+           <EmptyState
+             icon="folder-open-outline"
+             title="No shared jobs yet"
+             subtitle="Be the first to share! Open a job and enable sharing in the Notes tab."
+           />
+-        ) : (
+-          jobs.map((job) => (
+-            <CommunityJobCard
+-              key={job.id}
+-              job={job}
+-              onPress={() => router.push(`/community-job/${job.id}` as any)}
+-            />
+-          ))
+-        )}
+-      </ScrollView>
++        }
++        onEndReached={() => { if (hasMore && !loadingMore) fetchCommunityJobs(true); }}
++        onEndReachedThreshold={0.3}
++        ListFooterComponent={loadingMore ? (
++          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 16 }} />
++        ) : null}
++      />
+ 
+       {/* Manage Sharing Modal */}
+       <Modal visible={showManageModal} animationType="slide" transparent>
+diff --git a/app/(tabs)/index.tsx b/app/(tabs)/index.tsx
+index f50b401..8eb1f93 100644
+--- a/app/(tabs)/index.tsx
++++ b/app/(tabs)/index.tsx
+@@ -4,6 +4,7 @@ import {
+   Text,
+   StyleSheet,
+   ScrollView,
++  FlatList,
+   TouchableOpacity,
+   TextInput,
+   Modal,
+@@ -11,6 +12,7 @@ import {
+   Keyboard,
+   Platform,
+   Image,
++  ActivityIndicator,
+ } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { GestureHandlerRootView, Pressable as GHPressable } from 'react-native-gesture-handler';
+@@ -52,6 +54,8 @@ export default function DashboardScreen() {
+   const { user, logout } = useAuth();
+   const [chats, setChats] = useState<Chat[]>([]);
+   const [loading, setLoading] = useState(true);
++  const [loadingMore, setLoadingMore] = useState(false);
++  const [hasMore, setHasMore] = useState(false);
+ 
+   // Chat modal state
+   const [activeChat, setActiveChat] = useState<Chat | null>(null);
+@@ -80,21 +84,30 @@ export default function DashboardScreen() {
+ 
+   // ─── Data ───────────────────────────────────────────────────────────────
+ 
++  const PAGE_SIZE = 20;
+   const lastFetchRef = useRef<number>(0);
+   useFocusEffect(useCallback(() => {
+     const elapsed = (Date.now() - lastFetchRef.current) / 1000;
+     if (elapsed > 30 || !chats.length) { fetchChats(); }
+   }, []));
+ 
+-  const fetchChats = async () => {
++  const fetchChats = async (loadMore = false) => {
++    if (loadMore) setLoadingMore(true);
+     try {
+-      const data = await chatsApi.list();
+-      setChats(data);
++      const offset = loadMore ? chats.length : 0;
++      const result = await chatsApi.list({ limit: PAGE_SIZE, offset });
++      if (loadMore) {
++        setChats(prev => [...prev, ...result.data]);
++      } else {
++        setChats(result.data);
++      }
++      setHasMore(result.hasMore);
+       lastFetchRef.current = Date.now();
+     } catch (error) {
+       console.error('Error fetching chats:', error);
+     } finally {
+       setLoading(false);
++      setLoadingMore(false);
+     }
+   };
+ 
+@@ -239,58 +252,69 @@ export default function DashboardScreen() {
+ 
+   return (
+     <View style={styles.container}>
+-      <ScrollView style={styles.scrollView}>
+-        {/* User Header */}
+-        <View style={styles.userHeader}>
+-          <View style={styles.userInfo}>
+-            {user?.profileImageUrl ? (
+-              <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
+-            ) : (
+-              <View style={styles.userAvatarPlaceholder}>
+-                <Ionicons name="person" size={20} color={colors.text.secondary} />
++      <FlatList
++        data={chats}
++        keyExtractor={(item) => item.id}
++        style={styles.scrollView}
++        contentContainerStyle={chats.length === 0 ? { flex: 1 } : undefined}
++        ListHeaderComponent={
++          <>
++            {/* User Header */}
++            <View style={styles.userHeader}>
++              <View style={styles.userInfo}>
++                {user?.profileImageUrl ? (
++                  <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
++                ) : (
++                  <View style={styles.userAvatarPlaceholder}>
++                    <Ionicons name="person" size={20} color={colors.text.secondary} />
++                  </View>
++                )}
++                <View style={styles.userTextContainer}>
++                  <Text style={styles.userName}>
++                    {user?.firstName || user?.email?.split('@')[0] || 'User'}
++                  </Text>
++                  <Text style={styles.userEmail}>{user?.email}</Text>
++                </View>
+               </View>
+-            )}
+-            <View style={styles.userTextContainer}>
+-              <Text style={styles.userName}>
+-                {user?.firstName || user?.email?.split('@')[0] || 'User'}
+-              </Text>
+-              <Text style={styles.userEmail}>{user?.email}</Text>
++              <TouchableOpacity style={styles.logoutButton} onPress={logout}>
++                <Ionicons name="log-out-outline" size={20} color={colors.text.secondary} />
++              </TouchableOpacity>
+             </View>
+-          </View>
+-          <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+-            <Ionicons name="log-out-outline" size={20} color={colors.text.secondary} />
+-          </TouchableOpacity>
+-        </View>
+-
+-        <View style={styles.header}>
+-          <Text style={styles.title}>195x Bench App</Text>
+-          <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
+-        </View>
+ 
+-        <TouchableOpacity style={styles.newChatButton} onPress={createNewChat}>
+-          <Ionicons name="chatbubble-ellipses" size={24} color={colors.text.onAccent} />
+-          <Text style={styles.newChatButtonText}>Start New Chat</Text>
+-        </TouchableOpacity>
++            <View style={styles.header}>
++              <Text style={styles.title}>195x Bench App</Text>
++              <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
++            </View>
+ 
+-        <Text style={styles.sectionTitle}>Recent Chats</Text>
++            <TouchableOpacity style={styles.newChatButton} onPress={createNewChat}>
++              <Ionicons name="chatbubble-ellipses" size={24} color={colors.text.onAccent} />
++              <Text style={styles.newChatButtonText}>Start New Chat</Text>
++            </TouchableOpacity>
+ 
+-        {chats.length === 0 ? (
++            <Text style={styles.sectionTitle}>Recent Chats</Text>
++          </>
++        }
++        renderItem={({ item: chat }) => (
++          <ChatCard
++            key={chat.id}
++            chat={chat}
++            onPress={() => openChatModal(chat)}
++            onOptions={() => { setSelectedChat(chat); setShowOptionsModal(true); }}
++          />
++        )}
++        ListEmptyComponent={
+           <EmptyState
+             icon="chatbubbles-outline"
+             title="No chats yet"
+             subtitle="Start a new chat to ask questions about amp repair"
+           />
+-        ) : (
+-          chats.map(chat => (
+-            <ChatCard
+-              key={chat.id}
+-              chat={chat}
+-              onPress={() => openChatModal(chat)}
+-              onOptions={() => { setSelectedChat(chat); setShowOptionsModal(true); }}
+-            />
+-          ))
+-        )}
+-      </ScrollView>
++        }
++        onEndReached={() => { if (hasMore && !loadingMore) fetchChats(true); }}
++        onEndReachedThreshold={0.3}
++        ListFooterComponent={loadingMore ? (
++          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 16 }} />
++        ) : null}
++      />
+ 
+       {/* ─── Full-Screen Chat Modal ────────────────────────────────────── */}
+       {showChatModal && (
+diff --git a/app/(tabs)/jobs.tsx b/app/(tabs)/jobs.tsx
+index 2972491..ad0d603 100644
+--- a/app/(tabs)/jobs.tsx
++++ b/app/(tabs)/jobs.tsx
+@@ -1,14 +1,16 @@
+-import React, { useState, useEffect, useRef } from 'react';
++import React, { useState, useEffect, useRef, useCallback } from 'react';
+ import {
+   View,
+   Text,
+   StyleSheet,
+   ScrollView,
++  FlatList,
+   TouchableOpacity,
+   TextInput,
+   Modal,
+   KeyboardAvoidingView,
+   Platform,
++  ActivityIndicator,
+ } from 'react-native';
+ import { Ionicons } from '@expo/vector-icons';
+ import { useRouter } from 'expo-router';
+@@ -37,6 +39,8 @@ export default function JobsScreen() {
+   const router = useRouter();
+   const [jobs, setJobs] = useState<JobWithProfile[]>([]);
+   const [loading, setLoading] = useState(true);
++  const [loadingMore, setLoadingMore] = useState(false);
++  const [hasMore, setHasMore] = useState(false);
+   const [statusFilter, setStatusFilter] = useState('all');
+ 
+   // Search with debounce
+@@ -76,21 +80,31 @@ export default function JobsScreen() {
+ 
+   // ── Data fetching ────────────────────────────────────────────────────────
+ 
++  const PAGE_SIZE = 20;
+   const lastFetchRef = useRef<number>(0);
+ 
+-  const fetchJobs = async () => {
++  const fetchJobs = async (loadMore = false) => {
++    if (loadMore) setLoadingMore(true);
+     try {
+-      const data = await jobsApi.list({ status: statusFilter, search: searchQuery });
+-      setJobs(data);
++      const offset = loadMore ? jobs.length : 0;
++      const result = await jobsApi.list({ status: statusFilter, search: searchQuery, limit: PAGE_SIZE, offset });
++      if (loadMore) {
++        setJobs(prev => [...prev, ...result.data]);
++      } else {
++        setJobs(result.data);
++      }
++      setHasMore(result.hasMore);
+       lastFetchRef.current = Date.now();
+     } catch (error) {
+       console.error('Error fetching jobs:', error);
+     } finally {
+       setLoading(false);
++      setLoadingMore(false);
+     }
+   };
+ 
+   useEffect(() => {
++    setLoading(true);
+     fetchJobs();
+   }, [statusFilter, searchQuery]);
+ 
+@@ -263,40 +277,48 @@ export default function JobsScreen() {
+       </ScrollView>
+ 
+       {/* Job list */}
+-      <ScrollView style={styles.scrollView}>
+-        {jobs.length === 0 ? (
++      <FlatList
++        data={jobs}
++        keyExtractor={(item) => item.job.id}
++        style={styles.scrollView}
++        contentContainerStyle={jobs.length === 0 ? { flex: 1 } : undefined}
++        renderItem={({ item: { job, ampProfile } }) => {
++          const statusCfg = getStatusConfig(job.status || 'active');
++          return (
++            <TouchableOpacity key={job.id} style={styles.jobCard} onPress={() => openJobDetail({ job, ampProfile })}>
++              <View style={styles.jobHeader}>
++                <Text style={styles.jobAmpName}>{formatAmpName(ampProfile)}</Text>
++                <View style={styles.jobBadges}>
++                  {job.safetyChecklistCompleted && (
++                    <Ionicons name="shield-checkmark" size={18} color={colors.status.success} style={{ marginRight: 6 }} />
++                  )}
++                  <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + '20' }]}>
++                    <View style={[styles.statusDot, { backgroundColor: statusCfg.color }]} />
++                    <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
++                  </View>
++                </View>
++              </View>
++              {ampProfile?.circuitFamily && <Text style={styles.jobCircuitFamily}>{ampProfile.circuitFamily}</Text>}
++              <Text style={styles.jobSymptoms} numberOfLines={2}>
++                {job.ownerSymptoms || 'No symptoms recorded'}
++              </Text>
++              <Text style={styles.jobDate}>{formatDate(job.createdAt)}</Text>
++            </TouchableOpacity>
++          );
++        }}
++        ListEmptyComponent={
+           <EmptyState
+             icon="briefcase-outline"
+             title="No bench jobs yet"
+             subtitle="Start a new job to begin troubleshooting"
+           />
+-        ) : (
+-          jobs.map(({ job, ampProfile }) => {
+-            const statusCfg = getStatusConfig(job.status || 'active');
+-            return (
+-              <TouchableOpacity key={job.id} style={styles.jobCard} onPress={() => openJobDetail({ job, ampProfile })}>
+-                <View style={styles.jobHeader}>
+-                  <Text style={styles.jobAmpName}>{formatAmpName(ampProfile)}</Text>
+-                  <View style={styles.jobBadges}>
+-                    {job.safetyChecklistCompleted && (
+-                      <Ionicons name="shield-checkmark" size={18} color={colors.status.success} style={{ marginRight: 6 }} />
+-                    )}
+-                    <View style={[styles.statusBadge, { backgroundColor: statusCfg.color + '20' }]}>
+-                      <View style={[styles.statusDot, { backgroundColor: statusCfg.color }]} />
+-                      <Text style={[styles.statusText, { color: statusCfg.color }]}>{statusCfg.label}</Text>
+-                    </View>
+-                  </View>
+-                </View>
+-                {ampProfile?.circuitFamily && <Text style={styles.jobCircuitFamily}>{ampProfile.circuitFamily}</Text>}
+-                <Text style={styles.jobSymptoms} numberOfLines={2}>
+-                  {job.ownerSymptoms || 'No symptoms recorded'}
+-                </Text>
+-                <Text style={styles.jobDate}>{formatDate(job.createdAt)}</Text>
+-              </TouchableOpacity>
+-            );
+-          })
+-        )}
+-      </ScrollView>
++        }
++        onEndReached={() => { if (hasMore && !loadingMore) fetchJobs(true); }}
++        onEndReachedThreshold={0.3}
++        ListFooterComponent={loadingMore ? (
++          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 16 }} />
++        ) : null}
++      />
+ 
+       {/* FAB */}
+       <TouchableOpacity style={styles.fab} onPress={() => setShowNewJobModal(true)}>
+diff --git a/server/routes/chats.ts b/server/routes/chats.ts
+index d25602c..dfa70c1 100644
+--- a/server/routes/chats.ts
++++ b/server/routes/chats.ts
+@@ -14,10 +14,22 @@ router.get('/api/chats', async (req: any, res) => {
+       return res.status(401).json({ error: 'Not authenticated' });
+     }
+     
+-    const allChats = await db.select().from(schema.chats)
+-      .where(and(eq(schema.chats.userId, userId), eq(schema.chats.isStandalone, true)))
+-      .orderBy(desc(schema.chats.updatedAt));
+-    res.json(allChats);
++    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
++    const offset = parseInt(req.query.offset as string) || 0;
++    
++    const where = and(eq(schema.chats.userId, userId), eq(schema.chats.isStandalone, true));
++    
++    const [{ count: total }] = await db.select({ count: sql<number>`count(*)::int` })
++      .from(schema.chats)
++      .where(where);
++    
++    const chats = await db.select().from(schema.chats)
++      .where(where)
++      .orderBy(desc(schema.chats.updatedAt))
++      .limit(limit)
++      .offset(offset);
++    
++    res.json({ data: chats, total, hasMore: offset + chats.length < total });
+   } catch (error) {
+     console.error('Error fetching chats:', error);
+     res.status(500).json({ error: 'Failed to fetch chats' });
+diff --git a/server/routes/community.ts b/server/routes/community.ts
+index 2ae97dc..7aff9c6 100644
+--- a/server/routes/community.ts
++++ b/server/routes/community.ts
+@@ -1,50 +1,58 @@
+ import { Router } from 'express';
+ import { db, schema } from '../db';
+-import { eq, desc, ilike, or, and } from 'drizzle-orm';
++import { eq, desc, ilike, or, and, sql } from 'drizzle-orm';
+ 
+ const router = Router();
+ 
+ router.get('/api/community/jobs', async (req: any, res) => {
+   try {
+-    const { search, circuitFamily, make } = req.query;
++    const { search, circuitFamily, make, limit: limitStr, offset: offsetStr } = req.query;
+     
+-    let query = db.select({
+-      job: schema.benchJobs,
+-      ampProfile: schema.ampProfiles,
+-      user: schema.users,
+-    }).from(schema.benchJobs)
+-      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+-      .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
+-      .where(eq(schema.benchJobs.isPublic, true))
+-      .orderBy(desc(schema.benchJobs.updatedAt));
+-    
+-    const results = await query;
++    const limit = Math.min(parseInt(limitStr as string) || 20, 50);
++    const offset = parseInt(offsetStr as string) || 0;
+     
+-    let filteredResults = results;
++    const conditions: any[] = [eq(schema.benchJobs.isPublic, true)];
+     
+     if (search) {
+-      const searchLower = (search as string).toLowerCase();
+-      filteredResults = filteredResults.filter(({ job, ampProfile }) => 
+-        ampProfile?.make?.toLowerCase().includes(searchLower) ||
+-        ampProfile?.model?.toLowerCase().includes(searchLower) ||
+-        ampProfile?.circuitFamily?.toLowerCase().includes(searchLower) ||
+-        job.ownerSymptoms?.toLowerCase().includes(searchLower)
++      const searchTerm = `%${(search as string).toLowerCase()}%`;
++      conditions.push(
++        or(
++          ilike(schema.ampProfiles.make, searchTerm),
++          ilike(schema.ampProfiles.model, searchTerm),
++          ilike(schema.ampProfiles.circuitFamily, searchTerm),
++          ilike(schema.benchJobs.ownerSymptoms, searchTerm)
++        )
+       );
+     }
+     
+     if (circuitFamily) {
+-      filteredResults = filteredResults.filter(({ ampProfile }) => 
+-        ampProfile?.circuitFamily?.toLowerCase() === (circuitFamily as string).toLowerCase()
+-      );
++      conditions.push(ilike(schema.ampProfiles.circuitFamily, circuitFamily as string));
+     }
+     
+     if (make) {
+-      filteredResults = filteredResults.filter(({ ampProfile }) => 
+-        ampProfile?.make?.toLowerCase() === (make as string).toLowerCase()
+-      );
++      conditions.push(ilike(schema.ampProfiles.make, make as string));
+     }
+     
+-    const publicJobs = filteredResults.map(({ job, ampProfile, user }) => ({
++    const where = and(...conditions);
++    
++    const [{ count: total }] = await db.select({ count: sql<number>`count(*)::int` })
++      .from(schema.benchJobs)
++      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
++      .where(where);
++    
++    const results = await db.select({
++      job: schema.benchJobs,
++      ampProfile: schema.ampProfiles,
++      user: schema.users,
++    }).from(schema.benchJobs)
++      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
++      .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
++      .where(where)
++      .orderBy(desc(schema.benchJobs.updatedAt))
++      .limit(limit)
++      .offset(offset);
++    
++    const publicJobs = results.map(({ job, ampProfile, user }) => ({
+       id: job.id,
+       status: job.status,
+       ownerSymptoms: job.ownerSymptoms,
+@@ -65,7 +73,7 @@ router.get('/api/community/jobs', async (req: any, res) => {
+       },
+     }));
+     
+-    res.json(publicJobs);
++    res.json({ data: publicJobs, total, hasMore: offset + results.length < total });
+   } catch (error) {
+     console.error('Error fetching community jobs:', error);
+     res.status(500).json({ error: 'Failed to fetch community jobs' });
+diff --git a/server/routes/jobs.ts b/server/routes/jobs.ts
+index 16ff866..982d12b 100644
+--- a/server/routes/jobs.ts
++++ b/server/routes/jobs.ts
+@@ -1,18 +1,21 @@
+ import { Router } from 'express';
+ import { db, schema } from '../db';
+-import { eq, desc, ilike, or, and } from 'drizzle-orm';
++import { eq, desc, ilike, or, and, sql } from 'drizzle-orm';
+ 
+ const router = Router();
+ 
+ router.get('/api/bench-jobs', async (req: any, res) => {
+   try {
+-    const { status, search } = req.query;
++    const { status, search, limit: limitStr, offset: offsetStr } = req.query;
+     const userId = req.user?.id;
+     
+     if (!userId) {
+       return res.status(401).json({ error: 'Not authenticated' });
+     }
+     
++    const limit = Math.min(parseInt(limitStr as string) || 20, 50);
++    const offset = parseInt(offsetStr as string) || 0;
++    
+     let query = db.select({
+       job: schema.benchJobs,
+       ampProfile: schema.ampProfiles,
+@@ -35,9 +38,20 @@ router.get('/api/bench-jobs', async (req: any, res) => {
+       );
+     }
+     
+-    const results = await query.where(and(...conditions)).orderBy(desc(schema.benchJobs.createdAt));
++    const where = and(...conditions);
++    
++    // Get total count
++    const [{ count: total }] = await db.select({ count: sql<number>`count(*)::int` })
++      .from(schema.benchJobs)
++      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
++      .where(where);
++    
++    const results = await query.where(where)
++      .orderBy(desc(schema.benchJobs.createdAt))
++      .limit(limit)
++      .offset(offset);
+     
+-    res.json(results);
++    res.json({ data: results, total, hasMore: offset + results.length < total });
+   } catch (error) {
+     console.error('Error fetching bench jobs:', error);
+     res.status(500).json({ error: 'Failed to fetch bench jobs' });
+diff --git a/src/services/endpoints/chats.ts b/src/services/endpoints/chats.ts
+index 3af8be7..4881738 100644
+--- a/src/services/endpoints/chats.ts
++++ b/src/services/endpoints/chats.ts
+@@ -7,8 +7,11 @@ function getAuthHeader(): string | null {
+ }
+ 
+ export const chatsApi = {
+-  async list() {
+-    const { data } = await apiClient.get('/api/chats');
++  async list(params?: { limit?: number; offset?: number }) {
++    const query = new URLSearchParams();
++    if (params?.limit) query.append('limit', String(params.limit));
++    if (params?.offset) query.append('offset', String(params.offset));
++    const { data } = await apiClient.get('/api/chats?' + query.toString());
+     return data;
+   },
+   async get(id: string) {
+diff --git a/src/services/endpoints/community.ts b/src/services/endpoints/community.ts
+index 9a801fd..5cc9582 100644
+--- a/src/services/endpoints/community.ts
++++ b/src/services/endpoints/community.ts
+@@ -1,11 +1,13 @@
+ import { apiClient } from '../api';
+ 
+ export const communityApi = {
+-  async list(params?: { search?: string; circuitFamily?: string; make?: string }) {
++  async list(params?: { search?: string; circuitFamily?: string; make?: string; limit?: number; offset?: number }) {
+     const query = new URLSearchParams();
+     if (params?.search) query.append('search', params.search);
+     if (params?.circuitFamily) query.append('circuitFamily', params.circuitFamily);
+     if (params?.make) query.append('make', params.make);
++    if (params?.limit) query.append('limit', String(params.limit));
++    if (params?.offset) query.append('offset', String(params.offset));
+     const { data } = await apiClient.get('/api/community/jobs?' + query.toString());
+     return data;
+   },
+diff --git a/src/services/endpoints/jobs.ts b/src/services/endpoints/jobs.ts
+index 38b92a5..48f61b6 100644
+--- a/src/services/endpoints/jobs.ts
++++ b/src/services/endpoints/jobs.ts
+@@ -1,10 +1,12 @@
+ import { apiClient } from '../api';
+ 
+ export const jobsApi = {
+-  async list(params?: { status?: string; search?: string }) {
++  async list(params?: { status?: string; search?: string; limit?: number; offset?: number }) {
+     const query = new URLSearchParams();
+     if (params?.status && params.status !== 'all') query.append('status', params.status);
+     if (params?.search) query.append('search', params.search);
++    if (params?.limit) query.append('limit', String(params.limit));
++    if (params?.offset) query.append('offset', String(params.offset));
+     const { data } = await apiClient.get('/api/bench-jobs?' + query.toString());
+     return data;
+   },

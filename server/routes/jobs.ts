@@ -1,17 +1,20 @@
 import { Router } from 'express';
 import { db, schema } from '../db';
-import { eq, desc, ilike, or, and } from 'drizzle-orm';
+import { eq, desc, ilike, or, and, sql } from 'drizzle-orm';
 
 const router = Router();
 
 router.get('/api/bench-jobs', async (req: any, res) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, limit: limitStr, offset: offsetStr } = req.query;
     const userId = req.user?.id;
     
     if (!userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
+    
+    const limit = Math.min(parseInt(limitStr as string) || 20, 50);
+    const offset = parseInt(offsetStr as string) || 0;
     
     let query = db.select({
       job: schema.benchJobs,
@@ -35,9 +38,20 @@ router.get('/api/bench-jobs', async (req: any, res) => {
       );
     }
     
-    const results = await query.where(and(...conditions)).orderBy(desc(schema.benchJobs.createdAt));
+    const where = and(...conditions);
     
-    res.json(results);
+    // Get total count
+    const [{ count: total }] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(schema.benchJobs)
+      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+      .where(where);
+    
+    const results = await query.where(where)
+      .orderBy(desc(schema.benchJobs.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    res.json({ data: results, total, hasMore: offset + results.length < total });
   } catch (error) {
     console.error('Error fetching bench jobs:', error);
     res.status(500).json({ error: 'Failed to fetch bench jobs' });

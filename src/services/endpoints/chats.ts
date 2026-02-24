@@ -7,8 +7,11 @@ function getAuthHeader(): string | null {
 }
 
 export const chatsApi = {
-  async list() {
-    const { data } = await apiClient.get('/api/chats');
+  async list(params?: { limit?: number; offset?: number }) {
+    const query = new URLSearchParams();
+    if (params?.limit) query.append('limit', String(params.limit));
+    if (params?.offset) query.append('offset', String(params.offset));
+    const { data } = await apiClient.get('/api/chats?' + query.toString());
     return data;
   },
   async get(id: string) {

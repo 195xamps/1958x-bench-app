@@ -1,10 +1,12 @@
 import { apiClient } from '../api';
 
 export const jobsApi = {
-  async list(params?: { status?: string; search?: string }) {
+  async list(params?: { status?: string; search?: string; limit?: number; offset?: number }) {
     const query = new URLSearchParams();
     if (params?.status && params.status !== 'all') query.append('status', params.status);
     if (params?.search) query.append('search', params.search);
+    if (params?.limit) query.append('limit', String(params.limit));
+    if (params?.offset) query.append('offset', String(params.offset));
     const { data } = await apiClient.get('/api/bench-jobs?' + query.toString());
     return data;
   },

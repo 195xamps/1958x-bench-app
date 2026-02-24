@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -28,6 +29,8 @@ export default function CommunityScreen() {
   const router = useRouter();
   const [jobs, setJobs] = useState<CommunityJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showManageModal, setShowManageModal] = useState(false);
@@ -39,15 +42,29 @@ export default function CommunityScreen() {
 
   const lastFetchRef = useRef<number>(0);
 
-  const fetchCommunityJobs = async () => {
+  const PAGE_SIZE = 20;
+
+  const fetchCommunityJobs = async (loadMore = false) => {
+    if (loadMore) setLoadingMore(true);
     try {
-      const data = await communityApi.list(searchQuery ? { search: searchQuery } : undefined);
-      setJobs(data);
+      const offset = loadMore ? jobs.length : 0;
+      const result = await communityApi.list({
+        ...(searchQuery ? { search: searchQuery } : {}),
+        limit: PAGE_SIZE,
+        offset,
+      });
+      if (loadMore) {
+        setJobs(prev => [...prev, ...result.data]);
+      } else {
+        setJobs(result.data);
+      }
+      setHasMore(result.hasMore);
       lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching community jobs:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   };
@@ -55,8 +72,9 @@ export default function CommunityScreen() {
   const fetchMyJobs = async () => {
     setLoadingMyJobs(true);
     try {
-      const data = await jobsApi.list();
-      const mapped: MyJob[] = data.map((item: any) => ({
+      const result = await jobsApi.list();
+      const items = result.data || result;
+      const mapped: MyJob[] = items.map((item: any) => ({
         id: item.job.id,
         status: item.job.status,
         isPublic: item.job.isPublic || false,
@@ -133,29 +151,34 @@ export default function CommunityScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={jobs}
+        keyExtractor={(item) => item.id}
         style={styles.jobsList}
-        contentContainerStyle={styles.jobsListContent}
+        contentContainerStyle={[styles.jobsListContent, jobs.length === 0 ? { flex: 1 } : undefined]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />
         }
-      >
-        {jobs.length === 0 ? (
+        renderItem={({ item: job }) => (
+          <CommunityJobCard
+            key={job.id}
+            job={job}
+            onPress={() => router.push(`/community-job/${job.id}` as any)}
+          />
+        )}
+        ListEmptyComponent={
           <EmptyState
             icon="folder-open-outline"
             title="No shared jobs yet"
             subtitle="Be the first to share! Open a job and enable sharing in the Notes tab."
           />
-        ) : (
-          jobs.map((job) => (
-            <CommunityJobCard
-              key={job.id}
-              job={job}
-              onPress={() => router.push(`/community-job/${job.id}` as any)}
-            />
-          ))
-        )}
-      </ScrollView>
+        }
+        onEndReached={() => { if (hasMore && !loadingMore) fetchCommunityJobs(true); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={loadingMore ? (
+          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 16 }} />
+        ) : null}
+      />
 
       {/* Manage Sharing Modal */}
       <Modal visible={showManageModal} animationType="slide" transparent>

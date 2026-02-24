@@ -1,50 +1,58 @@
 import { Router } from 'express';
 import { db, schema } from '../db';
-import { eq, desc, ilike, or, and } from 'drizzle-orm';
+import { eq, desc, ilike, or, and, sql } from 'drizzle-orm';
 
 const router = Router();
 
 router.get('/api/community/jobs', async (req: any, res) => {
   try {
-    const { search, circuitFamily, make } = req.query;
+    const { search, circuitFamily, make, limit: limitStr, offset: offsetStr } = req.query;
     
-    let query = db.select({
+    const limit = Math.min(parseInt(limitStr as string) || 20, 50);
+    const offset = parseInt(offsetStr as string) || 0;
+    
+    const conditions: any[] = [eq(schema.benchJobs.isPublic, true)];
+    
+    if (search) {
+      const searchTerm = `%${(search as string).toLowerCase()}%`;
+      conditions.push(
+        or(
+          ilike(schema.ampProfiles.make, searchTerm),
+          ilike(schema.ampProfiles.model, searchTerm),
+          ilike(schema.ampProfiles.circuitFamily, searchTerm),
+          ilike(schema.benchJobs.ownerSymptoms, searchTerm)
+        )
+      );
+    }
+    
+    if (circuitFamily) {
+      conditions.push(ilike(schema.ampProfiles.circuitFamily, circuitFamily as string));
+    }
+    
+    if (make) {
+      conditions.push(ilike(schema.ampProfiles.make, make as string));
+    }
+    
+    const where = and(...conditions);
+    
+    const [{ count: total }] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(schema.benchJobs)
+      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+      .where(where);
+    
+    const results = await db.select({
       job: schema.benchJobs,
       ampProfile: schema.ampProfiles,
       user: schema.users,
     }).from(schema.benchJobs)
       .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
       .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
-      .where(eq(schema.benchJobs.isPublic, true))
-      .orderBy(desc(schema.benchJobs.updatedAt));
+      .where(where)
+      .orderBy(desc(schema.benchJobs.updatedAt))
+      .limit(limit)
+      .offset(offset);
     
-    const results = await query;
-    
-    let filteredResults = results;
-    
-    if (search) {
-      const searchLower = (search as string).toLowerCase();
-      filteredResults = filteredResults.filter(({ job, ampProfile }) => 
-        ampProfile?.make?.toLowerCase().includes(searchLower) ||
-        ampProfile?.model?.toLowerCase().includes(searchLower) ||
-        ampProfile?.circuitFamily?.toLowerCase().includes(searchLower) ||
-        job.ownerSymptoms?.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    if (circuitFamily) {
-      filteredResults = filteredResults.filter(({ ampProfile }) => 
-        ampProfile?.circuitFamily?.toLowerCase() === (circuitFamily as string).toLowerCase()
-      );
-    }
-    
-    if (make) {
-      filteredResults = filteredResults.filter(({ ampProfile }) => 
-        ampProfile?.make?.toLowerCase() === (make as string).toLowerCase()
-      );
-    }
-    
-    const publicJobs = filteredResults.map(({ job, ampProfile, user }) => ({
+    const publicJobs = results.map(({ job, ampProfile, user }) => ({
       id: job.id,
       status: job.status,
       ownerSymptoms: job.ownerSymptoms,
@@ -65,7 +73,7 @@ router.get('/api/community/jobs', async (req: any, res) => {
       },
     }));
     
-    res.json(publicJobs);
+    res.json({ data: publicJobs, total, hasMore: offset + results.length < total });
   } catch (error) {
     console.error('Error fetching community jobs:', error);
     res.status(500).json({ error: 'Failed to fetch community jobs' });

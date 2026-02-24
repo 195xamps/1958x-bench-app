@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -11,6 +12,7 @@ import {
   Keyboard,
   Platform,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView, Pressable as GHPressable } from 'react-native-gesture-handler';
@@ -52,6 +54,8 @@ export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
   // Chat modal state
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -80,21 +84,30 @@ export default function DashboardScreen() {
 
   // ─── Data ───────────────────────────────────────────────────────────────
 
+  const PAGE_SIZE = 20;
   const lastFetchRef = useRef<number>(0);
   useFocusEffect(useCallback(() => {
     const elapsed = (Date.now() - lastFetchRef.current) / 1000;
     if (elapsed > 30 || !chats.length) { fetchChats(); }
   }, []));
 
-  const fetchChats = async () => {
+  const fetchChats = async (loadMore = false) => {
+    if (loadMore) setLoadingMore(true);
     try {
-      const data = await chatsApi.list();
-      setChats(data);
+      const offset = loadMore ? chats.length : 0;
+      const result = await chatsApi.list({ limit: PAGE_SIZE, offset });
+      if (loadMore) {
+        setChats(prev => [...prev, ...result.data]);
+      } else {
+        setChats(result.data);
+      }
+      setHasMore(result.hasMore);
       lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching chats:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
@@ -239,58 +252,69 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* User Header */}
-        <View style={styles.userHeader}>
-          <View style={styles.userInfo}>
-            {user?.profileImageUrl ? (
-              <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
-            ) : (
-              <View style={styles.userAvatarPlaceholder}>
-                <Ionicons name="person" size={20} color={colors.text.secondary} />
+      <FlatList
+        data={chats}
+        keyExtractor={(item) => item.id}
+        style={styles.scrollView}
+        contentContainerStyle={chats.length === 0 ? { flex: 1 } : undefined}
+        ListHeaderComponent={
+          <>
+            {/* User Header */}
+            <View style={styles.userHeader}>
+              <View style={styles.userInfo}>
+                {user?.profileImageUrl ? (
+                  <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
+                ) : (
+                  <View style={styles.userAvatarPlaceholder}>
+                    <Ionicons name="person" size={20} color={colors.text.secondary} />
+                  </View>
+                )}
+                <View style={styles.userTextContainer}>
+                  <Text style={styles.userName}>
+                    {user?.firstName || user?.email?.split('@')[0] || 'User'}
+                  </Text>
+                  <Text style={styles.userEmail}>{user?.email}</Text>
+                </View>
               </View>
-            )}
-            <View style={styles.userTextContainer}>
-              <Text style={styles.userName}>
-                {user?.firstName || user?.email?.split('@')[0] || 'User'}
-              </Text>
-              <Text style={styles.userEmail}>{user?.email}</Text>
+              <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+                <Ionicons name="log-out-outline" size={20} color={colors.text.secondary} />
+              </TouchableOpacity>
             </View>
-          </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-            <Ionicons name="log-out-outline" size={20} color={colors.text.secondary} />
-          </TouchableOpacity>
-        </View>
 
-        <View style={styles.header}>
-          <Text style={styles.title}>195x Bench App</Text>
-          <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
-        </View>
+            <View style={styles.header}>
+              <Text style={styles.title}>195x Bench App</Text>
+              <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
+            </View>
 
-        <TouchableOpacity style={styles.newChatButton} onPress={createNewChat}>
-          <Ionicons name="chatbubble-ellipses" size={24} color={colors.text.onAccent} />
-          <Text style={styles.newChatButtonText}>Start New Chat</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.newChatButton} onPress={createNewChat}>
+              <Ionicons name="chatbubble-ellipses" size={24} color={colors.text.onAccent} />
+              <Text style={styles.newChatButtonText}>Start New Chat</Text>
+            </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Recent Chats</Text>
-
-        {chats.length === 0 ? (
+            <Text style={styles.sectionTitle}>Recent Chats</Text>
+          </>
+        }
+        renderItem={({ item: chat }) => (
+          <ChatCard
+            key={chat.id}
+            chat={chat}
+            onPress={() => openChatModal(chat)}
+            onOptions={() => { setSelectedChat(chat); setShowOptionsModal(true); }}
+          />
+        )}
+        ListEmptyComponent={
           <EmptyState
             icon="chatbubbles-outline"
             title="No chats yet"
             subtitle="Start a new chat to ask questions about amp repair"
           />
-        ) : (
-          chats.map(chat => (
-            <ChatCard
-              key={chat.id}
-              chat={chat}
-              onPress={() => openChatModal(chat)}
-              onOptions={() => { setSelectedChat(chat); setShowOptionsModal(true); }}
-            />
-          ))
-        )}
-      </ScrollView>
+        }
+        onEndReached={() => { if (hasMore && !loadingMore) fetchChats(true); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={loadingMore ? (
+          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 16 }} />
+        ) : null}
+      />
 
       {/* ─── Full-Screen Chat Modal ────────────────────────────────────── */}
       {showChatModal && (
