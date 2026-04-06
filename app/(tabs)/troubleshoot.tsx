@@ -70,8 +70,10 @@ export default function TroubleshootScreen() {
       } else {
         setMessages([WELCOME_MESSAGE]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting session:', error);
+      const msg = error?.response?.data?.error || 'Failed to start session. Check your connection and try again.';
+      setMessages([{ role: 'assistant', content: `⚠️ ${msg}` }]);
     } finally {
       setLoading(false);
     }
@@ -127,22 +129,28 @@ export default function TroubleshootScreen() {
     >
       {/* Mode Toggle */}
       <View style={styles.modeToggle}>
-        {(['guided', 'expert'] as const).map((m) => (
-          <TouchableOpacity
-            key={m}
-            style={[styles.modeButton, mode === m && styles.modeButtonActive]}
-            onPress={() => setMode(m)}
-          >
-            <Ionicons
-              name={m === 'guided' ? 'list' : 'flash'}
-              size={18}
-              color={mode === m ? colors.text.onAccent : colors.text.secondary}
-            />
-            <Text style={[styles.modeButtonText, mode === m && styles.modeButtonTextActive]}>
-              {m === 'guided' ? 'Guided' : 'Expert'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          style={[styles.modeButton, mode === 'guided' && styles.modeButtonActive]}
+          onPress={() => !sessionId && setMode('guided')}
+          disabled={!!sessionId}
+        >
+          <Ionicons name="list" size={18} color={mode === 'guided' ? colors.text.onAccent : colors.text.secondary} />
+          <View>
+            <Text style={[styles.modeButtonText, mode === 'guided' && styles.modeButtonTextActive]}>Guided</Text>
+            <Text style={[styles.modeButtonSubtext, mode === 'guided' && styles.modeButtonSubtextActive]}>Step-by-step</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.modeButton, mode === 'expert' && styles.modeButtonActive]}
+          onPress={() => !sessionId && setMode('expert')}
+          disabled={!!sessionId}
+        >
+          <Ionicons name="flash" size={18} color={mode === 'expert' ? colors.text.onAccent : colors.text.secondary} />
+          <View>
+            <Text style={[styles.modeButtonText, mode === 'expert' && styles.modeButtonTextActive]}>Expert</Text>
+            <Text style={[styles.modeButtonSubtext, mode === 'expert' && styles.modeButtonSubtextActive]}>Direct &amp; technical</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}
@@ -257,6 +265,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modeButtonTextActive: { color: colors.text.onAccent },
+  modeButtonSubtext: {
+    color: colors.text.muted,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  modeButtonSubtextActive: { color: colors.text.onAccent + 'cc' },
   // Messages
   messagesContainer: { flex: 1 },
   messagesContent: { padding: 16 },

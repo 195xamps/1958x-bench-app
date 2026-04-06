@@ -80,11 +80,14 @@ export default function JobsScreen() {
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
+  const [fetchError, setFetchError] = useState(false);
+  const [creating, setCreating] = useState(false);
   const PAGE_SIZE = 20;
   const lastFetchRef = useRef<number>(0);
 
   const fetchJobs = async (loadMore = false) => {
     if (loadMore) setLoadingMore(true);
+    setFetchError(false);
     try {
       const offset = loadMore ? jobs.length : 0;
       const result = await jobsApi.list({ status: statusFilter, search: searchQuery, limit: PAGE_SIZE, offset });
@@ -97,6 +100,7 @@ export default function JobsScreen() {
       lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching jobs:', error);
+      if (!loadMore) setFetchError(true);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -122,6 +126,8 @@ export default function JobsScreen() {
       showAlert('Required', 'Please enter at least amp make or model');
       return;
     }
+    if (creating) return;
+    setCreating(true);
     try {
       const result = await jobsApi.create(newJob);
       setJobs([{ job: result.benchJob, ampProfile: result.ampProfile }, ...jobs]);
@@ -130,9 +136,11 @@ export default function JobsScreen() {
       setNewJob({ ampMake: '', ampModel: '', ampYear: '', circuitFamily: '', ownerSymptoms: '', techNotes: '', priorWork: '', knownMods: '' });
       setSafetyChecks(new Array(SAFETY_CHECKLIST.length).fill(false));
       setShowSafetyModal(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating job:', error);
-      showError('Failed to create bench job');
+      showError(error?.response?.data?.error || 'Failed to create bench job. Check your connection and try again.');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -231,6 +239,21 @@ export default function JobsScreen() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   if (loading) return <LoadingScreen message="Loading bench jobs..." />;
+
+  if (fetchError) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', gap: 16 }]}>
+        <Ionicons name="cloud-offline-outline" size={64} color={colors.text.muted} />
+        <Text style={{ color: colors.text.secondary, fontSize: 16 }}>Couldn&apos;t load bench jobs</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: colors.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 }}
+          onPress={() => { setLoading(true); fetchJobs(); }}
+        >
+          <Text style={{ color: colors.text.onAccent, fontWeight: '600', fontSize: 16 }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -348,8 +371,14 @@ export default function JobsScreen() {
                 {renderInput('Prior Tech Work', newJob.priorWork || '', (t) => setNewJob({ ...newJob, priorWork: t }), 'Any previous repair attempts?', true)}
                 {renderInput('Tech Notes', newJob.techNotes || '', (t) => setNewJob({ ...newJob, techNotes: t }), 'Initial observations...', true)}
               </ScrollView>
-              <TouchableOpacity style={styles.createButton} onPress={createJob}>
-                <Text style={styles.createButtonText}>Create Job & Safety Check</Text>
+              <TouchableOpacity
+                style={[styles.createButton, creating && { opacity: 0.6 }]}
+                onPress={createJob}
+                disabled={creating}
+              >
+                {creating
+                  ? <ActivityIndicator color={colors.text.onAccent} />
+                  : <Text style={styles.createButtonText}>Create Job & Safety Check</Text>}
               </TouchableOpacity>
             </View>
           </View>

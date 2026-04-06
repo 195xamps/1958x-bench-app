@@ -62,13 +62,17 @@ router.post('/api/troubleshooting/chat', async (req: any, res) => {
     }
     
     const history = (session.aiConversationHistory as any[]) || [];
-    
-    const contextMessage = benchJobContext 
+
+    const contextMessage = benchJobContext
       ? `Current amp: ${benchJobContext.make || 'Unknown'} ${benchJobContext.model || 'Unknown'} (${benchJobContext.year || 'Unknown year'}). Owner symptoms: ${benchJobContext.ownerSymptoms || 'None provided'}. Known mods: ${benchJobContext.knownMods || 'None'}. Prior work: ${benchJobContext.priorWork || 'None'}.`
       : '';
-    
+
+    const modeInstruction = session.mode === 'expert'
+      ? '\n\nEXPERT MODE: The technician is experienced. Be direct and technical. Skip basic explanations and hand-holding. Lead with the most likely diagnosis and specific test points. Use component-level language (grid, cathode, plate, B+). Assume they know safety procedures.'
+      : '\n\nGUIDED MODE: Walk the technician through the diagnosis step by step. Ask one clarifying question at a time before proceeding. Explain your reasoning at each step. Include expected measurements and what each result means. Be methodical — do not jump ahead. Check for understanding before moving to the next step.';
+
     const messages: any[] = [
-      { role: 'system', content: CHAT_SYSTEM_PROMPT },
+      { role: 'system', content: CHAT_SYSTEM_PROMPT + modeInstruction },
       ...(contextMessage ? [{ role: 'system', content: `Context: ${contextMessage}` }] : []),
       ...history,
       { role: 'user', content: message }
