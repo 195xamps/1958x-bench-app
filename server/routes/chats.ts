@@ -473,9 +473,9 @@ router.post('/api/chats/:id/convert-to-job', async (req: any, res) => {
     if (!userId) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
-    
+
     const chatId = req.params.id;
-    
+
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
     if (!chat) {
       return res.status(404).json({ error: 'Chat not found' });
@@ -483,35 +483,35 @@ router.post('/api/chats/:id/convert-to-job', async (req: any, res) => {
     if (chat.userId !== userId && !isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     if (chat.benchJobId) {
       return res.status(400).json({ error: 'Chat is already linked to a job' });
     }
-    
+
     const [ampProfile] = await db.insert(schema.ampProfiles).values({
       make: '',
-      model: '',
+      model: chat.title || '',
     }).returning();
-    
+
     const [benchJob] = await db.insert(schema.benchJobs).values({
       userId,
       ampProfileId: ampProfile.id,
       techNotes: `Converted from chat: ${chat.title}`,
     }).returning();
-    
+
     const [jobChat] = await db.insert(schema.chats).values({
       userId,
       benchJobId: benchJob.id,
       title: chat.title,
       isStandalone: false,
     }).returning();
-    
+
     await db.update(schema.chatMessages)
       .set({ chatId: jobChat.id })
       .where(eq(schema.chatMessages.chatId, chatId));
-    
+
     await db.delete(schema.chats).where(eq(schema.chats.id, chatId));
-    
+
     res.json({ benchJob, ampProfile, deletedChatId: chatId, jobChat });
   } catch (error) {
     console.error('Error converting chat to job:', error);
