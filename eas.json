@@ -12,6 +12,7 @@
       "distribution": "internal"
     },
     "production": {
+      "autoIncrement": true,
       "ios": {
         "distribution": "store"
       },
@@ -24,7 +25,7 @@
     "production": {
       "ios": {
         "appleId": "brent@195xamps.com",
-        "ascAppId": "6742562918"
+        "ascAppId": "6758681707"
       }
     }
   }
