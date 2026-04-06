@@ -45,6 +45,8 @@ interface JobData {
   job: {
     id: string;
     status: string;
+    customerName: string | null;
+    customerPhone: string | null;
     ownerSymptoms: string;
     techNotes: string;
     priorWork: string;
@@ -114,8 +116,11 @@ export default function JobDetailScreen() {
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({ jobName: '' });
+  const [editForm, setEditForm] = useState({ make: '', model: '', year: '', circuitFamily: '' });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [customerForm, setCustomerForm] = useState({ customerName: '', customerPhone: '' });
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
 
   // Media gallery
   const [showMediaGallery, setShowMediaGallery] = useState(false);
@@ -168,6 +173,7 @@ export default function JobDetailScreen() {
       setChatMessages(data.messages);
     } catch (error) {
       console.error('Error fetching job chat:', error);
+      showError('Failed to load chat — tap the Chat tab to retry');
     }
   };
 
@@ -264,18 +270,41 @@ export default function JobDetailScreen() {
 
   const openEditModal = () => {
     if (jobData) {
-      setEditForm({ jobName: formatAmpName(jobData.ampProfile) });
+      setEditForm({
+        make: jobData.ampProfile.make || '',
+        model: jobData.ampProfile.model || '',
+        year: jobData.ampProfile.year || '',
+        circuitFamily: jobData.ampProfile.circuitFamily || '',
+      });
       setShowEditModal(true);
     }
   };
 
   const saveAmpProfile = async () => {
     if (!id) return;
+    if (!editForm.make.trim() && !editForm.model.trim()) {
+      showAlert('Required', 'Please enter at least a make or model');
+      return;
+    }
     setSavingEdit(true);
     try {
-      await jobsApi.updateAmpProfile(id, { make: '', model: editForm.jobName });
+      await jobsApi.updateAmpProfile(id, {
+        make: editForm.make.trim(),
+        model: editForm.model.trim(),
+        year: editForm.year.trim(),
+        circuitFamily: editForm.circuitFamily.trim(),
+      });
       setJobData((prev) =>
-        prev ? { ...prev, ampProfile: { ...prev.ampProfile, make: '', model: editForm.jobName } } : null,
+        prev ? {
+          ...prev,
+          ampProfile: {
+            ...prev.ampProfile,
+            make: editForm.make.trim(),
+            model: editForm.model.trim(),
+            year: editForm.year.trim(),
+            circuitFamily: editForm.circuitFamily.trim(),
+          },
+        } : null,
       );
       setShowEditModal(false);
     } catch (error) {
@@ -283,6 +312,36 @@ export default function JobDetailScreen() {
       showError('Failed to update job');
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  // ── Customer ─────────────────────────────────────────────────────────────
+
+  const openCustomerModal = () => {
+    setCustomerForm({
+      customerName: jobData?.job.customerName || '',
+      customerPhone: jobData?.job.customerPhone || '',
+    });
+    setShowCustomerModal(true);
+  };
+
+  const saveCustomer = async () => {
+    if (!id) return;
+    setSavingCustomer(true);
+    try {
+      await jobsApi.updateCustomer(id, customerForm);
+      setJobData((prev) =>
+        prev ? {
+          ...prev,
+          job: { ...prev.job, customerName: customerForm.customerName || null, customerPhone: customerForm.customerPhone || null },
+        } : null,
+      );
+      setShowCustomerModal(false);
+    } catch (error) {
+      console.error('Error updating customer:', error);
+      showError('Failed to update customer');
+    } finally {
+      setSavingCustomer(false);
     }
   };
 
@@ -420,6 +479,7 @@ export default function JobDetailScreen() {
       console.error('Error sending message:', error);
       setChatMessages((prev) => prev.filter((m) => m.id !== 'temp-user'));
       setStreamingText('');
+      showError('Message failed to send — please try again');
     } finally {
       setSendingChat(false);
     }
@@ -477,7 +537,7 @@ export default function JobDetailScreen() {
             <Ionicons name="hardware-chip" size={48} color={colors.accent} />
             <Text style={styles.welcomeTitle}>Job Assistant</Text>
             <Text style={styles.welcomeText}>
-              Ask questions about this {ampProfile.make} {ampProfile.model}.
+              Ask questions about this {ampProfile?.make} {ampProfile?.model}.
               Upload photos for identification or troubleshooting help.
             </Text>
           </View>
@@ -585,7 +645,12 @@ export default function JobDetailScreen() {
         <Text style={styles.measurementsTitle}>Measurements</Text>
         <TouchableOpacity
           style={styles.addMeasurementButton}
-          onPress={() => router.push(`/measurement?benchJobId=${id}`)}
+          onPress={() => {
+            const params = new URLSearchParams({ benchJobId: id! });
+            if (ampProfile?.circuitFamily) params.append('circuitFamily', ampProfile.circuitFamily);
+            if (ampProfile) params.append('jobName', `${ampProfile.make || ''} ${ampProfile.model || ''}`.trim());
+            router.push(`/measurement?${params.toString()}` as any);
+          }}
         >
           <Ionicons name="add" size={20} color={colors.text.onAccent} />
           <Text style={styles.addMeasurementText}>Add</Text>
@@ -650,11 +715,18 @@ export default function JobDetailScreen() {
             key={ra.id}
             style={styles.repairCard}
             onPress={() => openEditRepairModal(ra)}
-            onLongPress={() => deleteRepairAction(ra.id)}
+            activeOpacity={0.8}
           >
             <View style={styles.repairCardHeader}>
               <Ionicons name="build" size={16} color={colors.accent} />
               <Text style={styles.repairDescription} numberOfLines={2}>{ra.description}</Text>
+              <TouchableOpacity
+                style={styles.repairDeleteBtn}
+                onPress={() => deleteRepairAction(ra.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 12, right: 4 }}
+              >
+                <Ionicons name="trash-outline" size={16} color={colors.status.error} />
+              </TouchableOpacity>
             </View>
             {ra.partReplaced && (
               <View style={styles.repairDetailRow}>
@@ -698,7 +770,13 @@ export default function JobDetailScreen() {
               </View>
             )}
             {ra.notes && <Text style={styles.repairNotes}>{ra.notes}</Text>}
-            <Text style={styles.repairTimestamp}>{formatTimestamp(ra.createdAt)}</Text>
+            <View style={styles.repairCardFooter}>
+              <Text style={styles.repairTimestamp}>{formatTimestamp(ra.createdAt)}</Text>
+              <View style={styles.repairEditHint}>
+                <Ionicons name="pencil-outline" size={12} color={colors.text.muted} />
+                <Text style={styles.repairEditHintText}>tap to edit</Text>
+              </View>
+            </View>
           </TouchableOpacity>
         ))
       )}
@@ -712,28 +790,38 @@ export default function JobDetailScreen() {
         <TouchableOpacity style={styles.headerBackButton} onPress={goBack}>
           <Ionicons name="arrow-back" size={28} color={colors.accent} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerInfo} onPress={openEditModal}>
-          <View style={styles.headerTitleRow}>
-            <Text style={styles.headerTitle} numberOfLines={1}>{formatAmpName(ampProfile)}</Text>
-            <Ionicons name="pencil" size={16} color={colors.text.muted} style={{ marginLeft: 6 }} />
-          </View>
-          <View style={styles.headerSecondRow}>
-            <Text style={styles.headerSubtitle}>
-              {ampProfile.circuitFamily && `${ampProfile.circuitFamily} • `}
-              {ampProfile.year || 'Unknown year'}
-            </Text>
-            <TouchableOpacity
-              style={[styles.statusBadge, { backgroundColor: currentStatusConfig.color + '20' }]}
-              onPress={() => setShowStatusPicker(true)}
-            >
-              <View style={[styles.statusDot, { backgroundColor: currentStatusConfig.color }]} />
-              <Text style={[styles.statusBadgeText, { color: currentStatusConfig.color }]}>
-                {currentStatusConfig.label}
+        <View style={styles.headerInfo}>
+          <TouchableOpacity onPress={openEditModal}>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.headerTitle} numberOfLines={1}>{formatAmpName(ampProfile)}</Text>
+              <Ionicons name="pencil" size={16} color={colors.text.muted} style={{ marginLeft: 6 }} />
+            </View>
+            <View style={styles.headerSecondRow}>
+              <Text style={styles.headerSubtitle}>
+                {ampProfile.circuitFamily && `${ampProfile.circuitFamily} • `}
+                {ampProfile.year || 'Unknown year'}
               </Text>
-              <Ionicons name="chevron-down" size={14} color={currentStatusConfig.color} />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.statusBadge, { backgroundColor: currentStatusConfig.color + '20' }]}
+                onPress={() => setShowStatusPicker(true)}
+              >
+                <View style={[styles.statusDot, { backgroundColor: currentStatusConfig.color }]} />
+                <Text style={[styles.statusBadgeText, { color: currentStatusConfig.color }]}>
+                  {currentStatusConfig.label}
+                </Text>
+                <Ionicons name="chevron-down" size={14} color={currentStatusConfig.color} />
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.customerInfoRow} onPress={openCustomerModal}>
+            <Ionicons name="person-outline" size={13} color={colors.text.secondary} />
+            <Text style={styles.customerInfoText}>
+              {job.customerName ? job.customerName : 'Add customer'}
+              {job.customerPhone ? ` · ${job.customerPhone}` : ''}
+            </Text>
+            <Ionicons name="pencil" size={12} color={colors.text.muted} style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={[styles.shareButton, isPublic && styles.shareButtonActive]}
@@ -762,9 +850,18 @@ export default function JobDetailScreen() {
         {(['chat', 'notes', 'measurements', 'repairs'] as TabType[]).map((tab) => {
           const icons: Record<TabType, string> = { chat: 'chatbubbles', notes: 'document-text', measurements: 'analytics', repairs: 'construct' };
           const labels: Record<TabType, string> = { chat: 'Chat', notes: 'Notes', measurements: 'Readings', repairs: 'Repairs' };
+          const counts: Record<TabType, number> = { chat: 0, notes: 0, measurements: measurements.length, repairs: repairActions.length };
+          const count = counts[tab];
           return (
             <TouchableOpacity key={tab} style={[styles.tab, activeTab === tab && styles.activeTab]} onPress={() => setActiveTab(tab)}>
-              <Ionicons name={icons[tab] as any} size={20} color={activeTab === tab ? colors.accent : colors.text.secondary} />
+              <View style={styles.tabIconWrap}>
+                <Ionicons name={icons[tab] as any} size={20} color={activeTab === tab ? colors.accent : colors.text.secondary} />
+                {count > 0 && (
+                  <View style={[styles.tabBadge, activeTab === tab && styles.tabBadgeActive]}>
+                    <Text style={styles.tabBadgeText}>{count}</Text>
+                  </View>
+                )}
+              </View>
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{labels[tab]}</Text>
             </TouchableOpacity>
           );
@@ -890,34 +987,131 @@ export default function JobDetailScreen() {
 
       {/* Edit Modal */}
       <Modal visible={showEditModal} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.editModalOverlay}>
-          <View style={styles.editModalContent}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Edit Job</Text>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.repairModalOverlay}>
+          <View style={styles.repairModalContent}>
+            <View style={styles.repairModalHeader}>
+              <Text style={styles.repairModalTitle}>Edit Amp Profile</Text>
               <TouchableOpacity onPress={() => setShowEditModal(false)}>
                 <Ionicons name="close" size={28} color={colors.text.secondary} />
               </TouchableOpacity>
             </View>
-            <View style={styles.editModalForm}>
-              <Text style={styles.editLabel}>Job Name</Text>
-              <TextInput
-                style={styles.editInput}
-                value={editForm.jobName}
-                onChangeText={(text) => setEditForm({ jobName: text })}
-                placeholder="e.g., John's Deluxe Reverb, 1965 Twin, etc."
-                placeholderTextColor={colors.text.muted}
-                autoFocus
-              />
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.repairFormRow}>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.editLabel}>Make</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editForm.make}
+                    onChangeText={(t) => setEditForm((f) => ({ ...f, make: t }))}
+                    placeholder="e.g. Fender"
+                    placeholderTextColor={colors.text.muted}
+                    autoFocus
+                  />
+                </View>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.editLabel}>Model</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editForm.model}
+                    onChangeText={(t) => setEditForm((f) => ({ ...f, model: t }))}
+                    placeholder="e.g. Deluxe Reverb"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.repairFormRow}>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.editLabel}>Year</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editForm.year}
+                    onChangeText={(t) => setEditForm((f) => ({ ...f, year: t }))}
+                    placeholder="e.g. 1966"
+                    placeholderTextColor={colors.text.muted}
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.repairFormHalf}>
+                  <Text style={styles.editLabel}>Circuit Family</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editForm.circuitFamily}
+                    onChangeText={(t) => setEditForm((f) => ({ ...f, circuitFamily: t }))}
+                    placeholder="e.g. Blackface"
+                    placeholderTextColor={colors.text.muted}
+                  />
+                </View>
+              </View>
+
+              <Text style={[styles.editLabel, { marginTop: 8 }]}>Common Families</Text>
+              <View style={styles.editChipRow}>
+                {['Blackface', 'Silverface', 'Tweed', 'Marshall', 'Vox', 'Other'].map((family) => (
+                  <TouchableOpacity
+                    key={family}
+                    style={[styles.editChip, editForm.circuitFamily === family && styles.editChipSelected]}
+                    onPress={() => setEditForm((f) => ({ ...f, circuitFamily: f.circuitFamily === family ? '' : family }))}
+                  >
+                    <Text style={[styles.editChipText, editForm.circuitFamily === family && styles.editChipTextSelected]}>
+                      {family}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={{ height: 12 }} />
+            </ScrollView>
             <TouchableOpacity
-              style={[styles.editSaveButton, savingEdit && styles.buttonDisabled]}
+              style={[styles.repairSaveButton, savingEdit && styles.buttonDisabled]}
               onPress={saveAmpProfile}
               disabled={savingEdit}
             >
               {savingEdit ? (
                 <ActivityIndicator size="small" color={colors.text.onAccent} />
               ) : (
-                <Text style={styles.editSaveButtonText}>Save Changes</Text>
+                <Text style={styles.repairSaveButtonText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Customer Modal */}
+      <Modal visible={showCustomerModal} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.repairModalOverlay}>
+          <View style={[styles.repairModalContent, { flex: undefined }]}>
+            <View style={styles.repairModalHeader}>
+              <Text style={styles.repairModalTitle}>Customer Info</Text>
+              <TouchableOpacity onPress={() => setShowCustomerModal(false)}>
+                <Ionicons name="close" size={28} color={colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.editLabel}>Name</Text>
+            <TextInput
+              style={styles.editInput}
+              value={customerForm.customerName}
+              onChangeText={(t) => setCustomerForm((f) => ({ ...f, customerName: t }))}
+              placeholder="Customer name"
+              placeholderTextColor={colors.text.muted}
+              autoFocus
+            />
+            <Text style={[styles.editLabel, { marginTop: 12 }]}>Phone</Text>
+            <TextInput
+              style={styles.editInput}
+              value={customerForm.customerPhone}
+              onChangeText={(t) => setCustomerForm((f) => ({ ...f, customerPhone: t }))}
+              placeholder="Phone number"
+              placeholderTextColor={colors.text.muted}
+              keyboardType="phone-pad"
+            />
+            <TouchableOpacity
+              style={[styles.repairSaveButton, savingCustomer && styles.buttonDisabled, { marginTop: 20 }]}
+              onPress={saveCustomer}
+              disabled={savingCustomer}
+            >
+              {savingCustomer ? (
+                <ActivityIndicator size="small" color={colors.text.onAccent} />
+              ) : (
+                <Text style={styles.repairSaveButtonText}>Save</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -926,10 +1120,10 @@ export default function JobDetailScreen() {
 
       {/* Add/Edit Repair Action Modal */}
       <Modal visible={showAddRepair} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.galleryOverlay}>
-          <View style={styles.galleryContainer}>
-            <View style={styles.galleryHeader}>
-              <Text style={styles.galleryTitle}>{editingRepair ? 'Edit Repair' : 'Add Repair Action'}</Text>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.repairModalOverlay}>
+          <View style={styles.repairModalContent}>
+            <View style={styles.repairModalHeader}>
+              <Text style={styles.repairModalTitle}>{editingRepair ? 'Edit Repair' : 'Add Repair Action'}</Text>
               <TouchableOpacity onPress={() => setShowAddRepair(false)}>
                 <Ionicons name="close" size={28} color={colors.text.secondary} />
               </TouchableOpacity>
@@ -1035,14 +1229,14 @@ export default function JobDetailScreen() {
               <View style={{ height: 20 }} />
             </ScrollView>
             <TouchableOpacity
-              style={[styles.editSaveButton, savingRepair && { opacity: 0.6 }]}
+              style={[styles.repairSaveButton, savingRepair && styles.buttonDisabled]}
               onPress={saveRepairAction}
               disabled={savingRepair}
             >
               {savingRepair ? (
                 <ActivityIndicator size="small" color={colors.text.onAccent} />
               ) : (
-                <Text style={styles.editSaveButtonText}>{editingRepair ? 'Save Changes' : 'Add Repair'}</Text>
+                <Text style={styles.repairSaveButtonText}>{editingRepair ? 'Save Changes' : 'Add Repair'}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1109,6 +1303,17 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright },
   headerSecondRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   headerSubtitle: { fontSize: 14, color: colors.accent },
+  customerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  customerInfoText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    flex: 1,
+  },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   shareButton: { padding: 8, borderRadius: 8 },
   shareButtonActive: { backgroundColor: 'rgba(34, 197, 94, 0.15)' },
@@ -1244,20 +1449,19 @@ const styles = StyleSheet.create({
   doneButton: { backgroundColor: colors.bg.elevated, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 20 },
   doneButtonText: { color: colors.text.primary, fontSize: 16, fontWeight: '600' },
 
-  editModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
-  editModalContent: { backgroundColor: colors.bg.surface, borderRadius: 16, padding: 24 },
-  editModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  editModalTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright },
-  editModalForm: { marginBottom: 16 },
   editLabel: { fontSize: 14, fontWeight: '600', color: colors.text.secondary, marginBottom: 8 },
   editInput: {
     backgroundColor: colors.bg.elevated, borderRadius: 10, padding: 14,
     color: colors.text.bright, fontSize: 16,
   },
-  editSaveButton: {
-    backgroundColor: colors.accent, padding: 16, borderRadius: 12, alignItems: 'center',
+  editChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+  editChip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+    backgroundColor: colors.bg.elevated, borderWidth: 1, borderColor: colors.border.default,
   },
-  editSaveButtonText: { color: colors.text.onAccent, fontSize: 16, fontWeight: '600' },
+  editChipSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
+  editChipText: { fontSize: 13, color: colors.text.secondary },
+  editChipTextSelected: { color: colors.text.onAccent, fontWeight: '600' },
   buttonDisabled: { opacity: 0.5 },
 
   // ── Repair Actions ──────────────────────────────────────────────────────
@@ -1348,5 +1552,91 @@ const styles = StyleSheet.create({
   },
   repairFormHalf: {
     flex: 1,
+  },
+  repairDeleteBtn: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  repairCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  repairEditHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  repairEditHintText: {
+    fontSize: 11,
+    color: colors.text.muted,
+    fontStyle: 'italic',
+  },
+
+  // Tab badges
+  tabIconWrap: {
+    position: 'relative',
+  },
+  tabBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  tabBadgeActive: {
+    backgroundColor: colors.accent,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.text.onAccent,
+  },
+
+  // Repair modal (dedicated, replaces borrowed gallery styles)
+  repairModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  repairModalContent: {
+    backgroundColor: colors.bg.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '92%',
+    flex: 1,
+  },
+  repairModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  repairModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.accent,
+  },
+  repairSaveButton: {
+    backgroundColor: colors.accent,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  repairSaveButtonText: {
+    color: colors.text.onAccent,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

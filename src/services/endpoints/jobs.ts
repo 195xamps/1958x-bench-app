@@ -37,6 +37,10 @@ export const jobsApi = {
     const { data } = await apiClient.patch('/api/bench-jobs/' + id + '/amp-profile', profile);
     return data;
   },
+  async updateCustomer(id: string, customer: { customerName: string; customerPhone: string }) {
+    const { data } = await apiClient.patch('/api/bench-jobs/' + id + '/customer', customer);
+    return data;
+  },
   async updateSharing(id: string, sharing: any) {
     const { data } = await apiClient.patch('/api/bench-jobs/' + id + '/sharing', sharing);
     return data;

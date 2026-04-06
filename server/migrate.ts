@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import pkg from 'pg';
 const { Pool } = pkg;
 
@@ -227,6 +228,19 @@ async function migrate() {
       );
     `);
     
+    // Add customer fields to bench_jobs
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bench_jobs' AND column_name='customer_name') THEN
+          ALTER TABLE bench_jobs ADD COLUMN customer_name TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='bench_jobs' AND column_name='customer_phone') THEN
+          ALTER TABLE bench_jobs ADD COLUMN customer_phone TEXT;
+        END IF;
+      END $$;
+    `);
+
     console.log('Migration completed successfully!');
   } catch (error) {
     console.error('Migration failed:', error);

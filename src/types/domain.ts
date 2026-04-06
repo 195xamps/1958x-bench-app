@@ -16,6 +16,8 @@ export interface BenchJob {
   userId: string;
   ampProfileId: string;
   status: JobStatus;
+  customerName: string | null;
+  customerPhone: string | null;
   ownerSymptoms: string | null;
   techNotes: string | null;
   priorWork: string | null;
@@ -39,6 +41,8 @@ export interface CreateJobPayload {
   circuitFamily?: string;
   serialNumber?: string;
   photoUrl?: string;
+  customerName?: string;
+  customerPhone?: string;
   ownerSymptoms?: string;
   techNotes?: string;
   priorWork?: string;

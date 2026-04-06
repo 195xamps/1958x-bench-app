@@ -9,6 +9,8 @@ import type { Measurement } from '../src/types';
 import type { MeasurementNode } from '../src/data';
 import { MEASUREMENT_CATEGORIES } from '../src/data';
 import { DEFAULT_DIAGNOSTIC_SEQUENCE } from '../src/data/measurementConstants';
+import { VOLTAGE_CARDS } from '../src/data/voltageCards';
+import type { VoltageCard } from '../src/data/voltageCards';
 import { showAlert, showError } from '../src/utils';
 import { LoadingScreen, EmptyState } from '../src/components/shared';
 import {
@@ -21,7 +23,7 @@ import type { MeasurementFormData } from '../src/components/measurement';
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function MeasurementScreen() {
-  const { benchJobId, jobName } = useLocalSearchParams<{ benchJobId: string; jobName: string }>();
+  const { benchJobId, jobName, circuitFamily } = useLocalSearchParams<{ benchJobId: string; jobName: string; circuitFamily: string }>();
   const router = useRouter();
 
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
@@ -29,6 +31,11 @@ export default function MeasurementScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<MeasurementFormData>(EMPTY_FORM);
+
+  // Voltage reference cards for this circuit family
+  const voltageCards = circuitFamily
+    ? VOLTAGE_CARDS.filter(c => c.circuitFamily === circuitFamily)
+    : [];
 
   // Diagnostic sequence state
   const [diagnosticMode, setDiagnosticMode] = useState(false);
@@ -219,6 +226,7 @@ export default function MeasurementScreen() {
         diagnosticStep={diagnosticStep}
         diagnosticTotal={DEFAULT_DIAGNOSTIC_SEQUENCE.length}
         onExitDiagnostic={exitDiagnostic}
+        voltageCards={voltageCards.length > 0 ? voltageCards : undefined}
       />
     </View>
   );

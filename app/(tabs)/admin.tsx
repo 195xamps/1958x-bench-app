@@ -20,6 +20,7 @@ export default function AdminScreen() {
   const [allChats, setAllChats] = useState<{ chat: AdminChat; user: AdminUser | null }[]>([]);
   const [allJobs, setAllJobs] = useState<AdminJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [userChats, setUserChats] = useState<AdminChat[]>([]);
@@ -27,6 +28,7 @@ export default function AdminScreen() {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [u, c, j] = await Promise.all([
         adminApi.getUsers(),
@@ -34,8 +36,10 @@ export default function AdminScreen() {
         adminApi.getAllJobs(),
       ]);
       setUsers(u); setAllChats(c); setAllJobs(j);
-    } catch (e) { console.error('Error loading admin data:', e); }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error('Error loading admin data:', e);
+      setLoadError(true);
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { if (user?.isAdmin) loadData(); }, [user?.isAdmin]);
@@ -72,6 +76,21 @@ export default function AdminScreen() {
   }
 
   if (loading) return <LoadingScreen message="Loading admin data..." />;
+
+  if (loadError) {
+    return (
+      <View style={s.container}>
+        <View style={s.accessDenied}>
+          <Ionicons name="cloud-offline-outline" size={64} color={colors.text.muted} />
+          <Text style={s.accessDeniedTitle}>Failed to load data</Text>
+          <Text style={s.accessDeniedText}>Check your connection and try again.</Text>
+          <TouchableOpacity style={s.retryBtn} onPress={loadData}>
+            <Text style={s.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   // ─── User detail overlay ─────────────────────────────────────────────────
 
@@ -288,4 +307,6 @@ const s = StyleSheet.create({
   detailContent: { flex: 1, padding: 16 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: colors.accent, marginBottom: 12 },
   emptyText: { color: colors.text.muted, fontSize: 14, fontStyle: 'italic' },
+  retryBtn: { marginTop: 20, backgroundColor: colors.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
+  retryBtnText: { color: colors.white, fontSize: 16, fontWeight: '600' },
 });

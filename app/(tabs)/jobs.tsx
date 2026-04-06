@@ -54,6 +54,8 @@ export default function JobsScreen() {
     ampModel: '',
     ampYear: '',
     circuitFamily: '',
+    customerName: '',
+    customerPhone: '',
     ownerSymptoms: '',
     techNotes: '',
     priorWork: '',
@@ -124,8 +126,8 @@ export default function JobsScreen() {
   // ── Job CRUD ─────────────────────────────────────────────────────────────
 
   const createJob = async () => {
-    if (!newJob.ampMake && !newJob.ampModel) {
-      showAlert('Required', 'Please enter at least amp make or model');
+    if (!newJob.ampMake || !newJob.ampModel) {
+      showAlert('Required', 'Please enter both amp make and model');
       return;
     }
     if (creating) return;
@@ -135,7 +137,7 @@ export default function JobsScreen() {
       setJobs([{ job: result.benchJob, ampProfile: result.ampProfile }, ...jobs]);
       setShowNewJobModal(false);
       setCurrentJobId(result.benchJob.id);
-      setNewJob({ ampMake: '', ampModel: '', ampYear: '', circuitFamily: '', ownerSymptoms: '', techNotes: '', priorWork: '', knownMods: '' });
+      setNewJob({ ampMake: '', ampModel: '', ampYear: '', circuitFamily: '', customerName: '', customerPhone: '', ownerSymptoms: '', techNotes: '', priorWork: '', knownMods: '' });
       setSafetyChecks(new Array(SAFETY_CHECKLIST.length).fill(false));
       setSuggestedSchematics([]);
       setAttachedSchematicIds(new Set());
@@ -343,6 +345,13 @@ export default function JobsScreen() {
                   </View>
                 </View>
               </View>
+              {job.customerName && (
+                <View style={styles.customerRow}>
+                  <Ionicons name="person-outline" size={12} color={colors.text.secondary} />
+                  <Text style={styles.customerName}>{job.customerName}</Text>
+                  {job.customerPhone && <Text style={styles.customerPhone}>{job.customerPhone}</Text>}
+                </View>
+              )}
               {ampProfile?.circuitFamily && <Text style={styles.jobCircuitFamily}>{ampProfile.circuitFamily}</Text>}
               <Text style={styles.jobSymptoms} numberOfLines={2}>
                 {job.ownerSymptoms || 'No symptoms recorded'}
@@ -382,6 +391,9 @@ export default function JobsScreen() {
                 </TouchableOpacity>
               </View>
               <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
+                <Text style={styles.sectionTitle}>Customer</Text>
+                {renderInput('Customer Name', newJob.customerName || '', (t) => setNewJob({ ...newJob, customerName: t }), 'e.g., John Smith')}
+                {renderInput('Phone', newJob.customerPhone || '', (t) => setNewJob({ ...newJob, customerPhone: t }), 'e.g., 555-1234', false, 'phone-pad')}
                 <Text style={styles.sectionTitle}>Amp Identification</Text>
                 {renderInput('Make', newJob.ampMake, (t) => setNewJob({ ...newJob, ampMake: t }), 'e.g., Fender, Marshall, Vox')}
                 {renderInput('Model', newJob.ampModel, (t) => setNewJob({ ...newJob, ampModel: t }), 'e.g., Deluxe Reverb, JCM800')}
@@ -583,6 +595,7 @@ function renderInput(
   onChange: (text: string) => void,
   placeholder: string,
   multiline = false,
+  keyboardType: 'default' | 'phone-pad' | 'numeric' = 'default',
 ) {
   return (
     <>
@@ -595,6 +608,7 @@ function renderInput(
         placeholderTextColor={colors.text.muted}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
+        keyboardType={keyboardType}
       />
     </>
   );
@@ -639,6 +653,9 @@ const styles = StyleSheet.create({
   statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: 12, fontWeight: '600' },
+  customerRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  customerName: { fontSize: 13, color: colors.text.secondary, fontWeight: '500' },
+  customerPhone: { fontSize: 12, color: colors.text.muted, marginLeft: 6 },
   jobCircuitFamily: { fontSize: 13, color: colors.accent, marginBottom: 4 },
   jobSymptoms: { fontSize: 14, color: colors.text.secondary, marginBottom: 4 },
   jobDate: { fontSize: 12, color: colors.text.muted },

@@ -63,6 +63,7 @@ export default function SchematicsScreen() {
 
   const [schematics, setSchematics] = useState<Schematic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -80,11 +81,13 @@ export default function SchematicsScreen() {
   // ── Data fetching ────────────────────────────────────────────────────────
 
   const fetchSchematics = useCallback(async () => {
+    setFetchError(false);
     try {
       const data = await schematicsApi.list();
       setSchematics(data);
     } catch (error) {
       console.error('Error fetching schematics:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -94,12 +97,15 @@ export default function SchematicsScreen() {
 
   const searchSchematics = useCallback(async () => {
     if (!searchQuery.trim()) { fetchSchematics(); return; }
+    setFetchError(false);
     try {
       setLoading(true);
       const data = await schematicsApi.search(searchQuery);
       setSchematics(data);
     } catch (error) {
       console.error('Error searching schematics:', error);
+      setFetchError(true);
+      setSchematics([]);
     } finally {
       setLoading(false);
     }
@@ -196,11 +202,19 @@ export default function SchematicsScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {schematics.length === 0 ? (
+        {fetchError ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title={searchQuery ? 'Search failed' : 'Could not load schematics'}
+            subtitle="Check your connection and try again"
+            actionLabel="Retry"
+            onAction={searchQuery ? searchSchematics : fetchSchematics}
+          />
+        ) : schematics.length === 0 ? (
           <EmptyState
             icon="document-text-outline"
-            title="No schematics found"
-            subtitle={searchQuery ? 'Try a different search term' : 'Upload your first schematic to get started'}
+            title={searchQuery ? 'No results' : 'No schematics yet'}
+            subtitle={searchQuery ? `No schematics match "${searchQuery}"` : 'Upload your first schematic to get started'}
           />
         ) : (
           <>

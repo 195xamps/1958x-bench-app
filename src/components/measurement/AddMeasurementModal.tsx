@@ -16,6 +16,7 @@ import { colors } from '../../theme';
 import { MEASUREMENT_CATEGORIES } from '../../data';
 import type { MeasurementNode } from '../../data';
 import { METER_MODES, UNITS } from '../../data/measurementConstants';
+import type { VoltageCard, VoltageReading } from '../../data/voltageCards';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,8 @@ interface AddMeasurementModalProps {
   diagnosticStep: number;
   diagnosticTotal: number;
   onExitDiagnostic: () => void;
+  // Voltage reference
+  voltageCards?: VoltageCard[];
 }
 
 export function AddMeasurementModal({
@@ -68,8 +71,11 @@ export function AddMeasurementModal({
   diagnosticStep,
   diagnosticTotal,
   onExitDiagnostic,
+  voltageCards,
 }: AddMeasurementModalProps) {
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
+  const [voltageRefExpanded, setVoltageRefExpanded] = React.useState(true);
+  const [selectedCardIdx, setSelectedCardIdx] = React.useState(0);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => ({ ...prev, [categoryId]: !prev[categoryId] }));
@@ -77,6 +83,31 @@ export function AddMeasurementModal({
 
   const updateField = (field: keyof MeasurementFormData, value: string) => {
     onFormChange({ ...form, [field]: value });
+  };
+
+  const parseExpectedRange = (expected: string): { min: string; max: string } | null => {
+    // "420-440V" or "1.2-1.8V"
+    const rangeMatch = expected.match(/^(-?[\d.]+)\s*[-\u2013]\s*(-?[\d.]+)/);
+    if (rangeMatch) return { min: rangeMatch[1], max: rangeMatch[2] };
+    // "-48 to -55V"
+    const toMatch = expected.match(/(-?[\d.]+)\s+to\s+(-?[\d.]+)/);
+    if (toMatch) return { min: toMatch[1], max: toMatch[2] };
+    return null;
+  };
+
+  const applyVoltageReading = (reading: VoltageReading) => {
+    const parsed = parseExpectedRange(reading.expected);
+    if (!parsed) return;
+    const unit = reading.expected.includes('mV') ? 'mV' : 'V';
+    const meterMode = reading.expected.toLowerCase().includes('vac') ? 'AC Volts' : 'DC Volts';
+    onFormChange({
+      ...form,
+      nodeName: form.nodeName || reading.node,
+      expectedMin: parsed.min,
+      expectedMax: parsed.max,
+      unit,
+      meterMode,
+    });
   };
 
   return (
@@ -156,6 +187,58 @@ export function AddMeasurementModal({
                   )}
                 </View>
               ))}
+              {/* Voltage Reference */}
+              {voltageCards && voltageCards.length > 0 && (
+                <View style={styles.voltageRefContainer}>
+                  <TouchableOpacity
+                    style={styles.voltageRefHeader}
+                    onPress={() => setVoltageRefExpanded(v => !v)}
+                  >
+                    <View style={styles.voltageRefTitleRow}>
+                      <Ionicons name="flash" size={14} color={colors.accent} />
+                      <Text style={styles.voltageRefTitle}>Voltage Reference</Text>
+                    </View>
+                    <Ionicons
+                      name={voltageRefExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color={colors.text.secondary}
+                    />
+                  </TouchableOpacity>
+
+                  {voltageRefExpanded && (
+                    <>
+                      {voltageCards.length > 1 && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardTabsRow}>
+                          {voltageCards.map((card, idx) => (
+                            <TouchableOpacity
+                              key={card.id}
+                              style={[styles.cardTab, selectedCardIdx === idx && styles.cardTabSelected]}
+                              onPress={() => setSelectedCardIdx(idx)}
+                            >
+                              <Text style={[styles.cardTabText, selectedCardIdx === idx && styles.cardTabTextSelected]}>
+                                {card.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      )}
+                      <Text style={styles.voltageCardDesc} numberOfLines={2}>
+                        {voltageCards[selectedCardIdx].description}
+                      </Text>
+                      {voltageCards[selectedCardIdx].voltages.map((reading) => (
+                        <TouchableOpacity
+                          key={reading.node}
+                          style={styles.voltageRow}
+                          onPress={() => applyVoltageReading(reading)}
+                        >
+                          <Text style={styles.voltageNode} numberOfLines={1}>{reading.node}</Text>
+                          <Text style={styles.voltageExpected}>{reading.expected}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
+                </View>
+              )}
             </ScrollView>
 
             {/* Right: Form */}
@@ -441,6 +524,80 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: colors.text.onAccent,
+    fontWeight: '600',
+  },
+  // Voltage Reference
+  voltageRefContainer: {
+    marginTop: 12,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  voltageRefHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+  },
+  voltageRefTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  voltageRefTitle: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  cardTabsRow: {
+    paddingHorizontal: 8,
+    marginBottom: 4,
+  },
+  cardTab: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginRight: 6,
+    backgroundColor: colors.bg.muted,
+  },
+  cardTabSelected: {
+    backgroundColor: colors.accent,
+  },
+  cardTabText: {
+    color: colors.text.secondary,
+    fontSize: 10,
+  },
+  cardTabTextSelected: {
+    color: colors.text.onAccent,
+    fontWeight: '600',
+  },
+  voltageCardDesc: {
+    color: colors.text.muted,
+    fontSize: 10,
+    paddingHorizontal: 10,
+    paddingBottom: 6,
+    fontStyle: 'italic',
+  },
+  voltageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.default,
+  },
+  voltageNode: {
+    color: colors.text.light,
+    fontSize: 11,
+    flex: 1,
+    marginRight: 4,
+  },
+  voltageExpected: {
+    color: colors.accent,
+    fontSize: 11,
     fontWeight: '600',
   },
   // Save

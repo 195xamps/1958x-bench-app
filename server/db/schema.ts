@@ -41,6 +41,8 @@ export const benchJobs = pgTable('bench_jobs', {
   userId: varchar('user_id').references(() => users.id),
   ampProfileId: uuid('amp_profile_id').references(() => ampProfiles.id),
   status: text('status').default('active'),
+  customerName: text('customer_name'),
+  customerPhone: text('customer_phone'),
   ownerSymptoms: text('owner_symptoms'),
   techNotes: text('tech_notes'),
   priorWork: text('prior_work'),

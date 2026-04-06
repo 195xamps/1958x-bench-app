@@ -65,12 +65,12 @@ router.post('/api/bench-jobs', async (req: any, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
     
-    const { ampMake, ampModel, ampYear, ownerSymptoms, techNotes, priorWork, knownMods, circuitFamily, serialNumber, photoUrl } = req.body;
-    
+    const { ampMake, ampModel, ampYear, ownerSymptoms, techNotes, priorWork, knownMods, circuitFamily, serialNumber, photoUrl, customerName, customerPhone } = req.body;
+
     if (!ampMake || !ampModel) {
       return res.status(400).json({ error: 'Amp make and model are required' });
     }
-    
+
     const [ampProfile] = await db.insert(schema.ampProfiles).values({
       make: ampMake,
       model: ampModel,
@@ -83,6 +83,8 @@ router.post('/api/bench-jobs', async (req: any, res) => {
     const [benchJob] = await db.insert(schema.benchJobs).values({
       userId,
       ampProfileId: ampProfile.id,
+      customerName: customerName || null,
+      customerPhone: customerPhone || null,
       ownerSymptoms,
       techNotes,
       priorWork,
@@ -173,6 +175,28 @@ router.patch('/api/bench-jobs/:id/notes', async (req: any, res) => {
   } catch (error) {
     console.error('Error updating notes:', error);
     res.status(500).json({ error: 'Failed to update notes' });
+  }
+});
+
+router.patch('/api/bench-jobs/:id/customer', async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+
+    const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.id));
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (job.userId !== userId && !isAdmin) return res.status(403).json({ error: 'Access denied' });
+
+    const { customerName, customerPhone } = req.body;
+    const [updated] = await db
+      .update(schema.benchJobs)
+      .set({ customerName: customerName || null, customerPhone: customerPhone || null, updatedAt: new Date() })
+      .where(eq(schema.benchJobs.id, req.params.id))
+      .returning();
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    res.status(500).json({ error: 'Failed to update customer' });
   }
 });
 

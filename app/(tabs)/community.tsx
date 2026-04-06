@@ -37,6 +37,7 @@ export default function CommunityScreen() {
   const [myJobs, setMyJobs] = useState<MyJob[]>([]);
   const [loadingMyJobs, setLoadingMyJobs] = useState(false);
   const [togglingJob, setTogglingJob] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
   // ─── Data ───────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ export default function CommunityScreen() {
 
   const fetchCommunityJobs = async (loadMore = false) => {
     if (loadMore) setLoadingMore(true);
+    if (!loadMore) setFetchError(false);
     try {
       const offset = loadMore ? jobs.length : 0;
       const result = await communityApi.list({
@@ -62,6 +64,7 @@ export default function CommunityScreen() {
       lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching community jobs:', error);
+      if (!loadMore) setFetchError(true);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -124,6 +127,23 @@ export default function CommunityScreen() {
       <View style={styles.container}>
         <ScreenHeader />
         <LoadingScreen message="Loading shared jobs..." />
+      </View>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <View style={styles.container}>
+        <ScreenHeader />
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline-outline" size={64} color={colors.text.muted} />
+          <Text style={styles.errorTitle}>Could not load jobs</Text>
+          <Text style={styles.errorSubtitle}>Check your connection and try again.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => fetchCommunityJobs()}>
+            <Ionicons name="refresh" size={18} color={colors.text.onAccent} />
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -443,4 +463,37 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   shareToggle: { marginLeft: 12 },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginTop: 16,
+  },
+  errorSubtitle: {
+    fontSize: 15,
+    color: colors.text.secondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: colors.text.onAccent,
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });

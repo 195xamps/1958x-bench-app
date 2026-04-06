@@ -75,15 +75,24 @@ export default function CommunityJobDetailScreen() {
   }
 
   if (error || !job) {
+    const isNotFound = error?.includes('not available') || error?.includes('not found');
     return (
       <View style={styles.container}>
         <Header title="Community Job" onBack={() => router.back()} />
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={64} color={colors.status.error} />
+          <Ionicons name={isNotFound ? 'alert-circle' : 'cloud-offline-outline'} size={64} color={isNotFound ? colors.status.error : colors.text.muted} />
           <Text style={styles.errorText}>{error || 'Job not found'}</Text>
-          <TouchableOpacity style={styles.errorButton} onPress={() => router.back()}>
-            <Text style={styles.errorButtonText}>Go Back</Text>
-          </TouchableOpacity>
+          <View style={styles.errorActions}>
+            {!isNotFound && (
+              <TouchableOpacity style={styles.retryButton} onPress={fetchJob}>
+                <Ionicons name="refresh" size={16} color={colors.text.onAccent} />
+                <Text style={styles.retryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.errorButton} onPress={() => router.back()}>
+              <Text style={styles.errorButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -481,14 +490,24 @@ const styles = StyleSheet.create({
     marginTop: 16,
     textAlign: 'center',
   },
-  errorButton: {
-    marginTop: 20,
-    paddingHorizontal: 24,
+  errorActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: colors.accent,
     borderRadius: 8,
   },
-  errorButtonText: { color: colors.text.onAccent, fontWeight: '600' },
+  retryButtonText: { color: colors.text.onAccent, fontWeight: '600' },
+  errorButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 8,
+  },
+  errorButtonText: { color: colors.text.primary, fontWeight: '600' },
   // Chat bubbles
   bubble: {
     padding: 14,
