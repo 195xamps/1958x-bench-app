@@ -34,7 +34,7 @@ router.get('/api/bench-jobs', async (req: any, res) => {
           ilike(schema.ampProfiles.model, searchTerm),
           ilike(schema.benchJobs.ownerSymptoms, searchTerm),
           ilike(schema.benchJobs.techNotes, searchTerm)
-        )
+        )!
       );
     }
     

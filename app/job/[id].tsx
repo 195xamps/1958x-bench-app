@@ -100,7 +100,7 @@ export default function JobDetailScreen() {
   const [techNotes, setTechNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Status state
   const [currentStatus, setCurrentStatus] = useState('active');
@@ -595,7 +595,7 @@ export default function JobDetailScreen() {
         <View style={styles.emptyMeasurements}>
           <Ionicons name="analytics-outline" size={48} color={colors.bg.elevated} />
           <Text style={styles.emptyText}>No measurements recorded</Text>
-          <Text style={styles.emptySubtext}>Tap "Add" to record voltage or resistance readings</Text>
+          <Text style={styles.emptySubtext}>Tap &quot;Add&quot; to record voltage or resistance readings</Text>
         </View>
       ) : (
         measurements.map((m) => (
@@ -642,7 +642,7 @@ export default function JobDetailScreen() {
         <View style={styles.emptyMeasurements}>
           <Ionicons name="construct-outline" size={48} color={colors.bg.elevated} />
           <Text style={styles.emptyText}>No repair actions recorded</Text>
-          <Text style={styles.emptySubtext}>Tap "Add" to log parts replaced, measurements, and notes</Text>
+          <Text style={styles.emptySubtext}>Tap &quot;Add&quot; to log parts replaced, measurements, and notes</Text>
         </View>
       ) : (
         repairActions.map((ra) => (

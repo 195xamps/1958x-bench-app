@@ -458,10 +458,10 @@ function WelcomePanel() {
       </Text>
       <View style={styles.exampleQuestions}>
         <Text style={styles.exampleTitle}>Try asking:</Text>
-        <Text style={styles.exampleText}>• "How do I test for leaky caps?"</Text>
-        <Text style={styles.exampleText}>• "What causes red plating on tubes?"</Text>
-        <Text style={styles.exampleText}>• "Have I worked on a Fender amp before?"</Text>
-        <Text style={styles.exampleText}>• "Show me schematics for Vox AC30"</Text>
+        <Text style={styles.exampleText}>• &quot;How do I test for leaky caps?&quot;</Text>
+        <Text style={styles.exampleText}>• &quot;What causes red plating on tubes?&quot;</Text>
+        <Text style={styles.exampleText}>• &quot;Have I worked on a Fender amp before?&quot;</Text>
+        <Text style={styles.exampleText}>• &quot;Show me schematics for Vox AC30&quot;</Text>
       </View>
     </View>
   );

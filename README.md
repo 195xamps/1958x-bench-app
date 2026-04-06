@@ -1,50 +1,110 @@
-# Welcome to your Expo app 👋
+# 195x Bench App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A mobile-first repair documentation and AI troubleshooting tool for vintage amplifiers (1950s era). Built for technicians who want to document jobs, track measurements, reference schematics, and get AI-assisted troubleshooting — all from the bench.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Bench Jobs** — create and manage repair jobs with amp profile tracking
+- **AI Chat** — conversational troubleshooting powered by OpenAI with web search and image support
+- **Repair Actions** — log what was done on each job (parts replaced, adjustments made, etc.)
+- **Measurements** — record and track voltage, resistance, and other readings per job
+- **Schematics** — attach and view reference schematics per amp
+- **Community** — share repair notes and browse the community feed
+- **Article RAG** — AI answers grounded in a curated knowledge base
+- **Google OAuth** — sign in with Google
+
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Mobile/Web | React Native + Expo (iOS, Android, Web) |
+| Navigation | Expo Router (file-based) |
+| Backend | Node.js + Express 5 |
+| Database | PostgreSQL + Drizzle ORM |
+| AI | OpenAI API (Responses API + Chat Completions) |
+| Auth | Passport.js + Google OAuth 2.0 + JWT |
+| File Storage | Google Cloud Storage |
+| Hosting | Replit (backend) + EAS (mobile builds) |
+
+## Prerequisites
+
+- Node.js 18+
+- PostgreSQL database
+- OpenAI API key
+- Google OAuth app credentials (for auth)
+
+## Setup
+
+1. **Install dependencies**
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. **Configure environment**
 
    ```bash
-   npx expo start
+   cp .env.example .env
    ```
 
-In the output, you'll find options to open the app in a
+   Fill in the values in `.env` (see [.env.example](.env.example) for required variables).
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+3. **Run database migrations**
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   ```bash
+   npm run migrate
+   ```
 
-## Get a fresh project
+4. **Start development (backend + web frontend)**
 
-When you're ready, run:
+   ```bash
+   npm run dev
+   ```
 
-```bash
-npm run reset-project
+   Or start them separately:
+
+   ```bash
+   # Backend only
+   npm run server
+
+   # Mobile app (choose a target)
+   npm run ios
+   npm run android
+   npm run web
+   ```
+
+## Project Structure
+
+```
+195x-bench-app/
+├── app/               # Expo Router screens (file-based routing)
+│   ├── (tabs)/        # Bottom tab navigation
+│   ├── chat/          # AI chat screens
+│   ├── job/           # Bench job detail screens
+│   └── article/       # Knowledge base articles
+├── components/        # Shared React Native components
+├── hooks/             # Custom React hooks
+├── constants/         # Theme, colors, config
+├── server/            # Express backend
+│   ├── routes/        # API route handlers
+│   ├── db/            # Drizzle schema and migrations
+│   └── lib/           # Utilities (OpenAI, auth, etc.)
+├── shared/            # Types shared between app and server
+└── assets/            # Icons, splash screen, images
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Building for App Store
 
-## Learn more
+This project uses [EAS Build](https://docs.expo.dev/build/introduction/).
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+# Production build (iOS)
+eas build --platform ios --profile production
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Submit to App Store
+eas submit --platform ios
+```
 
-## Join the community
+## License
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Private — all rights reserved.

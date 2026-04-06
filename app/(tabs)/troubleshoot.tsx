@@ -210,7 +210,7 @@ function WelcomePanel({ onSelectSymptom }: { onSelectSymptom: (symptom: string) 
       <Ionicons name="build" size={48} color={colors.accent} />
       <Text style={styles.welcomeTitle}>Troubleshooting Assistant</Text>
       <Text style={styles.welcomeText}>
-        Select a common symptom or describe the issue you're experiencing
+        Select a common symptom or describe the issue you&apos;re experiencing
       </Text>
 
       <View style={styles.symptomsGrid}>
