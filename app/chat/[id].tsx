@@ -91,7 +91,7 @@ export default function ChatDetailScreen() {
           setStreamingText(prev => prev + token);
         },
         undefined,
-        (status) => { setSendingText(status); },
+        (status) => { if (status) setSendingText(status); },
       );
       abortRef.current = abort;
 

@@ -179,16 +179,58 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
     let contextInfo = '';
     
     if (chat.benchJobId) {
-      // Single JOIN query instead of 3 serial round-trips
-      const [row] = await db.select({
-        job: schema.benchJobs,
-        amp: schema.ampProfiles,
-      }).from(schema.benchJobs)
-        .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
-        .where(eq(schema.benchJobs.id, chat.benchJobId));
-      if (row?.amp) {
+      // Fetch job context in parallel — amp profile, recent measurements, repair actions
+      const [[row], measurements, repairActions] = await Promise.all([
+        db.select({ job: schema.benchJobs, amp: schema.ampProfiles })
+          .from(schema.benchJobs)
+          .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+          .where(eq(schema.benchJobs.id, chat.benchJobId)),
+        db.select().from(schema.measurements)
+          .where(eq(schema.measurements.benchJobId, chat.benchJobId))
+          .orderBy(desc(schema.measurements.createdAt))
+          .limit(20),
+        db.select().from(schema.repairActions)
+          .where(eq(schema.repairActions.benchJobId, chat.benchJobId))
+          .orderBy(desc(schema.repairActions.createdAt))
+          .limit(10),
+      ]);
+
+      if (row?.job) {
         const { job, amp } = row;
-        contextInfo = `\n\nCURRENT JOB CONTEXT:\nAmp: ${amp.make} ${amp.model} (${amp.year || 'Unknown year'})\nSymptoms: ${job.ownerSymptoms || 'None provided'}\nKnown mods: ${job.knownMods || 'None'}\nPrior work: ${job.priorWork || 'None'}`;
+        contextInfo = `\n\nCURRENT JOB CONTEXT:`;
+        contextInfo += `\nAmp: ${amp?.make || 'Unknown'} ${amp?.model || 'Unknown'} (${amp?.year || 'Unknown year'})`;
+        if (amp?.circuitFamily) contextInfo += ` — Circuit: ${amp.circuitFamily}`;
+        contextInfo += `\nStatus: ${job.status || 'active'}`;
+        if (job.ownerSymptoms) contextInfo += `\nOwner symptoms: ${job.ownerSymptoms}`;
+        if (job.knownMods) contextInfo += `\nKnown mods: ${job.knownMods}`;
+        if (job.priorWork) contextInfo += `\nPrior work: ${job.priorWork}`;
+        if (job.techNotes) contextInfo += `\nTech notes: ${job.techNotes}`;
+
+        if (measurements.length > 0) {
+          contextInfo += `\n\nMEASUREMENTS RECORDED (${measurements.length}):`;
+          for (const m of measurements) {
+            const range = (m.expectedMin != null && m.expectedMax != null)
+              ? ` (expected ${m.expectedMin}–${m.expectedMax} ${m.unit || ''})`
+              : '';
+            const status = m.status ? ` [${m.status}]` : '';
+            contextInfo += `\n- ${m.nodeName}: ${m.recordedValue != null ? `${m.recordedValue} ${m.unit || ''}` : 'not yet recorded'}${range}${status}`;
+            if (m.notes) contextInfo += ` — ${m.notes}`;
+          }
+        }
+
+        if (repairActions.length > 0) {
+          contextInfo += `\n\nREPAIR ACTIONS LOGGED (${repairActions.length}):`;
+          for (const r of repairActions) {
+            contextInfo += `\n- ${r.description}`;
+            if (r.partReplaced) {
+              contextInfo += ` (replaced: ${r.partReplaced}`;
+              if (r.partValue) contextInfo += ` ${r.partValue}`;
+              if (r.partBrand) contextInfo += `, ${r.partBrand}`;
+              contextInfo += `)`;
+            }
+            if (r.notes) contextInfo += ` — ${r.notes}`;
+          }
+        }
       }
     }
     
@@ -249,10 +291,21 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
         res.flushHeaders();
         
         res.write(`data: ${JSON.stringify({ type: 'userMessage', message: userMessage })}\n\n`);
-        
+
+        // Initial status: tell the user what we're doing before the first token arrives
+        const hasAttachments = validatedAttachments && validatedAttachments.length > 0;
+        const hasJobContext = !!chat.benchJobId;
+        const initialStatus = hasAttachments
+          ? 'Analyzing image...'
+          : hasJobContext
+            ? 'Reading job context...'
+            : 'Thinking...';
+        res.write(`data: ${JSON.stringify({ type: 'status', status: initialStatus })}\n\n`);
+
         let assistantContent = '';
         let searchingNotified = false;
-        
+        let firstTokenSent = false;
+
         const stream = await openai.responses.create({
           model: 'gpt-4o',
           input,
@@ -261,14 +314,21 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
           max_output_tokens: 4000,
           stream: true,
         } as any);
-        
+
         for await (const event of stream as any) {
           if (event.type === 'response.web_search_call.searching' && !searchingNotified) {
             res.write(`data: ${JSON.stringify({ type: 'status', status: 'Searching the web...' })}\n\n`);
             searchingNotified = true;
+          } else if (event.type === 'response.web_search_call.completed' && searchingNotified) {
+            res.write(`data: ${JSON.stringify({ type: 'status', status: 'Composing response...' })}\n\n`);
           } else if (event.type === 'response.output_text.delta') {
             const token = event.delta;
             if (token) {
+              if (!firstTokenSent) {
+                // Clear the status indicator once text starts flowing
+                res.write(`data: ${JSON.stringify({ type: 'status', status: '' })}\n\n`);
+                firstTokenSent = true;
+              }
               assistantContent += token;
               res.write(`data: ${JSON.stringify({ type: 'token', token })}\n\n`);
             }

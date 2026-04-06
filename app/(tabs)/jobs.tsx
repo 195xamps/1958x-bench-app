@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { jobsApi, chatsApi } from '../../src/services';
+import { jobsApi, chatsApi, schematicsApi } from '../../src/services';
 import { colors } from '../../src/theme';
 import {
   JOB_STATUSES,
@@ -66,6 +66,8 @@ export default function JobsScreen() {
   const [safetyChecks, setSafetyChecks] = useState<boolean[]>(
     new Array(SAFETY_CHECKLIST.length).fill(false),
   );
+  const [suggestedSchematics, setSuggestedSchematics] = useState<any[]>([]);
+  const [attachedSchematicIds, setAttachedSchematicIds] = useState<Set<string>>(new Set());
 
   // Job detail modal (preview before navigating)
   const [showJobDetailModal, setShowJobDetailModal] = useState(false);
@@ -135,7 +137,17 @@ export default function JobsScreen() {
       setCurrentJobId(result.benchJob.id);
       setNewJob({ ampMake: '', ampModel: '', ampYear: '', circuitFamily: '', ownerSymptoms: '', techNotes: '', priorWork: '', knownMods: '' });
       setSafetyChecks(new Array(SAFETY_CHECKLIST.length).fill(false));
+      setSuggestedSchematics([]);
+      setAttachedSchematicIds(new Set());
       setShowSafetyModal(true);
+
+      // Search for matching schematics in background — don't block job creation
+      const query = [newJob.ampMake, newJob.ampModel, newJob.circuitFamily].filter(Boolean).join(' ').trim();
+      if (query) {
+        schematicsApi.search(query).then((results: any[]) => {
+          setSuggestedSchematics(results.slice(0, 4));
+        }).catch(() => {}); // non-critical
+      }
     } catch (error: any) {
       console.error('Error creating job:', error);
       showError(error?.response?.data?.error || 'Failed to create bench job. Check your connection and try again.');
@@ -168,6 +180,16 @@ export default function JobsScreen() {
     const updated = [...safetyChecks];
     updated[index] = !updated[index];
     setSafetyChecks(updated);
+  };
+
+  const attachSuggestedSchematic = async (schematicId: string) => {
+    if (!currentJobId || attachedSchematicIds.has(schematicId)) return;
+    try {
+      await jobsApi.attachSchematic(currentJobId, schematicId);
+      setAttachedSchematicIds(prev => new Set(prev).add(schematicId));
+    } catch (error) {
+      console.error('Error attaching schematic:', error);
+    }
   };
 
   const completeSafetyChecklist = async () => {
@@ -405,6 +427,34 @@ export default function JobsScreen() {
                   <Text style={styles.checklistText}>{item}</Text>
                 </TouchableOpacity>
               ))}
+
+              {suggestedSchematics.length > 0 && (
+                <View style={styles.suggestedSection}>
+                  <Text style={styles.suggestedTitle}>
+                    <Ionicons name="document-text-outline" size={14} color={colors.accent} />
+                    {' '}Schematics found in your library
+                  </Text>
+                  {suggestedSchematics.map((s) => {
+                    const attached = attachedSchematicIds.has(s.id);
+                    return (
+                      <View key={s.id} style={styles.suggestedRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.suggestedName} numberOfLines={1}>{s.name}</Text>
+                          {s.circuitFamily && <Text style={styles.suggestedFamily}>{s.circuitFamily}</Text>}
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.attachBtn, attached && styles.attachBtnDone]}
+                          onPress={() => attachSuggestedSchematic(s.id)}
+                          disabled={attached}
+                        >
+                          <Ionicons name={attached ? 'checkmark' : 'add'} size={16} color={colors.text.onAccent} />
+                          <Text style={styles.attachBtnText}>{attached ? 'Attached' : 'Attach'}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
             </ScrollView>
             <View style={styles.safetyButtons}>
               <TouchableOpacity style={styles.cancelButton} onPress={() => setShowSafetyModal(false)}>
@@ -643,6 +693,22 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: colors.status.success, borderColor: colors.status.success },
   checklistText: { color: colors.text.bright, fontSize: 15, flex: 1 },
+  suggestedSection: {
+    marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border.default,
+  },
+  suggestedTitle: { fontSize: 13, fontWeight: '600', color: colors.accent, marginBottom: 10 },
+  suggestedRow: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: colors.bg.elevated, gap: 10,
+  },
+  suggestedName: { fontSize: 14, color: colors.text.bright, fontWeight: '500' },
+  suggestedFamily: { fontSize: 12, color: colors.text.muted, marginTop: 2 },
+  attachBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+  },
+  attachBtnDone: { backgroundColor: colors.status.success },
+  attachBtnText: { color: colors.text.onAccent, fontSize: 13, fontWeight: '600' },
   safetyButtons: { flexDirection: 'row', marginTop: 20, gap: 12, paddingHorizontal: 20 },
   cancelButton: { flex: 1, backgroundColor: colors.bg.elevated, borderRadius: 12, padding: 16, alignItems: 'center' },
   cancelButtonText: { color: colors.text.bright, fontSize: 16, fontWeight: '600' },
