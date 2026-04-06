@@ -65,11 +65,16 @@ export const chatsApi = {
       }
       xhr.withCredentials = true;
 
-      xhr.onprogress = () => {
-        const newText = xhr.responseText.substring(lastIndex);
+      // Buffer incomplete lines across progress events so we never parse a partial SSE frame
+      let lineBuffer = '';
+
+      const processBuffer = () => {
+        lineBuffer += xhr.responseText.substring(lastIndex);
         lastIndex = xhr.responseText.length;
 
-        const lines = newText.split('\n');
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop() ?? ''; // keep any incomplete trailing line
+
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           try {
@@ -89,23 +94,26 @@ export const chatsApi = {
         }
       };
 
+      xhr.onprogress = processBuffer;
+
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300 && assistantMessage) {
+        // Flush any remaining buffered data
+        processBuffer();
+
+        if (xhr.status < 200 || xhr.status >= 300) {
+          reject(new Error(`HTTP error ${xhr.status}`));
+          return;
+        }
+        if (assistantMessage) {
           resolve({ userMessage, assistantMessage });
-        } else if (!assistantMessage) {
-          // Process any remaining data
-          xhr.onprogress?.call(xhr, {} as any);
-          if (assistantMessage) {
-            resolve({ userMessage, assistantMessage });
-          } else {
-            reject(new Error('Stream ended without completion'));
-          }
+        } else {
+          reject(new Error('Stream ended without a completion message'));
         }
       };
 
       xhr.onerror = () => reject(new Error('Network error'));
-      xhr.ontimeout = () => reject(new Error('Request timed out'));
-      xhr.timeout = 120000; // 2 minutes for long responses
+      xhr.ontimeout = () => reject(new Error('Request timed out — the response may be too complex. Try a shorter question.'));
+      xhr.timeout = 300000; // 5 minutes — web search + RAG can take a while
 
       xhr.send(JSON.stringify({
         content,

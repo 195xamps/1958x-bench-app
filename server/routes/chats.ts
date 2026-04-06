@@ -169,22 +169,26 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
       attachments: validatedAttachments,
     }).returning();
     
-    const previousMessages = await db.select().from(schema.chatMessages)
+    // Fetch only the last 30 messages directly from DB — avoids loading full history into memory
+    const recentMessages = await db.select().from(schema.chatMessages)
       .where(eq(schema.chatMessages.chatId, chatId))
-      .orderBy(schema.chatMessages.createdAt);
-    
-    // Truncate to last 30 messages to control token usage and latency
-    const recentMessages = previousMessages.slice(-30);
+      .orderBy(desc(schema.chatMessages.createdAt))
+      .limit(30)
+      .then(msgs => msgs.reverse());
     
     let contextInfo = '';
     
     if (chat.benchJobId) {
-      const [job] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, chat.benchJobId));
-      if (job?.ampProfileId) {
-        const [amp] = await db.select().from(schema.ampProfiles).where(eq(schema.ampProfiles.id, job.ampProfileId));
-        if (amp) {
-          contextInfo = `\n\nCURRENT JOB CONTEXT:\nAmp: ${amp.make} ${amp.model} (${amp.year || 'Unknown year'})\nSymptoms: ${job.ownerSymptoms || 'None provided'}\nKnown mods: ${job.knownMods || 'None'}\nPrior work: ${job.priorWork || 'None'}`;
-        }
+      // Single JOIN query instead of 3 serial round-trips
+      const [row] = await db.select({
+        job: schema.benchJobs,
+        amp: schema.ampProfiles,
+      }).from(schema.benchJobs)
+        .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+        .where(eq(schema.benchJobs.id, chat.benchJobId));
+      if (row?.amp) {
+        const { job, amp } = row;
+        contextInfo = `\n\nCURRENT JOB CONTEXT:\nAmp: ${amp.make} ${amp.model} (${amp.year || 'Unknown year'})\nSymptoms: ${job.ownerSymptoms || 'None provided'}\nKnown mods: ${job.knownMods || 'None'}\nPrior work: ${job.priorWork || 'None'}`;
       }
     }
     
@@ -271,14 +275,6 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
           }
         }
         
-        // Debug: log image URLs in streamed response
-        const imgMatches = assistantContent.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
-        if (imgMatches) {
-          console.log('[Chat/Stream] Image markdown found:', imgMatches);
-        } else if (assistantContent.includes('image') || assistantContent.includes('photo') || assistantContent.includes('gut')) {
-          console.log('[Chat/Stream] Mentions images but no markdown found. First 800 chars:', assistantContent.substring(0, 800));
-        }
-        
         if (!assistantContent) {
           assistantContent = 'I apologize, but I could not generate a response. Please try again.';
         }
@@ -312,15 +308,7 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
         } as any);
         
         const assistantContent = (response as any).output_text || 'I apologize, but I could not generate a response. Please try again.';
-        
-        // Debug: log image URLs in non-streamed response
-        const imgMatchesNs = assistantContent.match(/!\[([^\]]*)\]\(([^)]+)\)/g);
-        if (imgMatchesNs) {
-          console.log('[Chat/NonStream] Image markdown found:', imgMatchesNs);
-        } else if (assistantContent.includes('image') || assistantContent.includes('photo') || assistantContent.includes('gut')) {
-          console.log('[Chat/NonStream] Mentions images but no markdown found. First 800 chars:', assistantContent.substring(0, 800));
-        }
-        
+
         if (userId) {
           const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
           await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);

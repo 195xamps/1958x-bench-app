@@ -35,7 +35,7 @@ function renderAttachment(attachment: Attachment, index: number) {
   );
 }
 
-export function MessageBubble({ message, showAssistantLabel = true, assistantName = 'Bench Assistant' }: MessageBubbleProps) {
+export const MessageBubble = React.memo(function MessageBubble({ message, showAssistantLabel = true, assistantName = 'Bench Assistant' }: MessageBubbleProps) {
   const isUser = message.role === 'user';
 
   return (
@@ -66,7 +66,7 @@ export function MessageBubble({ message, showAssistantLabel = true, assistantNam
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   bubble: {

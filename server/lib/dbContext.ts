@@ -10,8 +10,31 @@ const MAX_ARTICLES = 3;
  * Search reference articles for content relevant to the user's message.
  * Returns a context string with article excerpts, or null if nothing found.
  */
+/**
+ * Normalize a string for fuzzy keyword matching:
+ * - lowercase
+ * - collapse dashes/spaces between alphanumeric chars (AC-30 → ac30, filter cap → filtercap)
+ */
+function normalizeForMatch(s: string): string {
+  return s.toLowerCase().replace(/[-\s]+/g, '');
+}
+
+/**
+ * Check if a keyword appears in a message, handling:
+ * - punctuation variants (AC-30 vs AC30 vs AC 30)
+ * - simple plurals (cap → caps, tube → tubes)
+ */
+function keywordMatches(kw: string, normalizedMessage: string, originalMessage: string): boolean {
+  const normKw = normalizeForMatch(kw);
+  if (normalizedMessage.includes(normKw)) return true;
+  // Also check plural form in original lowercased message
+  if (originalMessage.includes(kw + 's') || originalMessage.includes(kw + 'es')) return true;
+  return false;
+}
+
 async function getRelevantArticleContext(message: string): Promise<string | null> {
   const lowerMessage = message.toLowerCase();
+  const normalizedMessage = normalizeForMatch(lowerMessage);
 
   // Extract meaningful keywords for article search
   const ampKeywords = ['fender', 'marshall', 'vox', 'mesa', 'boogie', 'twin', 'deluxe', 'princeton', 'bassman', 'ac30', 'ac15', 'jcm', 'plexi', 'champ', 'super', 'reverb', 'tremolux', 'bandmaster', 'showman', 'vibroverb', 'vibrolux'];
@@ -19,7 +42,7 @@ async function getRelevantArticleContext(message: string): Promise<string | null
   const topicKeywords = ['bias', 'recap', 'filter cap', 'coupling cap', 'cathode', 'plate voltage', 'screen voltage', 'power tube', 'preamp tube', 'rectifier', 'transformer', 'output transformer', 'choke', 'reverb', 'tremolo', 'negative feedback', 'grounding', 'hum', 'noise', 'oscillation', 'motorboating', 'red plate', 'crossover', 'distortion', 'mod', 'modification', 'speaker', 'impedance', 'standby', 'death cap', 'safety'];
 
   const allKeywords = [...ampKeywords, ...circuitKeywords, ...topicKeywords];
-  const foundKeywords = allKeywords.filter(kw => lowerMessage.includes(kw));
+  const foundKeywords = allKeywords.filter(kw => keywordMatches(kw, normalizedMessage, lowerMessage));
 
   if (foundKeywords.length === 0) return null;
 
@@ -113,10 +136,11 @@ function extractRelevantExcerpt(content: string, keywords: string[], maxChars: n
 
 export async function getRelevantDatabaseContext(message: string, userId?: string): Promise<string | null> {
   const lowerMessage = message.toLowerCase();
+  const normalizedMessage = normalizeForMatch(lowerMessage);
   let context = '';
-  
-  const isDbQuery = lowerMessage.includes('have i') || 
-    lowerMessage.includes('my past') || 
+
+  const isDbQuery = lowerMessage.includes('have i') ||
+    lowerMessage.includes('my past') ||
     lowerMessage.includes('previous') ||
     lowerMessage.includes('worked on') ||
     lowerMessage.includes('show me') ||
@@ -126,19 +150,19 @@ export async function getRelevantDatabaseContext(message: string, userId?: strin
     lowerMessage.includes('history') ||
     lowerMessage.includes('jobs') ||
     lowerMessage.includes('measurements');
-  
+
   if (!isDbQuery) {
     // Even if not a db query, still check for article RAG
     const articleContext = await getRelevantArticleContext(message);
     return articleContext || null;
   }
-  
+
   try {
     // Extract amp/circuit keywords from message
     const ampKeywords = ['fender', 'marshall', 'vox', 'mesa', 'boogie', 'twin', 'deluxe', 'princeton', 'bassman', 'ac30', 'ac15', 'jcm', 'plexi', 'champ', 'super', 'reverb', 'tremolux', 'bandmaster', 'showman', 'vibroverb', 'vibrolux'];
     const circuitKeywords = ['5f1', '5e3', '5f6', '5e1', '5c1', 'aa763', 'ab763', 'aa864', 'ab568', 'bf', 'sf', 'tweed', 'blackface', 'silverface', 'brownface'];
     const allKeywords = [...ampKeywords, ...circuitKeywords];
-    const foundKeywords = allKeywords.filter(kw => lowerMessage.includes(kw));
+    const foundKeywords = allKeywords.filter(kw => keywordMatches(kw, normalizedMessage, lowerMessage));
     
     // If specific keywords found, do targeted search
     if (foundKeywords.length > 0) {

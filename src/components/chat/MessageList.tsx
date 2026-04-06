@@ -15,7 +15,7 @@ interface MessageListProps {
   contentContainerStyle?: any;
 }
 
-export function MessageList({
+export const MessageList = React.memo(function MessageList({
   messages,
   sending = false,
   sendingText = 'Thinking...',
@@ -27,13 +27,14 @@ export function MessageList({
 }: MessageListProps) {
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Scroll when the message list grows or sending state toggles — not on every streaming token
+  // (streaming tokens grow the last bubble in-place; the ScrollView handles that automatically)
   useEffect(() => {
-    // Small delay to ensure layout is complete before scrolling
     const timer = setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
     return () => clearTimeout(timer);
-  }, [messages, sending, streamingText]);
+  }, [messages.length, sending]);
 
   return (
     <ScrollView
@@ -73,7 +74,7 @@ export function MessageList({
       ) : null}
     </ScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

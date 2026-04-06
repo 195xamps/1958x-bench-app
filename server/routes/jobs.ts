@@ -110,14 +110,15 @@ router.get('/api/bench-jobs/:id', async (req: any, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
     
-    const [ampProfile] = job.ampProfileId 
-      ? await db.select().from(schema.ampProfiles).where(eq(schema.ampProfiles.id, job.ampProfileId))
-      : [null];
-    
-    const measurements = await db.select().from(schema.measurements).where(eq(schema.measurements.benchJobId, job.id));
-    const sessions = await db.select().from(schema.troubleshootingSessions).where(eq(schema.troubleshootingSessions.benchJobId, job.id));
-    const repairActions = await db.select().from(schema.repairActions).where(eq(schema.repairActions.benchJobId, job.id));
-    
+    const [ampProfile, measurements, sessions, repairActions] = await Promise.all([
+      job.ampProfileId
+        ? db.select().from(schema.ampProfiles).where(eq(schema.ampProfiles.id, job.ampProfileId)).then(r => r[0] ?? null)
+        : Promise.resolve(null),
+      db.select().from(schema.measurements).where(eq(schema.measurements.benchJobId, job.id)),
+      db.select().from(schema.troubleshootingSessions).where(eq(schema.troubleshootingSessions.benchJobId, job.id)),
+      db.select().from(schema.repairActions).where(eq(schema.repairActions.benchJobId, job.id)),
+    ]);
+
     res.json({ job, ampProfile, measurements, sessions, repairActions });
   } catch (error) {
     console.error('Error fetching bench job:', error);
