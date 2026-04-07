@@ -5,6 +5,7 @@ import { openai } from '../lib/openai';
 import OpenAI from 'openai';
 import { CHAT_SYSTEM_PROMPT } from '../lib/systemPrompt';
 import { getRelevantDatabaseContext } from '../lib/dbContext';
+import { tryDecryptSecret } from '../lib/crypto';
 
 const router = Router();
 
@@ -145,12 +146,13 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
     const [userRecord] = userId
       ? await db.select({ customApiKey: schema.users.customApiKey, tokenQuota: schema.users.tokenQuota, totalTokensUsed: schema.users.totalTokensUsed }).from(schema.users).where(eq(schema.users.id, userId))
       : [null];
-    const aiClient = userRecord?.customApiKey
-      ? new OpenAI({ apiKey: userRecord.customApiKey })
+    const decryptedKey = tryDecryptSecret(userRecord?.customApiKey);
+    const aiClient = decryptedKey
+      ? new OpenAI({ apiKey: decryptedKey })
       : openai;
 
     // Enforce token quota (only when using system key)
-    if (!userRecord?.customApiKey && userRecord?.tokenQuota != null) {
+    if (!decryptedKey && userRecord?.tokenQuota != null) {
       const used = userRecord.totalTokensUsed || 0;
       if (used >= userRecord.tokenQuota) {
         return res.status(429).json({

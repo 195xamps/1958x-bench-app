@@ -22,9 +22,15 @@ class AuthStorage implements IAuthStorage {
 
   async upsertUser(userData: UpsertUser): Promise<User> {
     const isAdmin = userData.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    // Admin email is auto-approved on first sign-in. Everyone else lands in
+    // the allowlist queue (isApproved defaults to false at the column level).
+    const insertValues: UpsertUser = isAdmin
+      ? { ...userData, isAdmin, isApproved: true }
+      : { ...userData, isAdmin };
+
     const [user] = await db
       .insert(users)
-      .values({ ...userData, isAdmin })
+      .values(insertValues)
       .onConflictDoUpdate({
         target: users.id,
         set: {

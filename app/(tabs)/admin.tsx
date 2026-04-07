@@ -77,6 +77,17 @@ export default function AdminScreen() {
     finally { setUpdatingUser(false); }
   };
 
+  const toggleApproved = async () => {
+    if (!selectedUser) return;
+    setUpdatingUser(true);
+    try {
+      const updated = await adminApi.updateUser(selectedUser.id, { isApproved: !selectedUser.isApproved });
+      setSelectedUser(prev => prev ? { ...prev, isApproved: updated.isApproved } : null);
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, isApproved: updated.isApproved } : u));
+    } catch { showError('Failed to update user'); }
+    finally { setUpdatingUser(false); }
+  };
+
   const saveQuota = async () => {
     if (!selectedUser) return;
     setUpdatingUser(true);
@@ -162,6 +173,20 @@ export default function AdminScreen() {
           {/* Admin Actions */}
           <Text style={s.sectionTitle}>Actions</Text>
           <View style={s.actionsCard}>
+            {/* Approve / Revoke */}
+            <TouchableOpacity style={s.actionRow} onPress={toggleApproved} disabled={updatingUser}>
+              <Ionicons
+                name={selectedUser.isApproved ? 'checkmark-circle' : 'close-circle-outline'}
+                size={20}
+                color={selectedUser.isApproved ? colors.status.success : colors.text.muted}
+              />
+              <Text style={s.actionLabel}>
+                {selectedUser.isApproved ? 'Revoke Access' : 'Approve Access'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={s.actionDivider} />
+
             {/* Promote / Demote */}
             <TouchableOpacity style={s.actionRow} onPress={toggleAdmin} disabled={updatingUser}>
               <Ionicons
@@ -264,6 +289,11 @@ export default function AdminScreen() {
           <View style={s.nameRow}>
             <Text style={s.userName}>{u.firstName} {u.lastName}</Text>
             {u.isAdmin && <View style={s.adminTag}><Text style={s.adminTagText}>Admin</Text></View>}
+            {!u.isApproved && !u.isAdmin && (
+              <View style={[s.adminTag, { backgroundColor: colors.status.warning }]}>
+                <Text style={s.adminTagText}>Pending</Text>
+              </View>
+            )}
           </View>
           <Text style={s.userEmail}>{u.email}</Text>
           <View style={s.userStats}>

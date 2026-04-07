@@ -8,9 +8,10 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
 import { LoadingScreen } from '../src/components/shared';
 import LoginScreen from './login';
+import PendingApprovalScreen from './pending-approval';
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -18,6 +19,10 @@ function RootLayoutNav() {
 
   if (!isAuthenticated) {
     return <LoginScreen />;
+  }
+
+  if (user && !user.isApproved && !user.isAdmin) {
+    return <PendingApprovalScreen />;
   }
 
   return (

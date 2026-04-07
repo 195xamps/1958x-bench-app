@@ -144,10 +144,11 @@ router.patch('/api/admin/users/:userId', async (req: any, res) => {
     }
 
     const { userId } = req.params;
-    const { isAdmin, tokenQuota } = req.body;
+    const { isAdmin, tokenQuota, isApproved } = req.body;
 
     const patch: Record<string, any> = {};
     if (typeof isAdmin === 'boolean') patch.isAdmin = isAdmin;
+    if (typeof isApproved === 'boolean') patch.isApproved = isApproved;
     if (tokenQuota !== undefined) patch.tokenQuota = tokenQuota === null ? null : parseInt(tokenQuota);
 
     if (Object.keys(patch).length === 0) {

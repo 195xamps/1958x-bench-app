@@ -22,6 +22,7 @@ interface User {
   lastName: string | null;
   profileImageUrl: string | null;
   isAdmin: boolean;
+  isApproved: boolean;
 }
 
 interface AuthContextType {

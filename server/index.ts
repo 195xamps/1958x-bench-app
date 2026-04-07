@@ -2,12 +2,15 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
+import helmet from 'helmet';
 import path from 'path';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { setupAuth, registerAuthRoutes, tokenAuth } from './replit_integrations/auth';
+import { globalLimiter, chatLimiter, authLimiter } from './middleware/rateLimit';
+import { requireApproved } from './middleware/requireApproved';
 
 // ── Env var validation ──────────────────────────────────────────────────────
-const REQUIRED_ENV = ['DATABASE_URL', 'OPENAI_API_KEY'] as const;
+const REQUIRED_ENV = ['DATABASE_URL', 'OPENAI_API_KEY', 'API_KEY_ENCRYPTION_SECRET'] as const;
 const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
 if (missing.length > 0) {
   console.error(`\n❌  Missing required environment variables: ${missing.join(', ')}`);
@@ -31,6 +34,13 @@ const app = express();
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
   : undefined;
+// Trust the first proxy hop (Replit) so req.ip resolves correctly for rate limiting
+app.set('trust proxy', 1);
+
+app.use(helmet({
+  contentSecurityPolicy: false, // SPA + inline styles need a custom CSP later
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({
   origin: ALLOWED_ORIGINS || true,
   credentials: true,
@@ -40,8 +50,20 @@ app.use(express.json({ limit: '5mb' }));
 
 async function initServer() {
   await setupAuth(app);
+  // Tighter rate limit on auth routes (brute-force protection)
+  app.use('/api/auth', authLimiter);
+  app.use('/api/login', authLimiter);
   registerAuthRoutes(app);
   app.use(tokenAuth); // JWT fallback for mobile when sessions aren't available
+
+  // Global rate limit for all /api routes
+  app.use('/api', globalLimiter);
+  // Stricter limit on the AI chat message route
+  app.use('/api/chats/:id/messages', chatLimiter);
+
+  // Allowlist gate — block unapproved users from non-auth API routes
+  app.use(requireApproved);
+
   registerObjectStorageRoutes(app);
 
   app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));

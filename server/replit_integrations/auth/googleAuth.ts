@@ -125,7 +125,7 @@ export async function setupGoogleAuth(app: Express) {
   );
 
   passport.serializeUser((user: any, done) => {
-    done(null, { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, isAdmin: user.isAdmin });
+    done(null, { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, isAdmin: user.isAdmin, isApproved: user.isApproved });
   });
 
   passport.deserializeUser(async (sessionUser: any, done) => {

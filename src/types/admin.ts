@@ -5,6 +5,7 @@ export interface AdminUser {
   lastName: string | null;
   profileImageUrl: string | null;
   isAdmin: boolean;
+  isApproved: boolean;
   createdAt: string;
   totalTokensUsed: number | null;
   tokenQuota: number | null;

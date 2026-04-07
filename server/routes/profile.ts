@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db, schema } from '../db';
 import { eq, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
+import { encryptSecret } from '../lib/crypto';
 
 const router = Router();
 
@@ -134,8 +135,9 @@ router.patch('/api/profile/api-key', async (req: any, res) => {
       }
     }
 
+    const encrypted = apiKey ? encryptSecret(apiKey) : null;
     await db.update(schema.users)
-      .set({ customApiKey: apiKey || null })
+      .set({ customApiKey: encrypted })
       .where(eq(schema.users.id, userId));
 
     res.json({ success: true, hasCustomApiKey: !!apiKey });

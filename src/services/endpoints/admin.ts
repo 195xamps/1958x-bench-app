@@ -32,7 +32,7 @@ export const adminApi = {
     return data;
   },
 
-  async updateUser(userId: string, patch: { isAdmin?: boolean; tokenQuota?: number | null }): Promise<AdminUser> {
+  async updateUser(userId: string, patch: { isAdmin?: boolean; isApproved?: boolean; tokenQuota?: number | null }): Promise<AdminUser> {
     const { data } = await apiClient.patch(`/api/admin/users/${userId}`, patch);
     return data.user;
   },

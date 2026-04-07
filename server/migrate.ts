@@ -261,19 +261,32 @@ async function migrate() {
       END $$;
     `);
 
-    // Add token_quota to users
+    // Add token_quota to users (default 10k for free tier)
     await client.query(`
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='token_quota') THEN
-          ALTER TABLE users ADD COLUMN token_quota INTEGER;
+          ALTER TABLE users ADD COLUMN token_quota INTEGER DEFAULT 10000;
         END IF;
       END $$;
     `);
 
-    // Ensure brentwrisley@gmail.com is admin
+    // Add is_approved to users (allowlist).
+    // Grandfather existing users in the same DDL transaction so we only ever
+    // mass-approve once — future signups will default to false.
     await client.query(`
-      UPDATE users SET is_admin = true WHERE email = 'brentwrisley@gmail.com';
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_approved') THEN
+          ALTER TABLE users ADD COLUMN is_approved BOOLEAN DEFAULT FALSE;
+          UPDATE users SET is_approved = TRUE;
+        END IF;
+      END $$;
+    `);
+
+    // Ensure brentwrisley@gmail.com is admin and approved
+    await client.query(`
+      UPDATE users SET is_admin = true, is_approved = true WHERE email = 'brentwrisley@gmail.com';
     `);
 
     console.log('Migration completed successfully!');
