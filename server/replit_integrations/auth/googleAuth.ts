@@ -124,14 +124,17 @@ export async function setupGoogleAuth(app: Express) {
     )
   );
 
+  // Store only the user id in the session — everything else is loaded
+  // fresh from the DB on each request so admin/approval/quota changes
+  // take effect immediately without forcing a re-login.
   passport.serializeUser((user: any, done) => {
-    done(null, { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, profileImageUrl: user.profileImageUrl, isAdmin: user.isAdmin, isApproved: user.isApproved });
+    done(null, { id: user.id });
   });
 
   passport.deserializeUser(async (sessionUser: any, done) => {
     try {
-      // User data is cached in the session — no DB query needed
-      done(null, sessionUser);
+      const fresh = await authStorage.getUser(sessionUser.id);
+      done(null, fresh || false);
     } catch (error) {
       done(error);
     }

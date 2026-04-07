@@ -447,12 +447,6 @@ export default function DashboardScreen() {
 function HomeEmptyState({ onCreateJob, onNewChat }: { onCreateJob: () => void; onNewChat: () => void }) {
   return (
     <View style={styles.homeEmpty}>
-      <Ionicons name="hardware-chip" size={52} color={colors.accent} style={{ marginBottom: 16 }} />
-      <Text style={styles.homeEmptyTitle}>Ready to bench?</Text>
-      <Text style={styles.homeEmptySubtitle}>
-        Create a job for each amp you service, or start a quick chat for a one-off question.
-      </Text>
-
       <TouchableOpacity style={styles.homeEmptyPrimary} onPress={onCreateJob}>
         <View style={styles.homeEmptyCardIcon}>
           <Ionicons name="briefcase" size={26} color={colors.accent} />
