@@ -1,4 +1,5 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
+import { authStorage } from '../replit_integrations/auth/storage';
 
 // Routes that an authenticated-but-not-approved user is still allowed to hit
 // (so they can see their pending state, edit profile, sign out, etc.)
@@ -14,15 +15,9 @@ function isAllowed(path: string): boolean {
   return ALLOWED_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
 }
 
-export function requireApproved(req: any, res: Response, next: NextFunction) {
+export async function requireApproved(req: any, res: Response, next: NextFunction) {
   // Unauthenticated requests pass through — individual routes will return 401
   if (!req.user) return next();
-
-  // Admins always pass
-  if (req.user.isAdmin) return next();
-
-  // Approved users always pass
-  if (req.user.isApproved) return next();
 
   // Non-API paths (web SPA) pass through
   if (!req.path.startsWith('/api')) return next();
@@ -30,7 +25,20 @@ export function requireApproved(req: any, res: Response, next: NextFunction) {
   // Auth + own-profile paths pass through
   if (isAllowed(req.path)) return next();
 
-  console.warn(`[requireApproved] BLOCKED ${req.method} ${req.path} for user=${req.user.id} email=${req.user.email} isApproved=${req.user.isApproved} isAdmin=${req.user.isAdmin}`);
+  // ALWAYS read fresh from the DB. Session/JWT data can be stale if a user
+  // was promoted/approved after their token was issued, and we want those
+  // changes to take effect immediately.
+  const fresh = await authStorage.getUser(req.user.id);
+  if (!fresh) {
+    return res.status(401).json({ error: 'User not found' });
+  }
+  // Replace req.user with the canonical fresh row so downstream handlers
+  // also see the correct values.
+  req.user = fresh;
+
+  if (fresh.isAdmin || fresh.isApproved) return next();
+
+  console.warn(`[requireApproved] BLOCKED ${req.method} ${req.path} for user=${fresh.id} email=${fresh.email} isApproved=${fresh.isApproved} isAdmin=${fresh.isAdmin}`);
   return res.status(403).json({
     error: 'Account pending approval',
     pendingApproval: true,
