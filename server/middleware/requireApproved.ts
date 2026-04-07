@@ -28,7 +28,9 @@ export async function requireApproved(req: any, res: Response, next: NextFunctio
   // ALWAYS read fresh from the DB. Session/JWT data can be stale if a user
   // was promoted/approved after their token was issued, and we want those
   // changes to take effect immediately.
+  console.log(`[requireApproved v2] About to fetch fresh user ${req.user.id}`);
   const fresh = await authStorage.getUser(req.user.id);
+  console.log(`[requireApproved v2] Fresh fetch result:`, fresh ? { id: fresh.id, email: fresh.email, isAdmin: fresh.isAdmin, isApproved: fresh.isApproved } : 'NOT FOUND');
   if (!fresh) {
     return res.status(401).json({ error: 'User not found' });
   }
@@ -38,7 +40,7 @@ export async function requireApproved(req: any, res: Response, next: NextFunctio
 
   if (fresh.isAdmin || fresh.isApproved) return next();
 
-  console.warn(`[requireApproved] BLOCKED ${req.method} ${req.path} for user=${fresh.id} email=${fresh.email} isApproved=${fresh.isApproved} isAdmin=${fresh.isAdmin}`);
+  console.warn(`[requireApproved v2] BLOCKED ${req.method} ${req.path} for user=${fresh.id} email=${fresh.email} isApproved=${fresh.isApproved} isAdmin=${fresh.isAdmin}`);
   return res.status(403).json({
     error: 'Account pending approval',
     pendingApproval: true,
