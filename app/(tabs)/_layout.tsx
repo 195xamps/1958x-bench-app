@@ -77,10 +77,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="schematics"
         options={{
-          title: 'Schematics',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen

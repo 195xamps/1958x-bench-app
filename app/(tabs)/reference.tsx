@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { FlowchartsTab, VoltagesTab, CalculatorTab, ArticlesTab, TavaTab } from '../../src/components/reference';
 import { colors } from '../../src/theme/colors';
 
@@ -15,6 +16,7 @@ const TABS: { id: SubTab; label: string; icon: string }[] = [
 ];
 
 export default function ReferenceScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<SubTab>('flowcharts');
 
   return (
@@ -36,6 +38,13 @@ export default function ReferenceScreen() {
             </Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity
+          style={styles.tab}
+          onPress={() => router.push('/(tabs)/schematics' as any)}
+        >
+          <Ionicons name="document-text" size={20} color={colors.text.secondary} />
+          <Text style={styles.tabText}>Schematics</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
