@@ -143,11 +143,24 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
 
     // Use user's custom API key if set, otherwise fall back to system key
     const [userRecord] = userId
-      ? await db.select({ customApiKey: schema.users.customApiKey }).from(schema.users).where(eq(schema.users.id, userId))
+      ? await db.select({ customApiKey: schema.users.customApiKey, tokenQuota: schema.users.tokenQuota, totalTokensUsed: schema.users.totalTokensUsed }).from(schema.users).where(eq(schema.users.id, userId))
       : [null];
     const aiClient = userRecord?.customApiKey
       ? new OpenAI({ apiKey: userRecord.customApiKey })
       : openai;
+
+    // Enforce token quota (only when using system key)
+    if (!userRecord?.customApiKey && userRecord?.tokenQuota != null) {
+      const used = userRecord.totalTokensUsed || 0;
+      if (used >= userRecord.tokenQuota) {
+        return res.status(429).json({
+          error: 'Token quota exceeded',
+          quotaExceeded: true,
+          tokensUsed: used,
+          tokenQuota: userRecord.tokenQuota,
+        });
+      }
+    }
 
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
     if (!chat) {

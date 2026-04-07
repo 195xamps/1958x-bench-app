@@ -21,6 +21,7 @@ export const users = pgTable('users', {
   isAdmin: boolean('is_admin').default(false),
   totalTokensUsed: integer('total_tokens_used').default(0),
   customApiKey: text('custom_api_key'),
+  tokenQuota: integer('token_quota'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

@@ -31,4 +31,13 @@ export const adminApi = {
     const { data } = await apiClient.get('/api/admin/stats');
     return data;
   },
+
+  async updateUser(userId: string, patch: { isAdmin?: boolean; tokenQuota?: number | null }): Promise<AdminUser> {
+    const { data } = await apiClient.patch(`/api/admin/users/${userId}`, patch);
+    return data.user;
+  },
+
+  async deleteUser(userId: string): Promise<void> {
+    await apiClient.delete(`/api/admin/users/${userId}`);
+  },
 };

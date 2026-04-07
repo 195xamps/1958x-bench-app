@@ -261,6 +261,16 @@ async function migrate() {
       END $$;
     `);
 
+    // Add token_quota to users
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='token_quota') THEN
+          ALTER TABLE users ADD COLUMN token_quota INTEGER;
+        END IF;
+      END $$;
+    `);
+
     // Ensure brentwrisley@gmail.com is admin
     await client.query(`
       UPDATE users SET is_admin = true WHERE email = 'brentwrisley@gmail.com';

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, TextInput, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { colors } from '../../src/theme/colors';
 import { adminApi } from '../../src/services/endpoints/admin';
-import { formatDate } from '../../src/utils';
+import { formatDate, showConfirm, showError } from '../../src/utils';
 import { LoadingScreen } from '../../src/components/shared';
 import { getStatusConfig } from '../../src/types/common';
 import type { AdminUser, AdminChat, AdminJob, AdminStats } from '../../src/types/admin';
@@ -26,6 +26,8 @@ export default function AdminScreen() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [userChats, setUserChats] = useState<AdminChat[]>([]);
   const [userJobs, setUserJobs] = useState<AdminJob[]>([]);
+  const [updatingUser, setUpdatingUser] = useState(false);
+  const [quotaInput, setQuotaInput] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -54,6 +56,7 @@ export default function AdminScreen() {
 
   const handleUserSelect = async (u: AdminUser) => {
     setSelectedUser(u);
+    setQuotaInput(u.tokenQuota != null ? String(u.tokenQuota) : '');
     try {
       const [chats, jobs] = await Promise.all([
         adminApi.getUserChats(u.id),
@@ -61,6 +64,46 @@ export default function AdminScreen() {
       ]);
       setUserChats(chats); setUserJobs(jobs);
     } catch (e) { console.error('Error fetching user details:', e); }
+  };
+
+  const toggleAdmin = async () => {
+    if (!selectedUser) return;
+    setUpdatingUser(true);
+    try {
+      const updated = await adminApi.updateUser(selectedUser.id, { isAdmin: !selectedUser.isAdmin });
+      setSelectedUser(prev => prev ? { ...prev, isAdmin: updated.isAdmin } : null);
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, isAdmin: updated.isAdmin } : u));
+    } catch { showError('Failed to update user'); }
+    finally { setUpdatingUser(false); }
+  };
+
+  const saveQuota = async () => {
+    if (!selectedUser) return;
+    setUpdatingUser(true);
+    try {
+      const quota = quotaInput.trim() === '' ? null : parseInt(quotaInput.trim());
+      await adminApi.updateUser(selectedUser.id, { tokenQuota: quota });
+      setSelectedUser(prev => prev ? { ...prev, tokenQuota: quota } : null);
+      setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, tokenQuota: quota } : u));
+    } catch { showError('Failed to save quota'); }
+    finally { setUpdatingUser(false); }
+  };
+
+  const deleteUser = async () => {
+    if (!selectedUser) return;
+    const confirmed = await showConfirm(
+      'Delete User',
+      `Delete ${selectedUser.email}? This will permanently remove their account, jobs, and chats.`,
+      { confirmText: 'Delete User', destructive: true }
+    );
+    if (!confirmed) return;
+    setUpdatingUser(true);
+    try {
+      await adminApi.deleteUser(selectedUser.id);
+      setUsers(prev => prev.filter(u => u.id !== selectedUser.id));
+      setSelectedUser(null);
+    } catch { showError('Failed to delete user'); }
+    finally { setUpdatingUser(false); }
   };
 
   // ─── Access denied / loading ─────────────────────────────────────────────
@@ -98,6 +141,8 @@ export default function AdminScreen() {
 
   const renderUserDetail = () => {
     if (!selectedUser) return null;
+    const quotaUsed = selectedUser.totalTokensUsed || 0;
+    const quotaPct = selectedUser.tokenQuota ? Math.min(quotaUsed / selectedUser.tokenQuota, 1) : null;
     return (
       <View style={s.detailOverlay}>
         <View style={s.detailHeader}>
@@ -113,6 +158,65 @@ export default function AdminScreen() {
           </View>
         </View>
         <ScrollView style={s.detailContent}>
+
+          {/* Admin Actions */}
+          <Text style={s.sectionTitle}>Actions</Text>
+          <View style={s.actionsCard}>
+            {/* Promote / Demote */}
+            <TouchableOpacity style={s.actionRow} onPress={toggleAdmin} disabled={updatingUser}>
+              <Ionicons
+                name={selectedUser.isAdmin ? 'shield-checkmark' : 'shield-outline'}
+                size={20}
+                color={selectedUser.isAdmin ? colors.accent : colors.text.muted}
+              />
+              <Text style={s.actionLabel}>
+                {selectedUser.isAdmin ? 'Revoke Admin' : 'Promote to Admin'}
+              </Text>
+              {updatingUser && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 'auto' }} />}
+            </TouchableOpacity>
+
+            <View style={s.actionDivider} />
+
+            {/* Token Quota */}
+            <View style={s.actionRow}>
+              <Ionicons name="flash-outline" size={20} color={colors.text.muted} />
+              <Text style={s.actionLabel}>Token Quota</Text>
+              <View style={s.quotaInputRow}>
+                <TextInput
+                  style={s.quotaInput}
+                  value={quotaInput}
+                  onChangeText={setQuotaInput}
+                  placeholder="No limit"
+                  placeholderTextColor={colors.text.muted}
+                  keyboardType="numeric"
+                />
+                <TouchableOpacity onPress={saveQuota} disabled={updatingUser} style={s.quotaSaveBtn}>
+                  <Text style={s.quotaSaveBtnText}>Set</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Quota usage bar */}
+            {quotaPct !== null && (
+              <View style={s.quotaBarWrap}>
+                <Text style={s.quotaBarLabel}>
+                  {(quotaUsed / 1000).toFixed(1)}k / {((selectedUser.tokenQuota || 0) / 1000).toFixed(1)}k tokens used
+                </Text>
+                <View style={s.quotaBarTrack}>
+                  <View style={[s.quotaBarFill, { width: `${quotaPct * 100}%` as any, backgroundColor: quotaPct > 0.9 ? colors.status.error : colors.accent }]} />
+                </View>
+              </View>
+            )}
+
+            <View style={s.actionDivider} />
+
+            {/* Delete */}
+            <TouchableOpacity style={s.actionRow} onPress={deleteUser} disabled={updatingUser}>
+              <Ionicons name="trash-outline" size={20} color={colors.status.error} />
+              <Text style={[s.actionLabel, { color: colors.status.error }]}>Delete User</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={s.sectionTitle}>Chats ({userChats.length})</Text>
           {userChats.length === 0
             ? <Text style={s.emptyText}>No chats</Text>
@@ -451,4 +555,31 @@ const s = StyleSheet.create({
   usageUserStats: { alignItems: 'flex-end', gap: 2 },
   usageUserTokens: { fontSize: 15, fontWeight: '700', color: colors.accent, fontFamily: 'SpaceMono' },
   usageUserCost: { fontSize: 12, color: colors.status.success },
+  // Admin actions in user detail
+  actionsCard: {
+    backgroundColor: colors.bg.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  actionLabel: { fontSize: 15, color: colors.text.primary },
+  actionDivider: { height: 1, backgroundColor: colors.border.default, marginVertical: 12 },
+  quotaInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' },
+  quotaInput: {
+    width: 90, backgroundColor: colors.bg.elevated, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, color: colors.text.primary,
+    fontSize: 14, borderWidth: 1, borderColor: colors.border.default, textAlign: 'right',
+  },
+  quotaSaveBtn: {
+    backgroundColor: colors.accent, borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 6,
+  },
+  quotaSaveBtnText: { color: colors.text.onAccent, fontWeight: '700', fontSize: 14 },
+  quotaBarWrap: { marginTop: 8 },
+  quotaBarLabel: { fontSize: 12, color: colors.text.muted, marginBottom: 6 },
+  quotaBarTrack: { height: 6, backgroundColor: colors.bg.elevated, borderRadius: 3, overflow: 'hidden' },
+  quotaBarFill: { height: 6, borderRadius: 3 },
 });

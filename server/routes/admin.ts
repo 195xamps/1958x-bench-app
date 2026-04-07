@@ -136,6 +136,78 @@ router.get('/api/admin/all-jobs', async (req: any, res) => {
   }
 });
 
+router.patch('/api/admin/users/:userId', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { userId } = req.params;
+    const { isAdmin, tokenQuota } = req.body;
+
+    const patch: Record<string, any> = {};
+    if (typeof isAdmin === 'boolean') patch.isAdmin = isAdmin;
+    if (tokenQuota !== undefined) patch.tokenQuota = tokenQuota === null ? null : parseInt(tokenQuota);
+
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    const [updated] = await db.update(schema.users)
+      .set(patch)
+      .where(eq(schema.users.id, userId))
+      .returning();
+
+    if (!updated) return res.status(404).json({ error: 'User not found' });
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+router.delete('/api/admin/users/:userId', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { userId } = req.params;
+
+    // Prevent self-deletion via admin route
+    if (userId === currentUser.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account via admin' });
+    }
+
+    await db.execute(sql`
+      DELETE FROM chat_messages
+      WHERE chat_id IN (SELECT id FROM chats WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`DELETE FROM chats WHERE user_id = ${userId}`);
+    await db.execute(sql`
+      DELETE FROM measurements
+      WHERE bench_job_id IN (SELECT id FROM bench_jobs WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`
+      DELETE FROM repair_actions
+      WHERE bench_job_id IN (SELECT id FROM bench_jobs WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`
+      DELETE FROM symptoms
+      WHERE bench_job_id IN (SELECT id FROM bench_jobs WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`DELETE FROM bench_jobs WHERE user_id = ${userId}`);
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
 router.get('/api/admin/stats', async (req: any, res) => {
   try {
     const currentUser = req.user;

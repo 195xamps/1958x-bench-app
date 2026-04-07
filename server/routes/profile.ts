@@ -57,6 +57,64 @@ router.get('/api/profile/me', async (req: any, res) => {
   }
 });
 
+// ── PATCH /api/profile/me ────────────────────────────────────────────────────
+
+router.patch('/api/profile/me', async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { firstName, lastName } = req.body;
+    await db.update(schema.users)
+      .set({ firstName, lastName, updatedAt: new Date() })
+      .where(eq(schema.users.id, userId));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// ── DELETE /api/profile/me ───────────────────────────────────────────────────
+
+router.delete('/api/profile/me', async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Cascade: delete all user data
+    await db.execute(sql`
+      DELETE FROM chat_messages
+      WHERE chat_id IN (SELECT id FROM chats WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`DELETE FROM chats WHERE user_id = ${userId}`);
+    await db.execute(sql`
+      DELETE FROM measurements
+      WHERE bench_job_id IN (SELECT id FROM bench_jobs WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`
+      DELETE FROM repair_actions
+      WHERE bench_job_id IN (SELECT id FROM bench_jobs WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`
+      DELETE FROM symptoms
+      WHERE bench_job_id IN (SELECT id FROM bench_jobs WHERE user_id = ${userId});
+    `);
+    await db.execute(sql`DELETE FROM bench_jobs WHERE user_id = ${userId}`);
+    await db.execute(sql`DELETE FROM sessions WHERE sess->>'userId' = ${userId}`);
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
+
+    // Destroy the session
+    req.session?.destroy?.(() => {});
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
 // ── PATCH /api/profile/api-key ───────────────────────────────────────────────
 
 router.patch('/api/profile/api-key', async (req: any, res) => {

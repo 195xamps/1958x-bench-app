@@ -19,6 +19,12 @@ export const profileApi = {
     const { data } = await apiClient.get('/api/profile/me');
     return data;
   },
+  async updateMe(patch: { firstName?: string; lastName?: string }): Promise<void> {
+    await apiClient.patch('/api/profile/me', patch);
+  },
+  async deleteMe(): Promise<void> {
+    await apiClient.delete('/api/profile/me');
+  },
   async updateApiKey(apiKey: string | null): Promise<{ hasCustomApiKey: boolean }> {
     const { data } = await apiClient.patch('/api/profile/api-key', { apiKey });
     return data;

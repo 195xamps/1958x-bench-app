@@ -7,6 +7,7 @@ export interface AdminUser {
   isAdmin: boolean;
   createdAt: string;
   totalTokensUsed: number | null;
+  tokenQuota: number | null;
   chatCount: number;
   jobCount: number;
   isActive: boolean;

@@ -9,6 +9,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -28,6 +29,12 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Name editing state
+  const [editingName, setEditingName] = useState(false);
+  const [firstNameInput, setFirstNameInput] = useState('');
+  const [lastNameInput, setLastNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
   // API key state
   const [showApiKeySection, setShowApiKeySection] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -35,8 +42,51 @@ export default function ProfileScreen() {
   const [savingKey, setSavingKey] = useState(false);
 
   useEffect(() => {
-    profileApi.getMe().then(setProfile).catch(() => showError('Failed to load profile')).finally(() => setLoading(false));
+    profileApi.getMe().then(p => {
+      setProfile(p);
+      setFirstNameInput(p.firstName || '');
+      setLastNameInput(p.lastName || '');
+    }).catch(() => showError('Failed to load profile')).finally(() => setLoading(false));
   }, []);
+
+  const saveName = async () => {
+    setSavingName(true);
+    try {
+      await profileApi.updateMe({ firstName: firstNameInput.trim(), lastName: lastNameInput.trim() });
+      setProfile(prev => prev ? { ...prev, firstName: firstNameInput.trim() || null, lastName: lastNameInput.trim() || null } : null);
+      setEditingName(false);
+    } catch {
+      showError('Failed to update name');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    const confirmed = await showConfirm(
+      'Delete Account',
+      'This will permanently delete your account, all jobs, chats, and data. This cannot be undone.',
+      { confirmText: 'Delete Account', destructive: true }
+    );
+    if (!confirmed) return;
+    const confirmed2 = await showConfirm(
+      'Are you sure?',
+      'Type of action: permanent deletion. Your data cannot be recovered.',
+      { confirmText: 'Yes, Delete Everything', destructive: true }
+    );
+    if (!confirmed2) return;
+    try {
+      await profileApi.deleteMe();
+      logout();
+    } catch {
+      showError('Failed to delete account');
+    }
+  };
+
+  const resetOnboarding = async () => {
+    await AsyncStorage.removeItem('onboarding_seen_v1');
+    showAlert('Onboarding Reset', 'The onboarding slides will appear on next app launch.');
+  };
 
   const saveApiKey = async () => {
     setSavingKey(true);
@@ -95,7 +145,39 @@ export default function ProfileScreen() {
             </View>
           )}
           <View style={s.identityText}>
-            <Text style={s.name}>{fullName}</Text>
+            {editingName ? (
+              <View style={s.nameEditRow}>
+                <TextInput
+                  style={s.nameInput}
+                  value={firstNameInput}
+                  onChangeText={setFirstNameInput}
+                  placeholder="First"
+                  placeholderTextColor={colors.text.muted}
+                  autoFocus
+                />
+                <TextInput
+                  style={s.nameInput}
+                  value={lastNameInput}
+                  onChangeText={setLastNameInput}
+                  placeholder="Last"
+                  placeholderTextColor={colors.text.muted}
+                />
+                <TouchableOpacity onPress={saveName} disabled={savingName} style={s.nameEditBtn}>
+                  {savingName
+                    ? <ActivityIndicator size="small" color={colors.accent} />
+                    : <Ionicons name="checkmark" size={20} color={colors.accent} />
+                  }
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setEditingName(false)} style={s.nameEditBtn}>
+                  <Ionicons name="close" size={20} color={colors.text.muted} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity onPress={() => setEditingName(true)} style={s.nameRow}>
+                <Text style={s.name}>{fullName}</Text>
+                <Ionicons name="pencil-outline" size={16} color={colors.text.muted} style={{ marginLeft: 6 }} />
+              </TouchableOpacity>
+            )}
             <Text style={s.email}>{profile.email}</Text>
             {profile.isAdmin && (
               <View style={s.adminBadge}>
@@ -192,6 +274,22 @@ export default function ProfileScreen() {
           </>
         )}
 
+        {/* Account Management */}
+        <Text style={s.sectionLabel}>Account</Text>
+        <View style={s.card}>
+          <TouchableOpacity style={s.accountRow} onPress={resetOnboarding}>
+            <Ionicons name="refresh-outline" size={20} color={colors.text.secondary} />
+            <Text style={s.accountRowText}>Reset Onboarding</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.text.muted} style={{ marginLeft: 'auto' }} />
+          </TouchableOpacity>
+          <View style={s.accountDivider} />
+          <TouchableOpacity style={s.accountRow} onPress={deleteAccount}>
+            <Ionicons name="trash-outline" size={20} color={colors.status.error} />
+            <Text style={[s.accountRowText, { color: colors.status.error }]}>Delete Account</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.status.error} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+          </TouchableOpacity>
+        </View>
+
         {/* Logout */}
         <TouchableOpacity style={s.logoutBtn} onPress={logout}>
           <Ionicons name="log-out-outline" size={20} color={colors.status.error} />
@@ -256,7 +354,15 @@ const s = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   identityText: { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
   name: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright },
+  nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  nameInput: {
+    flex: 1, backgroundColor: colors.bg.elevated, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, color: colors.text.primary,
+    fontSize: 15, borderWidth: 1, borderColor: colors.border.default,
+  },
+  nameEditBtn: { padding: 4 },
   email: { fontSize: 14, color: colors.text.secondary, marginTop: 2 },
   adminBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -326,6 +432,10 @@ const s = StyleSheet.create({
   adminCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   adminCardTitle: { fontSize: 16, fontWeight: '600', color: colors.text.primary },
   adminCardSub: { fontSize: 13, color: colors.text.muted, marginTop: 2 },
+  // Account management
+  accountRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 },
+  accountRowText: { fontSize: 15, color: colors.text.primary },
+  accountDivider: { height: 1, backgroundColor: colors.border.default, marginVertical: 12 },
   // Logout
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
