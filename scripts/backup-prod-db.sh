@@ -42,6 +42,18 @@ fail() {
 }
 
 # ── Read secrets from Keychain ──────────────────────────────────────────────
+# When invoked from cron there's no logged-in session, so the login keychain
+# may be locked. We try to unlock it via a stored unlock password (kept in a
+# separate file with chmod 600). If that file doesn't exist, we fall back to
+# attempting the read directly — works when running interactively from a
+# Mac that's already logged in.
+KEYCHAIN_UNLOCK_FILE="$HOME/.config/195x-bench/keychain-pw"
+if [[ -r "$KEYCHAIN_UNLOCK_FILE" ]]; then
+  security unlock-keychain -p "$(cat "$KEYCHAIN_UNLOCK_FILE")" \
+    "$HOME/Library/Keychains/login.keychain-db" 2>/dev/null \
+    || fail "Failed to unlock keychain (check $KEYCHAIN_UNLOCK_FILE)"
+fi
+
 get_secret() {
   local account="$1"
   security find-generic-password -s "$SERVICE" -a "$account" -w 2>/dev/null \
