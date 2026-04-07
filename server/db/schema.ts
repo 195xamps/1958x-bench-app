@@ -20,6 +20,7 @@ export const users = pgTable('users', {
   profileImageUrl: text('profile_image_url'),
   isAdmin: boolean('is_admin').default(false),
   totalTokensUsed: integer('total_tokens_used').default(0),
+  customApiKey: text('custom_api_key'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

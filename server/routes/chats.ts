@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db, schema } from '../db';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { openai } from '../lib/openai';
+import OpenAI from 'openai';
 import { CHAT_SYSTEM_PROMPT } from '../lib/systemPrompt';
 import { getRelevantDatabaseContext } from '../lib/dbContext';
 
@@ -139,7 +140,15 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
     const { content, attachments } = req.body;
     const chatId = req.params.id;
     const wantStream = req.query.stream === 'true';
-    
+
+    // Use user's custom API key if set, otherwise fall back to system key
+    const [userRecord] = userId
+      ? await db.select({ customApiKey: schema.users.customApiKey }).from(schema.users).where(eq(schema.users.id, userId))
+      : [null];
+    const aiClient = userRecord?.customApiKey
+      ? new OpenAI({ apiKey: userRecord.customApiKey })
+      : openai;
+
     const [chat] = await db.select().from(schema.chats).where(eq(schema.chats.id, chatId));
     if (!chat) {
       return res.status(404).json({ error: 'Chat not found' });
@@ -306,7 +315,7 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
         let searchingNotified = false;
         let firstTokenSent = false;
 
-        const stream = await openai.responses.create({
+        const stream = await aiClient.responses.create({
           model: 'gpt-4o',
           input,
           tools: [{ type: 'web_search' }],
@@ -359,7 +368,7 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
         
       } else {
         // ── Non-streaming with Responses API ────────────────────────────
-        const response = await openai.responses.create({
+        const response = await aiClient.responses.create({
           model: 'gpt-4o',
           input,
           tools: [{ type: 'web_search' }],
@@ -437,7 +446,7 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
         
         let assistantContent = '';
         
-        const stream = await openai.chat.completions.create({
+        const stream = await aiClient.chat.completions.create({
           model: 'gpt-4o',
           messages,
           temperature: 0.7,
@@ -476,7 +485,7 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
         res.end();
         
       } else {
-        const completion = await openai.chat.completions.create({
+        const completion = await aiClient.chat.completions.create({
           model: 'gpt-4o',
           messages,
           temperature: 0.7,

@@ -25,6 +25,7 @@ import referenceRoutes from './routes/reference';
 import adminRoutes from './routes/admin';
 import communityRoutes from './routes/community';
 import repairActionRoutes from './routes/repairActions';
+import profileRoutes from './routes/profile';
 
 const app = express();
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
@@ -61,6 +62,7 @@ async function initServer() {
   app.use(adminRoutes);
   app.use(communityRoutes);
   app.use(repairActionRoutes);
+  app.use(profileRoutes);
 
   // SPA fallback
   app.get(/^\/(?!api).*/, (req, res) => {

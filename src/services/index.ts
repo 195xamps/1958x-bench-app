@@ -9,3 +9,5 @@ export { troubleshootingApi } from './endpoints/troubleshooting';
 export { authApi } from './endpoints/auth';
 export { adminApi } from './endpoints/admin';
 export { repairActionsApi } from './endpoints/repairActions';
+export { profileApi } from './endpoints/profile';
+export type { UserProfile } from './endpoints/profile';

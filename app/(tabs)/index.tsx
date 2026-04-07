@@ -53,7 +53,7 @@ function formatRelativeDate(dateString: string): string {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -262,7 +262,7 @@ export default function DashboardScreen() {
         ListHeaderComponent={
           <>
             {/* User Header */}
-            <View style={styles.userHeader}>
+            <TouchableOpacity style={styles.userHeader} onPress={() => router.push('/profile' as any)} activeOpacity={0.7}>
               <View style={styles.userInfo}>
                 {user?.profileImageUrl ? (
                   <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
@@ -278,10 +278,8 @@ export default function DashboardScreen() {
                   <Text style={styles.userEmail}>{user?.email}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-                <Ionicons name="log-out-outline" size={20} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
+            </TouchableOpacity>
 
             <View style={styles.header}>
               <Text style={styles.title}>195x Bench App</Text>

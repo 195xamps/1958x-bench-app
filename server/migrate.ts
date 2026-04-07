@@ -251,6 +251,16 @@ async function migrate() {
       END $$;
     `);
 
+    // Add custom_api_key to users
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='custom_api_key') THEN
+          ALTER TABLE users ADD COLUMN custom_api_key TEXT;
+        END IF;
+      END $$;
+    `);
+
     // Ensure brentwrisley@gmail.com is admin
     await client.query(`
       UPDATE users SET is_admin = true WHERE email = 'brentwrisley@gmail.com';
