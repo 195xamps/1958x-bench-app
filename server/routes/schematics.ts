@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import { db, schema } from '../db';
 import { eq, ilike, or, and } from 'drizzle-orm';
+import { cacheSchematicLibrary } from '../middleware/cache';
 
 const router = Router();
+
+// Schematic catalog is read-mostly — cache GETs for 5 min.
+router.use(cacheSchematicLibrary);
 
 router.get('/api/schematics', async (req, res) => {
   try {

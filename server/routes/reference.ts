@@ -2,8 +2,13 @@ import { Router } from 'express';
 import { db, schema } from '../db';
 import { eq, ilike, or, desc, sql } from 'drizzle-orm';
 import axios from 'axios';
+import { cacheReference } from '../middleware/cache';
 
 const router = Router();
+
+// All GET endpoints in this file are read-only catalog data that changes
+// rarely (articles + podcast episodes/topics). 5 min fresh, 15 min stale.
+router.use(cacheReference);
 
 router.get('/api/reference-articles', async (req, res) => {
   try {
