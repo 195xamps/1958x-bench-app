@@ -127,6 +127,12 @@ export default function TroubleshootScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={90}
     >
+      {/* Header */}
+      <View style={styles.header}>
+        <Ionicons name="pulse" size={26} color={colors.accent} />
+        <Text style={styles.headerTitle}>Diagnose</Text>
+      </View>
+
       {/* Mode Toggle */}
       <View style={styles.modeToggle}>
         <TouchableOpacity
@@ -240,11 +246,27 @@ function WelcomePanel({ onSelectSymptom }: { onSelectSymptom: (symptom: string) 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.primary },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    backgroundColor: colors.bg.surface,
+    gap: 12,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.accent,
+    fontFamily: 'SpaceMono',
+  },
   // Mode toggle
   modeToggle: {
     flexDirection: 'row',
     padding: 12,
     gap: 10,
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.default,
   },

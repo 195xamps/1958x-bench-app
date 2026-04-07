@@ -163,6 +163,7 @@ export const repairActions = pgTable('repair_actions', {
   beforeMeasurement: text('before_measurement'),
   afterMeasurement: text('after_measurement'),
   notes: text('notes'),
+  photoUrl: text('photo_url'),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [
   index('idx_repair_actions_bench_job_id').on(table.benchJobId),

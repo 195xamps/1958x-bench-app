@@ -87,7 +87,7 @@ export default function JobDetailScreen() {
   const [chatSendingText, setChatSendingText] = useState('Thinking...');
   const streamAbortRef = useRef<(() => void) | null>(null);
 
-  // File upload hook
+  // File upload hook (chat attachments)
   const {
     uploading: uploadingImage,
     pendingAttachments,
@@ -95,7 +95,12 @@ export default function JobDetailScreen() {
     pickDocument,
     removeAttachment,
     clearAttachments,
+    uploadFile,
   } = useFileUpload();
+
+  // Repair photo upload state
+  const [repairPhotoUrl, setRepairPhotoUrl] = useState<string | null>(null);
+  const [uploadingRepairPhoto, setUploadingRepairPhoto] = useState(false);
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
 
   // Notes state
@@ -360,6 +365,7 @@ export default function JobDetailScreen() {
       afterMeasurement: '',
       notes: '',
     });
+    setRepairPhotoUrl(null);
     setShowAddRepair(true);
   };
 
@@ -376,7 +382,30 @@ export default function JobDetailScreen() {
       afterMeasurement: action.afterMeasurement || '',
       notes: action.notes || '',
     });
+    setRepairPhotoUrl(action.photoUrl || null);
     setShowAddRepair(true);
+  };
+
+  const pickRepairPhoto = async (useCamera: boolean) => {
+    const ImagePicker = require('expo-image-picker');
+    if (useCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') { showAlert('Permission Required', 'Camera permission is required'); return; }
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') { showAlert('Permission Required', 'Photo library permission is required'); return; }
+    }
+    const result = useCamera
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 });
+
+    if (!result.canceled && result.assets[0]) {
+      setUploadingRepairPhoto(true);
+      const url = await uploadFile(result.assets[0].uri, 'repair-' + Date.now() + '.jpg', 'image/jpeg');
+      setUploadingRepairPhoto(false);
+      if (url) setRepairPhotoUrl(url);
+      else showError('Failed to upload photo');
+    }
   };
 
   const saveRepairAction = async () => {
@@ -390,6 +419,7 @@ export default function JobDetailScreen() {
         const updated = await repairActionsApi.update(editingRepair.id, {
           ...repairForm,
           benchJobId: id!,
+          photoUrl: repairPhotoUrl || undefined,
         });
         setJobData((prev) =>
           prev ? {
@@ -401,6 +431,7 @@ export default function JobDetailScreen() {
         const created = await repairActionsApi.create({
           ...repairForm,
           benchJobId: id!,
+          photoUrl: repairPhotoUrl || undefined,
         });
         setJobData((prev) =>
           prev ? { ...prev, repairActions: [created, ...prev.repairActions] } : null,
@@ -770,6 +801,9 @@ export default function JobDetailScreen() {
               </View>
             )}
             {ra.notes && <Text style={styles.repairNotes}>{ra.notes}</Text>}
+            {ra.photoUrl && (
+              <Image source={{ uri: ra.photoUrl }} style={styles.repairCardPhoto} resizeMode="cover" />
+            )}
             <View style={styles.repairCardFooter}>
               <Text style={styles.repairTimestamp}>{formatTimestamp(ra.createdAt)}</Text>
               <View style={styles.repairEditHint}>
@@ -1226,6 +1260,39 @@ export default function JobDetailScreen() {
                 placeholderTextColor={colors.text.muted}
                 multiline
               />
+
+              <Text style={styles.repairFormLabel}>Photo</Text>
+              {repairPhotoUrl ? (
+                <View style={styles.repairPhotoPreview}>
+                  <Image source={{ uri: repairPhotoUrl }} style={styles.repairPhotoThumb} resizeMode="cover" />
+                  <TouchableOpacity style={styles.repairPhotoRemove} onPress={() => setRepairPhotoUrl(null)}>
+                    <Ionicons name="close-circle" size={22} color={colors.status.error} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.repairPhotoButtons}>
+                  <TouchableOpacity
+                    style={styles.repairPhotoBtn}
+                    onPress={() => pickRepairPhoto(true)}
+                    disabled={uploadingRepairPhoto}
+                  >
+                    {uploadingRepairPhoto ? (
+                      <ActivityIndicator size="small" color={colors.accent} />
+                    ) : (
+                      <Ionicons name="camera-outline" size={20} color={colors.accent} />
+                    )}
+                    <Text style={styles.repairPhotoBtnText}>Camera</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.repairPhotoBtn}
+                    onPress={() => pickRepairPhoto(false)}
+                    disabled={uploadingRepairPhoto}
+                  >
+                    <Ionicons name="image-outline" size={20} color={colors.accent} />
+                    <Text style={styles.repairPhotoBtnText}>Library</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               <View style={{ height: 20 }} />
             </ScrollView>
             <TouchableOpacity
@@ -1556,6 +1623,50 @@ const styles = StyleSheet.create({
   repairDeleteBtn: {
     padding: 4,
     marginLeft: 4,
+  },
+  repairCardPhoto: {
+    width: '100%',
+    height: 160,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  repairPhotoPreview: {
+    position: 'relative',
+    marginBottom: 4,
+  },
+  repairPhotoThumb: {
+    width: '100%',
+    height: 160,
+    borderRadius: 8,
+  },
+  repairPhotoRemove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: colors.bg.primary,
+    borderRadius: 11,
+  },
+  repairPhotoButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  repairPhotoBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  repairPhotoBtnText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
   },
   repairCardFooter: {
     flexDirection: 'row',

@@ -11,7 +11,7 @@ import { MEASUREMENT_CATEGORIES } from '../src/data';
 import { DEFAULT_DIAGNOSTIC_SEQUENCE } from '../src/data/measurementConstants';
 import { VOLTAGE_CARDS } from '../src/data/voltageCards';
 import type { VoltageCard } from '../src/data/voltageCards';
-import { showAlert, showError } from '../src/utils';
+import { showAlert, showError, showConfirm } from '../src/utils';
 import { LoadingScreen, EmptyState } from '../src/components/shared';
 import {
   MeasurementCard,
@@ -122,6 +122,24 @@ export default function MeasurementScreen() {
     setShowAddModal(false);
   };
 
+  // ─── Delete ─────────────────────────────────────────────────────────────
+
+  const deleteMeasurement = async (id: string) => {
+    const confirmed = await showConfirm(
+      'Delete Measurement',
+      'Remove this measurement? This cannot be undone.',
+      { confirmText: 'Delete', destructive: true },
+    );
+    if (!confirmed) return;
+    try {
+      await measurementsApi.remove(id);
+      setMeasurements(prev => prev.filter(m => m.id !== id));
+    } catch (error) {
+      console.error('Error deleting measurement:', error);
+      showError('Failed to delete measurement');
+    }
+  };
+
   // ─── Save ───────────────────────────────────────────────────────────────
 
   const saveMeasurement = async () => {
@@ -204,7 +222,9 @@ export default function MeasurementScreen() {
             subtitle="Tap the button above or + to add measurements"
           />
         ) : (
-          measurements.map((m) => <MeasurementCard key={m.id} measurement={m} />)
+          measurements.map((m) => (
+            <MeasurementCard key={m.id} measurement={m} onDelete={deleteMeasurement} />
+          ))
         )}
       </ScrollView>
 

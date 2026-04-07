@@ -48,11 +48,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="schematics"
+        name="troubleshoot"
         options={{
-          title: 'Schematics',
+          title: 'Diagnose',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
+            <Ionicons name="pulse" size={size} color={color} />
           ),
         }}
       />
@@ -75,6 +75,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="schematics"
+        options={{
+          title: 'Schematics',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="document-text" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="admin"
         options={{
           title: 'Admin',
@@ -82,12 +91,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="shield-checkmark" size={size} color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="troubleshoot"
-        options={{
-          href: null,
         }}
       />
     </Tabs>

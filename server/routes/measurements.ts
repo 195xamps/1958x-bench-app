@@ -71,7 +71,7 @@ router.get('/api/measurements/:benchJobId', async (req: any, res) => {
   try {
     const userId = req.user?.id;
     const isAdmin = req.user?.isAdmin;
-    
+
     const [benchJob] = await db.select().from(schema.benchJobs).where(eq(schema.benchJobs.id, req.params.benchJobId));
     if (!benchJob) {
       return res.status(404).json({ error: 'Bench job not found' });
@@ -79,12 +79,39 @@ router.get('/api/measurements/:benchJobId', async (req: any, res) => {
     if (benchJob.userId !== userId && !isAdmin) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     const measurements = await db.select().from(schema.measurements).where(eq(schema.measurements.benchJobId, req.params.benchJobId));
     res.json(measurements);
   } catch (error) {
     console.error('Error fetching measurements:', error);
     res.status(500).json({ error: 'Failed to fetch measurements' });
+  }
+});
+
+router.delete('/api/measurements/:id', async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    const isAdmin = req.user?.isAdmin;
+
+    const [measurement] = await db.select().from(schema.measurements)
+      .where(eq(schema.measurements.id, req.params.id));
+    if (!measurement) {
+      return res.status(404).json({ error: 'Measurement not found' });
+    }
+
+    if (measurement.benchJobId) {
+      const [benchJob] = await db.select().from(schema.benchJobs)
+        .where(eq(schema.benchJobs.id, measurement.benchJobId));
+      if (benchJob && benchJob.userId !== userId && !isAdmin) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    await db.delete(schema.measurements).where(eq(schema.measurements.id, req.params.id));
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting measurement:', error);
+    res.status(500).json({ error: 'Failed to delete measurement' });
   }
 });
 

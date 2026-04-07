@@ -105,6 +105,7 @@ export interface RepairAction {
   beforeMeasurement: string | null;
   afterMeasurement: string | null;
   notes: string | null;
+  photoUrl: string | null;
   createdAt: string;
 }
 
@@ -119,6 +120,7 @@ export interface CreateRepairActionPayload {
   beforeMeasurement?: string;
   afterMeasurement?: string;
   notes?: string;
+  photoUrl?: string;
 }
 
 export interface ExternalLink {

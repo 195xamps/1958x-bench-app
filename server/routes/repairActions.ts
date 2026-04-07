@@ -48,6 +48,7 @@ router.post('/api/repair-actions', async (req: any, res) => {
       beforeMeasurement,
       afterMeasurement,
       notes,
+      photoUrl,
     } = req.body;
 
     if (!benchJobId) {
@@ -77,6 +78,7 @@ router.post('/api/repair-actions', async (req: any, res) => {
       beforeMeasurement: beforeMeasurement || null,
       afterMeasurement: afterMeasurement || null,
       notes: notes || null,
+      photoUrl: photoUrl || null,
     }).returning();
 
     // Touch parent job's updatedAt
@@ -123,6 +125,7 @@ router.patch('/api/repair-actions/:id', async (req: any, res) => {
       beforeMeasurement,
       afterMeasurement,
       notes,
+      photoUrl,
     } = req.body;
 
     const updates: Record<string, any> = {};
@@ -135,6 +138,7 @@ router.patch('/api/repair-actions/:id', async (req: any, res) => {
     if (beforeMeasurement !== undefined) updates.beforeMeasurement = beforeMeasurement || null;
     if (afterMeasurement !== undefined) updates.afterMeasurement = afterMeasurement || null;
     if (notes !== undefined) updates.notes = notes || null;
+    if (photoUrl !== undefined) updates.photoUrl = photoUrl || null;
 
     const [updated] = await db.update(schema.repairActions)
       .set(updates)

@@ -241,6 +241,16 @@ async function migrate() {
       END $$;
     `);
 
+    // Add photo_url to repair_actions
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='repair_actions' AND column_name='photo_url') THEN
+          ALTER TABLE repair_actions ADD COLUMN photo_url TEXT;
+        END IF;
+      END $$;
+    `);
+
     console.log('Migration completed successfully!');
   } catch (error) {
     console.error('Migration failed:', error);

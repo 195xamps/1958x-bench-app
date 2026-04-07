@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
 import type { Measurement, MeasurementStatus } from '../../types';
@@ -21,9 +21,10 @@ function getStatusConfig(status: MeasurementStatus) {
 
 interface MeasurementCardProps {
   measurement: Measurement;
+  onDelete?: (id: string) => void;
 }
 
-export function MeasurementCard({ measurement }: MeasurementCardProps) {
+export function MeasurementCard({ measurement, onDelete }: MeasurementCardProps) {
   const status = getStatusConfig(measurement.status);
 
   return (
@@ -33,8 +34,19 @@ export function MeasurementCard({ measurement }: MeasurementCardProps) {
           <Text style={styles.nodeName}>{measurement.nodeName}</Text>
           <Text style={styles.meterMode}>{measurement.meterMode}</Text>
         </View>
-        <View style={[styles.statusIndicator, { backgroundColor: status.color + '30' }]}>
-          <Ionicons name={status.icon as any} size={20} color={status.color} />
+        <View style={styles.headerRight}>
+          <View style={[styles.statusIndicator, { backgroundColor: status.color + '30' }]}>
+            <Ionicons name={status.icon as any} size={20} color={status.color} />
+          </View>
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => onDelete(measurement.id)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.status.error} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -92,10 +104,23 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginTop: 2,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   statusIndicator: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.status.error + '15',
     justifyContent: 'center',
     alignItems: 'center',
   },

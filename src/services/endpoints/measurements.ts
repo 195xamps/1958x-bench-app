@@ -9,4 +9,7 @@ export const measurementsApi = {
     const { data } = await apiClient.post('/api/measurements', payload);
     return data;
   },
+  async remove(id: string): Promise<void> {
+    await apiClient.delete('/api/measurements/' + id);
+  },
 };
