@@ -98,16 +98,6 @@ async function initServer() {
   const PORT = parseInt(process.env.PORT || '5000', 10);
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`195x Bench App running on port ${PORT}`);
-    // Diagnostic: print the DB host the running process is connected to
-    // (without leaking the password). Helps confirm shell vs deployed process
-    // are pointed at the same database.
-    try {
-      const dbUrl = new URL(process.env.DATABASE_URL || '');
-      console.log(`[startup] DB host: ${dbUrl.host} db: ${dbUrl.pathname.slice(1)} user: ${dbUrl.username}`);
-    } catch {
-      console.log('[startup] Could not parse DATABASE_URL');
-    }
-    console.log(`[startup] Build marker: requireApproved v2 with fresh DB read`);
   });
 }
 
