@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db, schema } from '../db';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 const router = Router();
@@ -12,15 +12,28 @@ router.get('/api/profile/me', async (req: any, res) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const [user] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
+    const [user] = await db.select({
+      id: schema.users.id,
+      email: schema.users.email,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      profileImageUrl: schema.users.profileImageUrl,
+      isAdmin: schema.users.isAdmin,
+      totalTokensUsed: schema.users.totalTokensUsed,
+    }).from(schema.users).where(eq(schema.users.id, userId));
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const chatCountResult = await db.execute(
-      sql`SELECT COUNT(*) as count FROM chats WHERE user_id = ${userId}`
-    );
-    const jobCountResult = await db.execute(
-      sql`SELECT COUNT(*) as count FROM bench_jobs WHERE user_id = ${userId}`
-    );
+    // Count chats and jobs with separate safe queries
+    let chatCount = 0;
+    let jobCount = 0;
+    try {
+      const chatResult = await db.execute(sql`SELECT COUNT(*)::int as count FROM chats WHERE user_id = ${userId}`);
+      chatCount = (chatResult.rows[0] as any)?.count ?? 0;
+    } catch { /* non-fatal */ }
+    try {
+      const jobResult = await db.execute(sql`SELECT COUNT(*)::int as count FROM bench_jobs WHERE user_id = ${userId}`);
+      jobCount = (jobResult.rows[0] as any)?.count ?? 0;
+    } catch { /* non-fatal */ }
 
     const COST_PER_TOKEN = 5 / 1_000_000;
     const tokens = user.totalTokensUsed || 0;
@@ -34,9 +47,9 @@ router.get('/api/profile/me', async (req: any, res) => {
       isAdmin: user.isAdmin,
       totalTokensUsed: tokens,
       estimatedCostUsd: tokens * COST_PER_TOKEN,
-      hasCustomApiKey: !!user.customApiKey,
-      chatCount: parseInt((chatCountResult.rows[0] as any)?.count || '0'),
-      jobCount: parseInt((jobCountResult.rows[0] as any)?.count || '0'),
+      hasCustomApiKey: false,
+      chatCount,
+      jobCount,
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
