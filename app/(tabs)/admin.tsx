@@ -34,12 +34,12 @@ export default function AdminScreen() {
     setLoadError(false);
     try {
       const [u, c, j, st] = await Promise.all([
-        adminApi.getUsers(),
-        adminApi.getAllChats(),
-        adminApi.getAllJobs(),
+        adminApi.getUsers({ limit: 100 }),
+        adminApi.getAllChats({ limit: 100 }),
+        adminApi.getAllJobs({ limit: 100 }),
         adminApi.getStats(),
       ]);
-      setUsers(u); setAllChats(c); setAllJobs(j); setStats(st);
+      setUsers(u.data); setAllChats(c.data); setAllJobs(j.data); setStats(st);
     } catch (e) {
       console.error('Error loading admin data:', e);
       setLoadError(true);

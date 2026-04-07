@@ -4,6 +4,14 @@ import { eq, desc, ilike, or, and, sql } from 'drizzle-orm';
 
 const router = Router();
 
+// Minimal owner projection for community feed — no email, no admin/quota
+// data, no API key. Just what the UI shows.
+const ownerCols = {
+  firstName: schema.users.firstName,
+  lastName: schema.users.lastName,
+  profileImageUrl: schema.users.profileImageUrl,
+};
+
 router.get('/api/community/jobs', async (req: any, res) => {
   try {
     const { search, circuitFamily, make, limit: limitStr, offset: offsetStr } = req.query;
@@ -43,7 +51,7 @@ router.get('/api/community/jobs', async (req: any, res) => {
     const results = await db.select({
       job: schema.benchJobs,
       ampProfile: schema.ampProfiles,
-      user: schema.users,
+      user: ownerCols,
     }).from(schema.benchJobs)
       .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
       .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
@@ -83,11 +91,11 @@ router.get('/api/community/jobs', async (req: any, res) => {
 router.get('/api/community/jobs/:id', async (req: any, res) => {
   try {
     const { id } = req.params;
-    
+
     const [result] = await db.select({
       job: schema.benchJobs,
       ampProfile: schema.ampProfiles,
-      user: schema.users,
+      user: ownerCols,
     }).from(schema.benchJobs)
       .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
       .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
@@ -95,43 +103,42 @@ router.get('/api/community/jobs/:id', async (req: any, res) => {
         eq(schema.benchJobs.id, id),
         eq(schema.benchJobs.isPublic, true)
       ));
-    
+
     if (!result) {
       return res.status(404).json({ error: 'Job not found or not public' });
     }
-    
+
     const { job, ampProfile, user } = result;
-    
-    const measurements = await db.select().from(schema.measurements)
-      .where(eq(schema.measurements.benchJobId, id))
-      .orderBy(schema.measurements.createdAt);
-    
-    const repairActions = await db.select().from(schema.repairActions)
-      .where(eq(schema.repairActions.benchJobId, id))
-      .orderBy(desc(schema.repairActions.createdAt));
-    
-    const jobSchematics = await db
-      .select({ schematic: schema.schematics })
-      .from(schema.jobSchematics)
-      .innerJoin(schema.schematics, eq(schema.jobSchematics.schematicId, schema.schematics.id))
-      .where(eq(schema.jobSchematics.benchJobId, id));
-    
-    // Get chat messages for this job
-    const [jobChat] = await db.select().from(schema.chats)
-      .where(eq(schema.chats.benchJobId, id));
-    
+
+    // Run the 4 detail queries in parallel — they're independent reads
+    // and used to be serial, costing ~4x the latency they should.
+    const [measurements, repairActions, jobSchematics, jobChats] = await Promise.all([
+      db.select().from(schema.measurements)
+        .where(eq(schema.measurements.benchJobId, id))
+        .orderBy(schema.measurements.createdAt),
+      db.select().from(schema.repairActions)
+        .where(eq(schema.repairActions.benchJobId, id))
+        .orderBy(desc(schema.repairActions.createdAt)),
+      db.select({ schematic: schema.schematics })
+        .from(schema.jobSchematics)
+        .innerJoin(schema.schematics, eq(schema.jobSchematics.schematicId, schema.schematics.id))
+        .where(eq(schema.jobSchematics.benchJobId, id)),
+      db.select().from(schema.chats).where(eq(schema.chats.benchJobId, id)),
+    ]);
+
+    const jobChat = jobChats[0];
     let chatMessages: any[] = [];
     if (jobChat) {
-      const messages = await db.select().from(schema.chatMessages)
+      const messages = await db.select({
+        id: schema.chatMessages.id,
+        role: schema.chatMessages.role,
+        content: schema.chatMessages.content,
+        attachments: schema.chatMessages.attachments,
+        createdAt: schema.chatMessages.createdAt,
+      }).from(schema.chatMessages)
         .where(eq(schema.chatMessages.chatId, jobChat.id))
         .orderBy(schema.chatMessages.createdAt);
-      chatMessages = messages.map(m => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        attachments: m.attachments,
-        createdAt: m.createdAt,
-      }));
+      chatMessages = messages;
     }
     
     const publicJob = {

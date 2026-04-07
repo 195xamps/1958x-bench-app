@@ -1,29 +1,45 @@
 import { apiClient } from '../api';
 import type { AdminUser, AdminChat, AdminJob, AdminStats } from '../../types/admin';
 
+interface Paged<T> {
+  data: T[];
+  total: number;
+  hasMore: boolean;
+}
+
+interface PageOpts { limit?: number; offset?: number }
+
+function pageQuery(opts?: PageOpts): string {
+  const params = new URLSearchParams();
+  if (opts?.limit != null) params.set('limit', String(opts.limit));
+  if (opts?.offset != null) params.set('offset', String(opts.offset));
+  const s = params.toString();
+  return s ? `?${s}` : '';
+}
+
 export const adminApi = {
-  async getUsers(): Promise<AdminUser[]> {
-    const { data } = await apiClient.get('/api/admin/users');
+  async getUsers(opts?: PageOpts): Promise<Paged<AdminUser>> {
+    const { data } = await apiClient.get(`/api/admin/users${pageQuery(opts)}`);
     return data;
   },
 
-  async getAllChats(): Promise<{ chat: AdminChat; user: AdminUser | null }[]> {
-    const { data } = await apiClient.get('/api/admin/all-chats');
+  async getAllChats(opts?: PageOpts): Promise<Paged<{ chat: AdminChat; user: AdminUser | null }>> {
+    const { data } = await apiClient.get(`/api/admin/all-chats${pageQuery(opts)}`);
     return data;
   },
 
-  async getAllJobs(): Promise<AdminJob[]> {
-    const { data } = await apiClient.get('/api/admin/all-jobs');
+  async getAllJobs(opts?: PageOpts): Promise<Paged<AdminJob>> {
+    const { data } = await apiClient.get(`/api/admin/all-jobs${pageQuery(opts)}`);
     return data;
   },
 
-  async getUserChats(userId: string): Promise<AdminChat[]> {
-    const { data } = await apiClient.get(`/api/admin/users/${userId}/chats`);
+  async getUserChats(userId: string, opts?: PageOpts): Promise<AdminChat[]> {
+    const { data } = await apiClient.get(`/api/admin/users/${userId}/chats${pageQuery(opts)}`);
     return data;
   },
 
-  async getUserJobs(userId: string): Promise<AdminJob[]> {
-    const { data } = await apiClient.get(`/api/admin/users/${userId}/jobs`);
+  async getUserJobs(userId: string, opts?: PageOpts): Promise<AdminJob[]> {
+    const { data } = await apiClient.get(`/api/admin/users/${userId}/jobs${pageQuery(opts)}`);
     return data;
   },
 

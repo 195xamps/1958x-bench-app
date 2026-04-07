@@ -4,50 +4,70 @@ import { eq, desc, sql } from 'drizzle-orm';
 
 const router = Router();
 
+// Explicit projection for any user data we send to clients. NEVER includes
+// customApiKey (encrypted but still secret material), and only the columns
+// the UI actually renders. Used everywhere we expose user records.
+const userPublicCols = {
+  id: schema.users.id,
+  email: schema.users.email,
+  firstName: schema.users.firstName,
+  lastName: schema.users.lastName,
+  profileImageUrl: schema.users.profileImageUrl,
+  isAdmin: schema.users.isAdmin,
+  isApproved: schema.users.isApproved,
+  totalTokensUsed: schema.users.totalTokensUsed,
+  tokenQuota: schema.users.tokenQuota,
+  createdAt: schema.users.createdAt,
+};
+
+// Pagination defaults — capped server-side so a client can't request a
+// 10,000-row dump.
+function parsePagination(req: any, defaultLimit = 50, maxLimit = 200) {
+  const limit = Math.min(parseInt(req.query.limit as string) || defaultLimit, maxLimit);
+  const offset = Math.max(parseInt(req.query.offset as string) || 0, 0);
+  return { limit, offset };
+}
+
 router.get('/api/admin/users', async (req: any, res) => {
   try {
     const currentUser = req.user;
     if (!currentUser?.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    
-    const allUsers = await db.select().from(schema.users).orderBy(desc(schema.users.createdAt));
-    
-    const activeSessions = await db.select({ 
-      sess: schema.sessions.sess 
-    }).from(schema.sessions)
-      .where(sql`expire > NOW()`);
-    
+
+    const { limit, offset } = parsePagination(req);
+
+    // Run total + page query + side data in parallel — these are all
+    // independent reads.
+    const [totalResult, pageUsers, activeSessions, chatCounts, jobCounts] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(schema.users),
+      db.select(userPublicCols).from(schema.users)
+        .orderBy(desc(schema.users.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ sess: schema.sessions.sess }).from(schema.sessions)
+        .where(sql`expire > NOW()`),
+      db.execute(sql`SELECT user_id, COUNT(*)::int AS count FROM chats WHERE user_id IS NOT NULL GROUP BY user_id`),
+      db.execute(sql`SELECT user_id, COUNT(*)::int AS count FROM bench_jobs WHERE user_id IS NOT NULL GROUP BY user_id`),
+    ]);
+
+    const total = totalResult[0]?.count ?? 0;
     const activeUserIds = new Set(
       activeSessions
-        .map(s => (s.sess as any)?.passport?.user)
+        .map(s => (s.sess as any)?.passport?.user?.id || (s.sess as any)?.passport?.user)
         .filter(Boolean)
     );
-    
-    const chatCounts = await db.execute(sql`
-      SELECT user_id, COUNT(*) as count 
-      FROM chats 
-      WHERE user_id IS NOT NULL 
-      GROUP BY user_id
-    `);
-    const chatCountMap = new Map((chatCounts.rows as any[]).map(r => [r.user_id, parseInt(r.count)]));
-    
-    const jobCounts = await db.execute(sql`
-      SELECT user_id, COUNT(*) as count 
-      FROM bench_jobs 
-      WHERE user_id IS NOT NULL 
-      GROUP BY user_id
-    `);
-    const jobCountMap = new Map((jobCounts.rows as any[]).map(r => [r.user_id, parseInt(r.count)]));
-    
-    const usersWithStats = allUsers.map(user => ({
+    const chatCountMap = new Map((chatCounts.rows as any[]).map(r => [r.user_id, r.count]));
+    const jobCountMap = new Map((jobCounts.rows as any[]).map(r => [r.user_id, r.count]));
+
+    const data = pageUsers.map(user => ({
       ...user,
       chatCount: chatCountMap.get(user.id) || 0,
       jobCount: jobCountMap.get(user.id) || 0,
       isActive: activeUserIds.has(user.id),
     }));
-    
-    res.json(usersWithStats);
+
+    res.json({ data, total, hasMore: offset + data.length < total });
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
@@ -60,11 +80,14 @@ router.get('/api/admin/users/:userId/chats', async (req: any, res) => {
     if (!currentUser?.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    
+
     const { userId } = req.params;
+    const { limit, offset } = parsePagination(req, 100);
     const userChats = await db.select().from(schema.chats)
       .where(eq(schema.chats.userId, userId))
-      .orderBy(desc(schema.chats.updatedAt));
+      .orderBy(desc(schema.chats.updatedAt))
+      .limit(limit)
+      .offset(offset);
     res.json(userChats);
   } catch (error) {
     console.error('Error fetching user chats:', error);
@@ -78,15 +101,18 @@ router.get('/api/admin/users/:userId/jobs', async (req: any, res) => {
     if (!currentUser?.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    
+
     const { userId } = req.params;
+    const { limit, offset } = parsePagination(req, 100);
     const userJobs = await db.select({
       job: schema.benchJobs,
       ampProfile: schema.ampProfiles,
     }).from(schema.benchJobs)
       .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
       .where(eq(schema.benchJobs.userId, userId))
-      .orderBy(desc(schema.benchJobs.createdAt));
+      .orderBy(desc(schema.benchJobs.createdAt))
+      .limit(limit)
+      .offset(offset);
     res.json(userJobs);
   } catch (error) {
     console.error('Error fetching user jobs:', error);
@@ -100,14 +126,23 @@ router.get('/api/admin/all-chats', async (req: any, res) => {
     if (!currentUser?.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    
-    const allChats = await db.select({
-      chat: schema.chats,
-      user: schema.users,
-    }).from(schema.chats)
-      .leftJoin(schema.users, eq(schema.chats.userId, schema.users.id))
-      .orderBy(desc(schema.chats.updatedAt));
-    res.json(allChats);
+
+    const { limit, offset } = parsePagination(req);
+
+    const [totalResult, page] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(schema.chats),
+      db.select({
+        chat: schema.chats,
+        user: userPublicCols,
+      }).from(schema.chats)
+        .leftJoin(schema.users, eq(schema.chats.userId, schema.users.id))
+        .orderBy(desc(schema.chats.updatedAt))
+        .limit(limit)
+        .offset(offset),
+    ]);
+
+    const total = totalResult[0]?.count ?? 0;
+    res.json({ data: page, total, hasMore: offset + page.length < total });
   } catch (error) {
     console.error('Error fetching all chats:', error);
     res.status(500).json({ error: 'Failed to fetch all chats' });
@@ -120,16 +155,25 @@ router.get('/api/admin/all-jobs', async (req: any, res) => {
     if (!currentUser?.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
-    
-    const allJobs = await db.select({
-      job: schema.benchJobs,
-      ampProfile: schema.ampProfiles,
-      user: schema.users,
-    }).from(schema.benchJobs)
-      .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
-      .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
-      .orderBy(desc(schema.benchJobs.createdAt));
-    res.json(allJobs);
+
+    const { limit, offset } = parsePagination(req);
+
+    const [totalResult, page] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(schema.benchJobs),
+      db.select({
+        job: schema.benchJobs,
+        ampProfile: schema.ampProfiles,
+        user: userPublicCols,
+      }).from(schema.benchJobs)
+        .leftJoin(schema.ampProfiles, eq(schema.benchJobs.ampProfileId, schema.ampProfiles.id))
+        .leftJoin(schema.users, eq(schema.benchJobs.userId, schema.users.id))
+        .orderBy(desc(schema.benchJobs.createdAt))
+        .limit(limit)
+        .offset(offset),
+    ]);
+
+    const total = totalResult[0]?.count ?? 0;
+    res.json({ data: page, total, hasMore: offset + page.length < total });
   } catch (error) {
     console.error('Error fetching all jobs:', error);
     res.status(500).json({ error: 'Failed to fetch all jobs' });
