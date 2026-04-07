@@ -4,12 +4,11 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "dev": "concurrently \"npx tsx server/index.ts\" \"expo start --web --port 5000\"",
+    "dev": "concurrently \"npx tsx server/index.ts\" \"expo start\"",
     "server": "npx tsx server/index.ts",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
     "migrate": "npx tsx server/migrate.ts"
@@ -18,7 +17,6 @@
     "preset": "jest-expo"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.2",
     "@google-cloud/storage": "^7.12.0",
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -84,14 +82,12 @@
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.18.0",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
     "react-native": "0.81.4",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-markdown-display": "^7.0.2",
     "react-native-reanimated": "~4.1.0",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-web": "^0.21.0",
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
     "tsx": "^4.21.0",

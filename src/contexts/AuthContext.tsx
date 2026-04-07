@@ -1,18 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Platform } from 'react-native';
-import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient } from '../services/api';
 
-const getApiUrl = () => {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return window.location.origin;
-  }
-  return process.env.EXPO_PUBLIC_API_URL || '';
-};
-
-const API_URL = getApiUrl();
+const API_URL = process.env.EXPO_PUBLIC_API_URL || '';
 const TOKEN_KEY = 'benchapp_api_token';
 
 interface User {
@@ -38,15 +29,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 /** Store API token and set as default header */
 async function saveToken(token: string) {
-  if (Platform.OS !== 'web') {
-    await SecureStore.setItemAsync(TOKEN_KEY, token);
-  }
+  await SecureStore.setItemAsync(TOKEN_KEY, token);
   apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
 /** Load saved token and set as default header */
 async function loadToken(): Promise<string | null> {
-  if (Platform.OS === 'web') return null;
   try {
     const token = await SecureStore.getItemAsync(TOKEN_KEY);
     if (token) {
@@ -60,9 +48,7 @@ async function loadToken(): Promise<string | null> {
 
 /** Clear saved token */
 async function clearToken() {
-  if (Platform.OS !== 'web') {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
-  }
+  await SecureStore.deleteItemAsync(TOKEN_KEY);
   delete apiClient.defaults.headers.common['Authorization'];
 }
 
@@ -72,16 +58,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async () => {
     try {
+      const auth = apiClient.defaults.headers.common['Authorization'];
+      if (!auth) {
+        setUser(null);
+        return;
+      }
       const response = await fetch(`${API_URL}/api/auth/user`, {
-        credentials: 'include',
-        headers: apiClient.defaults.headers.common['Authorization']
-          ? { Authorization: apiClient.defaults.headers.common['Authorization'] as string }
-          : {},
+        headers: { Authorization: auth as string },
       });
-      
       if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
+        setUser(await response.json());
       } else {
         setUser(null);
         await clearToken();
@@ -103,57 +89,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async () => {
-    if (Platform.OS === 'web') {
-      window.location.href = `${API_URL}/api/login`;
-    } else {
-      const result = await WebBrowser.openAuthSessionAsync(
-        `${API_URL}/api/login?mobile=true`,
-        'benchapp195x://auth-complete'
-      );
-      console.log('Auth session result:', result);
-      if (result.type === 'success' && result.url) {
-        const url = new URL(result.url);
-        const token = url.searchParams.get('token');
-        
-        if (token) {
-          try {
-            const response = await fetch(`${API_URL}/api/auth/mobile-token`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({ token }),
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              console.log('Mobile auth successful:', data.user?.email);
-              if (data.apiToken) {
-                await saveToken(data.apiToken);
-              }
-              setUser(data.user);
-            } else {
-              console.error('Token exchange failed:', await response.text());
-            }
-          } catch (error) {
-            console.error('Error exchanging token:', error);
-          }
-        } else {
-          await refreshUser();
-        }
+    const result = await WebBrowser.openAuthSessionAsync(
+      `${API_URL}/api/login?mobile=true`,
+      'benchapp195x://auth-complete'
+    );
+    if (result.type !== 'success' || !result.url) return;
+
+    const url = new URL(result.url);
+    const token = url.searchParams.get('token');
+    if (!token) {
+      await refreshUser();
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/mobile-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      if (!response.ok) {
+        console.error('Token exchange failed:', await response.text());
+        return;
       }
+      const data = await response.json();
+      if (data.apiToken) await saveToken(data.apiToken);
+      setUser(data.user);
+    } catch (error) {
+      console.error('Error exchanging token:', error);
     }
   };
 
   const logout = async () => {
     await clearToken();
     setUser(null);
-    if (Platform.OS === 'web') {
-      window.location.href = `${API_URL}/api/logout`;
-    } else {
-      try {
-        await fetch(`${API_URL}/api/logout`, { credentials: 'include' });
-      } catch {}
-    }
+    try {
+      await fetch(`${API_URL}/api/logout`);
+    } catch {}
   };
 
   const refreshUser = async () => {

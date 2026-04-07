@@ -83,7 +83,6 @@ integrations = ["javascript_openai_ai_integrations:2.0.0", "javascript_object_st
 [deployment]
 deploymentTarget = "autoscale"
 run = ["npx", "tsx", "server/index.ts"]
-build = ["npx", "expo", "export", "--platform", "web"]
 
 [userenv]
 

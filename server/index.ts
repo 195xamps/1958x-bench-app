@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
-import path from 'path';
 import { registerObjectStorageRoutes } from './replit_integrations/object_storage';
 import { setupAuth, registerAuthRoutes, tokenAuth } from './replit_integrations/auth';
 import { globalLimiter, chatLimiter, authLimiter } from './middleware/rateLimit';
@@ -37,8 +36,10 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
 // Trust the first proxy hop (Replit) so req.ip resolves correctly for rate limiting
 app.set('trust proxy', 1);
 
+// API-only server — Helmet's default CSP/COEP can be locked down further
+// since we don't serve any HTML, but the defaults are already strict enough.
 app.use(helmet({
-  contentSecurityPolicy: false, // SPA + inline styles need a custom CSP later
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
 }));
 app.use(cors({
@@ -70,9 +71,6 @@ async function initServer() {
 
   registerObjectStorageRoutes(app);
 
-  app.use(express.static(path.join(__dirname, '..', 'dist', 'client')));
-  app.use(express.static(path.join(__dirname, '..', 'dist', 'server')));
-
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: '195x Bench App API running' });
@@ -90,9 +88,13 @@ async function initServer() {
   app.use(repairActionRoutes);
   app.use(profileRoutes);
 
-  // SPA fallback
-  app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'dist', 'server', '(tabs)', 'index.html'));
+  // Root + 404 — this is an API server, not a web host. Anything that
+  // isn't a known /api/* route gets a small JSON response.
+  app.get('/', (_req, res) => {
+    res.json({ name: '195x Bench App API', status: 'ok' });
+  });
+  app.use((_req, res) => {
+    res.status(404).json({ error: 'Not found' });
   });
 
   const PORT = parseInt(process.env.PORT || '5000', 10);
