@@ -879,6 +879,14 @@ export default function JobDetailScreen() {
         </View>
       </View>
 
+      {/* Workflow progress */}
+      <WorkflowProgress
+        safetyDone={job.safetyChecklistCompleted}
+        diagnoseDone={chatMessages.length > 0}
+        measureDone={measurements.length > 0}
+        repairDone={repairActions.length > 0}
+      />
+
       {/* Tab bar */}
       <View style={styles.tabBar}>
         {(['chat', 'notes', 'measurements', 'repairs'] as TabType[]).map((tab) => {
@@ -1312,6 +1320,111 @@ export default function JobDetailScreen() {
     </View>
   );
 }
+
+// ─── Workflow Progress ───────────────────────────────────────────────────────
+
+function WorkflowProgress({
+  safetyDone,
+  diagnoseDone,
+  measureDone,
+  repairDone,
+}: {
+  safetyDone: boolean;
+  diagnoseDone: boolean;
+  measureDone: boolean;
+  repairDone: boolean;
+}) {
+  const steps = [
+    { label: 'Safety', icon: 'shield-checkmark', done: safetyDone },
+    { label: 'Diagnose', icon: 'pulse', done: diagnoseDone },
+    { label: 'Measure', icon: 'analytics', done: measureDone },
+    { label: 'Repair', icon: 'construct', done: repairDone },
+  ];
+
+  const completedCount = steps.filter((s) => s.done).length;
+
+  return (
+    <View style={wpStyles.container}>
+      <View style={wpStyles.row}>
+        {steps.map((step, i) => (
+          <React.Fragment key={step.label}>
+            <View style={wpStyles.step}>
+              <View style={[wpStyles.circle, step.done && wpStyles.circleDone]}>
+                {step.done ? (
+                  <Ionicons name="checkmark" size={14} color={colors.text.onAccent} />
+                ) : (
+                  <Ionicons name={step.icon as any} size={14} color={colors.text.muted} />
+                )}
+              </View>
+              <Text style={[wpStyles.label, step.done && wpStyles.labelDone]}>{step.label}</Text>
+            </View>
+            {i < steps.length - 1 && (
+              <View style={[wpStyles.connector, steps[i + 1].done && wpStyles.connectorDone]} />
+            )}
+          </React.Fragment>
+        ))}
+      </View>
+      <Text style={wpStyles.summary}>{completedCount}/{steps.length} steps complete</Text>
+    </View>
+  );
+}
+
+const wpStyles = StyleSheet.create({
+  container: {
+    backgroundColor: colors.bg.surface,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  step: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  circle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.bg.elevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  circleDone: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  connector: {
+    flex: 1,
+    height: 2,
+    backgroundColor: colors.bg.elevated,
+    marginHorizontal: 4,
+    marginBottom: 12,
+  },
+  connectorDone: {
+    backgroundColor: colors.accent + '60',
+  },
+  label: {
+    fontSize: 10,
+    color: colors.text.muted,
+    fontWeight: '500',
+  },
+  labelDone: {
+    color: colors.accent,
+  },
+  summary: {
+    fontSize: 11,
+    color: colors.text.muted,
+    textAlign: 'center',
+  },
+});
 
 // ─── Small Reusable Components ───────────────────────────────────────────────
 

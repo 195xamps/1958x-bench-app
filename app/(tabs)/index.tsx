@@ -18,13 +18,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView, Pressable as GHPressable } from 'react-native-gesture-handler';
 import { useFocusEffect } from '@react-navigation/native';
 
+import { useRouter } from 'expo-router';
 import { chatsApi } from '../../src/services';
 import { colors } from '../../src/theme';
 import { showAlert, showConfirm, showError, openUrl } from '../../src/utils';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useFileUpload } from '../../src/hooks/useFileUpload';
 import type { Chat, ChatMessage } from '../../src/types';
-import { LoadingScreen, EmptyState } from '../../src/components/shared';
+import { LoadingScreen, EmptyState, OnboardingOverlay } from '../../src/components/shared';
 import { MessageList } from '../../src/components/chat';
 import {
   AttachmentPickerModal,
@@ -51,6 +52,7 @@ function formatRelativeDate(dateString: string): string {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -302,13 +304,7 @@ export default function DashboardScreen() {
             onOptions={() => { setSelectedChat(chat); setShowOptionsModal(true); }}
           />
         )}
-        ListEmptyComponent={
-          <EmptyState
-            icon="chatbubbles-outline"
-            title="No chats yet"
-            subtitle="Start a new chat to ask questions about amp repair"
-          />
-        }
+        ListEmptyComponent={<HomeEmptyState onCreateJob={() => router.push('/(tabs)/jobs' as any)} onNewChat={createNewChat} />}
         onEndReached={() => { if (hasMore && !loadingMore) fetchChats(true); }}
         onEndReachedThreshold={0.3}
         ListFooterComponent={loadingMore ? (
@@ -442,6 +438,44 @@ export default function DashboardScreen() {
         attachments={getAllAttachments()}
         onClose={() => setShowMediaGallery(false)}
       />
+
+      <OnboardingOverlay />
+    </View>
+  );
+}
+
+// ─── Home Empty State ────────────────────────────────────────────────────────
+
+function HomeEmptyState({ onCreateJob, onNewChat }: { onCreateJob: () => void; onNewChat: () => void }) {
+  return (
+    <View style={styles.homeEmpty}>
+      <Ionicons name="hardware-chip" size={52} color={colors.accent} style={{ marginBottom: 16 }} />
+      <Text style={styles.homeEmptyTitle}>Ready to bench?</Text>
+      <Text style={styles.homeEmptySubtitle}>
+        Create a job for each amp you service, or start a quick chat for a one-off question.
+      </Text>
+
+      <TouchableOpacity style={styles.homeEmptyPrimary} onPress={onCreateJob}>
+        <View style={styles.homeEmptyCardIcon}>
+          <Ionicons name="briefcase" size={26} color={colors.accent} />
+        </View>
+        <View style={styles.homeEmptyCardText}>
+          <Text style={styles.homeEmptyCardTitle}>Create a Job</Text>
+          <Text style={styles.homeEmptyCardDesc}>Track measurements, repairs, and notes per amp</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.homeEmptySecondary} onPress={onNewChat}>
+        <View style={[styles.homeEmptyCardIcon, { backgroundColor: colors.bg.elevated }]}>
+          <Ionicons name="chatbubble-ellipses" size={26} color={colors.text.secondary} />
+        </View>
+        <View style={styles.homeEmptyCardText}>
+          <Text style={styles.homeEmptyCardTitle}>Quick Chat</Text>
+          <Text style={styles.homeEmptyCardDesc}>Ask a one-off repair question</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -631,6 +665,70 @@ const styles = StyleSheet.create({
   },
   newChatButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text.bright, marginBottom: 12 },
+  // Home empty state
+  homeEmpty: {
+    flex: 1,
+    paddingTop: 40,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  homeEmptyTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: colors.text.bright,
+    fontFamily: 'SpaceMono',
+    marginBottom: 10,
+  },
+  homeEmptySubtitle: {
+    fontSize: 15,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+    paddingHorizontal: 8,
+  },
+  homeEmptyPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.surface,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.accent + '50',
+  },
+  homeEmptySecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.surface,
+    borderRadius: 14,
+    padding: 16,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  homeEmptyCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.accent + '18',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  homeEmptyCardText: { flex: 1 },
+  homeEmptyCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.bright,
+    marginBottom: 3,
+  },
+  homeEmptyCardDesc: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    lineHeight: 18,
+  },
   // Chat cards
   chatCard: {
     backgroundColor: colors.bg.surface, borderRadius: 12, marginBottom: 12,
