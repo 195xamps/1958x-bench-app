@@ -272,6 +272,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: colors.accent,
+    fontFamily: 'SpaceMono',
   },
   subtitle: {
     fontSize: 14,

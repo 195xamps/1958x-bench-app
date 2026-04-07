@@ -1300,7 +1300,7 @@ const styles = StyleSheet.create({
   headerBackButton: { marginRight: 12 },
   headerInfo: { flex: 1 },
   headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright, fontFamily: 'SpaceMono' },
   headerSecondRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   headerSubtitle: { fontSize: 14, color: colors.accent },
   customerInfoRow: {

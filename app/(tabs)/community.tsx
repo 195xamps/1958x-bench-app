@@ -330,6 +330,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.accent,
+    fontFamily: 'SpaceMono',
   },
   subtitle: {
     fontSize: 14,

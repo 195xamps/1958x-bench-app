@@ -1,11 +1,11 @@
 export const colors = {
   bg: {
-    primary: '#111827',
-    surface: '#1f2937',
-    elevated: '#374151',
-    muted: '#4b5563',
-    dark: '#0f172a',
-    warm: '#292524',
+    primary: '#0d1117',    // darker — more contrast from surface
+    surface: '#161d2a',    // richer blue-dark — clearly distinct from primary
+    elevated: '#1f2d42',   // noticeably lighter — cards pop from surface
+    muted: '#2d3a4f',
+    dark: '#0a0f18',
+    warm: '#1e1a16',
   },
   text: {
     primary: '#f3f4f6',
@@ -13,18 +13,18 @@ export const colors = {
     light: '#d1d5db',
     secondary: '#9ca3af',
     muted: '#6b7280',
-    onAccent: '#1f2937',
+    onAccent: '#0d1117',   // updated to match new primary
   },
-  accent: '#f59e0b',
-  accentLight: '#fbbf24',
+  accent: '#d97706',       // amber-600 — deeper, richer, distinct from warning
+  accentLight: '#f59e0b',  // amber-400 — old accent, now used as light variant
   border: {
-    default: '#374151',
+    default: '#1f2d42',    // matches elevated so borders feel natural
   },
   status: {
     success: '#22c55e',
     successDark: '#065f46',
     successLight: '#a7f3d0',
-    warning: '#f59e0b',
+    warning: '#f59e0b',    // amber-400 — clearly distinct from accent now
     error: '#ef4444',
     info: '#3b82f6',
     infoLight: '#60a5fa',

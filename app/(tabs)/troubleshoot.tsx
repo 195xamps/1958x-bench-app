@@ -327,6 +327,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
     marginTop: 16,
     marginBottom: 8,
+    fontFamily: 'SpaceMono',
   },
   welcomeText: {
     color: colors.text.secondary,

@@ -240,6 +240,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: colors.text.primary,
+    fontFamily: 'SpaceMono',
   },
   ownerBadge: {
     fontSize: 12,
