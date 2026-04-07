@@ -8,9 +8,9 @@ import { adminApi } from '../../src/services/endpoints/admin';
 import { formatDate } from '../../src/utils';
 import { LoadingScreen } from '../../src/components/shared';
 import { getStatusConfig } from '../../src/types/common';
-import type { AdminUser, AdminChat, AdminJob } from '../../src/types/admin';
+import type { AdminUser, AdminChat, AdminJob, AdminStats } from '../../src/types/admin';
 
-type TabType = 'users' | 'chats' | 'jobs';
+type TabType = 'users' | 'chats' | 'jobs' | 'usage';
 
 export default function AdminScreen() {
   const { user } = useAuth();
@@ -19,6 +19,7 @@ export default function AdminScreen() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [allChats, setAllChats] = useState<{ chat: AdminChat; user: AdminUser | null }[]>([]);
   const [allJobs, setAllJobs] = useState<AdminJob[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -30,12 +31,13 @@ export default function AdminScreen() {
     setLoading(true);
     setLoadError(false);
     try {
-      const [u, c, j] = await Promise.all([
+      const [u, c, j, st] = await Promise.all([
         adminApi.getUsers(),
         adminApi.getAllChats(),
         adminApi.getAllJobs(),
+        adminApi.getStats(),
       ]);
-      setUsers(u); setAllChats(c); setAllJobs(j);
+      setUsers(u); setAllChats(c); setAllJobs(j); setStats(st);
     } catch (e) {
       console.error('Error loading admin data:', e);
       setLoadError(true);
@@ -205,6 +207,74 @@ export default function AdminScreen() {
     );
   });
 
+  const renderUsageTab = () => {
+    if (!stats) return null;
+    const totalK = (stats.totalTokens / 1000).toFixed(1);
+    const totalM = (stats.totalTokens / 1_000_000).toFixed(3);
+    const costStr = stats.estimatedCostUsd < 0.01
+      ? '<$0.01'
+      : `$${stats.estimatedCostUsd.toFixed(2)}`;
+
+    return (
+      <>
+        {/* Cost summary */}
+        <View style={s.usageSummaryCard}>
+          <View style={s.usageSummaryRow}>
+            <View style={s.usageSummaryBlock}>
+              <Ionicons name="flash" size={28} color={colors.accent} />
+              <Text style={s.usageBigNum}>{totalK}k</Text>
+              <Text style={s.usageBigLabel}>Total Tokens</Text>
+            </View>
+            <View style={s.usageDivider} />
+            <View style={s.usageSummaryBlock}>
+              <Ionicons name="cash-outline" size={28} color={colors.status.success} />
+              <Text style={[s.usageBigNum, { color: colors.status.success }]}>{costStr}</Text>
+              <Text style={s.usageBigLabel}>Est. Cost (USD)</Text>
+            </View>
+            <View style={s.usageDivider} />
+            <View style={s.usageSummaryBlock}>
+              <Ionicons name="chatbubble-ellipses-outline" size={28} color={colors.text.secondary} />
+              <Text style={s.usageBigNum}>{stats.totalAssistantMessages}</Text>
+              <Text style={s.usageBigLabel}>AI Responses</Text>
+            </View>
+          </View>
+          <Text style={s.usageNote}>
+            GPT-4o blended rate ~$5/1M tokens. Token counts are a mix of estimated and actual values.
+          </Text>
+        </View>
+
+        {/* Per-user breakdown */}
+        <Text style={s.sectionTitle}>By User</Text>
+        {stats.breakdown.length === 0 ? (
+          <Text style={s.emptyText}>No token usage recorded yet.</Text>
+        ) : (
+          stats.breakdown.map((u) => {
+            const pct = stats.totalTokens > 0 ? u.tokens / stats.totalTokens : 0;
+            const userCost = u.estimatedCostUsd < 0.01 ? '<$0.01' : `$${u.estimatedCostUsd.toFixed(2)}`;
+            return (
+              <View key={u.id} style={s.usageUserRow}>
+                <View style={s.usageUserInfo}>
+                  <Text style={s.usageUserName}>
+                    {u.firstName || u.email?.split('@')[0] || 'Unknown'}
+                    {u.lastName ? ` ${u.lastName}` : ''}
+                  </Text>
+                  <Text style={s.usageUserEmail}>{u.email}</Text>
+                  <View style={s.usageBarTrack}>
+                    <View style={[s.usageBarFill, { width: `${Math.max(pct * 100, 2)}%` as any }]} />
+                  </View>
+                </View>
+                <View style={s.usageUserStats}>
+                  <Text style={s.usageUserTokens}>{(u.tokens / 1000).toFixed(1)}k</Text>
+                  <Text style={s.usageUserCost}>{userCost}</Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </>
+    );
+  };
+
   return (
     <View style={s.container}>
       {/* Header with stats */}
@@ -219,9 +289,11 @@ export default function AdminScreen() {
 
       {/* Tab bar */}
       <View style={s.tabBar}>
-        {(['users', 'chats', 'jobs'] as TabType[]).map((tab) => (
+        {(['users', 'chats', 'jobs', 'usage'] as TabType[]).map((tab) => (
           <TouchableOpacity key={tab} style={[s.tab, activeTab === tab && s.activeTab]} onPress={() => setActiveTab(tab)}>
-            <Text style={[s.tabText, activeTab === tab && s.activeTabText]}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</Text>
+            <Text style={[s.tabText, activeTab === tab && s.activeTabText]}>
+              {tab === 'usage' ? 'Usage $' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -231,6 +303,7 @@ export default function AdminScreen() {
         {activeTab === 'users' && renderUsersTab()}
         {activeTab === 'chats' && renderChatsTab()}
         {activeTab === 'jobs' && renderJobsTab()}
+        {activeTab === 'usage' && renderUsageTab()}
       </ScrollView>
 
       {selectedUser && renderUserDetail()}
@@ -309,4 +382,73 @@ const s = StyleSheet.create({
   emptyText: { color: colors.text.muted, fontSize: 14, fontStyle: 'italic' },
   retryBtn: { marginTop: 20, backgroundColor: colors.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
   retryBtnText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  // Usage tab
+  usageSummaryCard: {
+    backgroundColor: colors.bg.surface,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+  },
+  usageSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  usageSummaryBlock: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  usageDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: colors.border.default,
+    marginHorizontal: 8,
+  },
+  usageBigNum: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.accent,
+    fontFamily: 'SpaceMono',
+  },
+  usageBigLabel: {
+    fontSize: 11,
+    color: colors.text.muted,
+    textAlign: 'center',
+  },
+  usageNote: {
+    fontSize: 11,
+    color: colors.text.muted,
+    textAlign: 'center',
+    lineHeight: 16,
+    fontStyle: 'italic',
+  },
+  usageUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bg.surface,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
+  usageUserInfo: { flex: 1, marginRight: 12 },
+  usageUserName: { fontSize: 15, fontWeight: '600', color: colors.text.primary },
+  usageUserEmail: { fontSize: 12, color: colors.text.muted, marginTop: 1, marginBottom: 8 },
+  usageBarTrack: {
+    height: 6,
+    backgroundColor: colors.bg.elevated,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  usageBarFill: {
+    height: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 3,
+  },
+  usageUserStats: { alignItems: 'flex-end', gap: 2 },
+  usageUserTokens: { fontSize: 15, fontWeight: '700', color: colors.accent, fontFamily: 'SpaceMono' },
+  usageUserCost: { fontSize: 12, color: colors.status.success },
 });

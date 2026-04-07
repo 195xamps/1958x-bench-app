@@ -22,6 +22,20 @@ export interface AdminChat {
   updatedAt: string;
 }
 
+export interface AdminStats {
+  totalTokens: number;
+  estimatedCostUsd: number;
+  totalAssistantMessages: number;
+  breakdown: {
+    id: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    tokens: number;
+    estimatedCostUsd: number;
+  }[];
+}
+
 export interface AdminJob {
   job: {
     id: string;

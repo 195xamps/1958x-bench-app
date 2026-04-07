@@ -136,4 +136,55 @@ router.get('/api/admin/all-jobs', async (req: any, res) => {
   }
 });
 
+router.get('/api/admin/stats', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Per-user token breakdown sorted by usage
+    const userTokens = await db.select({
+      id: schema.users.id,
+      email: schema.users.email,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      totalTokensUsed: schema.users.totalTokensUsed,
+    }).from(schema.users).orderBy(desc(schema.users.totalTokensUsed));
+
+    const totalTokens = userTokens.reduce((sum, u) => sum + (u.totalTokensUsed || 0), 0);
+
+    // GPT-4o blended rate: ~$5 / 1M tokens (70% input @ $2.50, 30% output @ $10)
+    const COST_PER_TOKEN = 5 / 1_000_000;
+    const estimatedCostUsd = totalTokens * COST_PER_TOKEN;
+
+    const breakdown = userTokens
+      .filter(u => (u.totalTokensUsed || 0) > 0)
+      .map(u => ({
+        id: u.id,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        tokens: u.totalTokensUsed || 0,
+        estimatedCostUsd: (u.totalTokensUsed || 0) * COST_PER_TOKEN,
+      }));
+
+    // Total assistant message count as a proxy for API call count
+    const msgCountResult = await db.execute(
+      sql`SELECT COUNT(*) as count FROM chat_messages WHERE role = 'assistant'`
+    );
+    const totalAssistantMessages = parseInt((msgCountResult.rows[0] as any)?.count || '0');
+
+    res.json({
+      totalTokens,
+      estimatedCostUsd,
+      totalAssistantMessages,
+      breakdown,
+    });
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
 export default router;

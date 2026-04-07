@@ -251,6 +251,11 @@ async function migrate() {
       END $$;
     `);
 
+    // Ensure brentwrisley@gmail.com is admin
+    await client.query(`
+      UPDATE users SET is_admin = true WHERE email = 'brentwrisley@gmail.com';
+    `);
+
     console.log('Migration completed successfully!');
   } catch (error) {
     console.error('Migration failed:', error);

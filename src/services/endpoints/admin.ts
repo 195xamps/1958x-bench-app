@@ -1,5 +1,5 @@
 import { apiClient } from '../api';
-import type { AdminUser, AdminChat, AdminJob } from '../../types/admin';
+import type { AdminUser, AdminChat, AdminJob, AdminStats } from '../../types/admin';
 
 export const adminApi = {
   async getUsers(): Promise<AdminUser[]> {
@@ -24,6 +24,11 @@ export const adminApi = {
 
   async getUserJobs(userId: string): Promise<AdminJob[]> {
     const { data } = await apiClient.get(`/api/admin/users/${userId}/jobs`);
+    return data;
+  },
+
+  async getStats(): Promise<AdminStats> {
+    const { data } = await apiClient.get('/api/admin/stats');
     return data;
   },
 };
