@@ -5,65 +5,150 @@ import { useRouter } from 'expo-router';
 import { FlowchartsTab, VoltagesTab, CalculatorTab, ArticlesTab, TavaTab } from '../../src/components/reference';
 import { colors } from '../../src/theme/colors';
 
-type SubTab = 'flowcharts' | 'voltages' | 'calculator' | 'articles' | 'tava';
+type MainTab = 'tools' | 'read' | 'schematics';
+type ToolsSub = 'flowcharts' | 'voltages' | 'calculator';
+type ReadSub = 'articles' | 'tava';
 
-const TABS: { id: SubTab; label: string; icon: string }[] = [
-  { id: 'flowcharts', label: 'Flowcharts', icon: 'git-branch' },
-  { id: 'voltages', label: 'Voltages', icon: 'flash' },
-  { id: 'calculator', label: 'Calc', icon: 'calculator' },
-  { id: 'articles', label: 'Articles', icon: 'document-text' },
-  { id: 'tava', label: 'TAVA', icon: 'mic' },
+const MAIN_TABS: { id: MainTab; label: string; icon: string }[] = [
+  { id: 'tools', label: 'Tools', icon: 'construct' },
+  { id: 'read', label: 'Read', icon: 'book' },
+  { id: 'schematics', label: 'Schematics', icon: 'document-text' },
+];
+
+const TOOLS_SUBS: { id: ToolsSub; label: string }[] = [
+  { id: 'flowcharts', label: 'Flowcharts' },
+  { id: 'voltages', label: 'Voltages' },
+  { id: 'calculator', label: 'Calculator' },
+];
+
+const READ_SUBS: { id: ReadSub; label: string }[] = [
+  { id: 'articles', label: 'Articles' },
+  { id: 'tava', label: 'TAVA Podcast' },
 ];
 
 export default function ReferenceScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<SubTab>('flowcharts');
+  const [mainTab, setMainTab] = useState<MainTab>('tools');
+  const [toolsSub, setToolsSub] = useState<ToolsSub>('flowcharts');
+  const [readSub, setReadSub] = useState<ReadSub>('articles');
+
+  const handleMainTab = (tab: MainTab) => {
+    if (tab === 'schematics') {
+      router.push('/(tabs)/schematics' as any);
+      return;
+    }
+    setMainTab(tab);
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.tabBar}>
-        {TABS.map((tab) => (
+    <View style={s.container}>
+      {/* Main tab bar — 3 tabs */}
+      <View style={s.mainTabBar}>
+        {MAIN_TABS.map((tab) => (
           <TouchableOpacity
             key={tab.id}
-            style={[styles.tab, activeTab === tab.id && styles.activeTab]}
-            onPress={() => setActiveTab(tab.id)}
+            style={[s.mainTab, mainTab === tab.id && s.mainTabActive]}
+            onPress={() => handleMainTab(tab.id)}
           >
             <Ionicons
               name={tab.icon as any}
               size={20}
-              color={activeTab === tab.id ? colors.accent : colors.text.secondary}
+              color={mainTab === tab.id ? colors.accent : colors.text.secondary}
             />
-            <Text style={[styles.tabText, activeTab === tab.id && styles.activeTabText]}>
+            <Text style={[s.mainTabText, mainTab === tab.id && s.mainTabTextActive]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity
-          style={styles.tab}
-          onPress={() => router.push('/(tabs)/schematics' as any)}
-        >
-          <Ionicons name="document-text" size={20} color={colors.text.secondary} />
-          <Text style={styles.tabText}>Schematics</Text>
-        </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        {activeTab === 'flowcharts' && <FlowchartsTab />}
-        {activeTab === 'voltages' && <VoltagesTab />}
-        {activeTab === 'calculator' && <CalculatorTab />}
-        {activeTab === 'articles' && <ArticlesTab />}
-        {activeTab === 'tava' && <TavaTab />}
+      {/* Secondary segmented control */}
+      {mainTab === 'tools' && (
+        <View style={s.segmentBar}>
+          {TOOLS_SUBS.map((sub) => (
+            <TouchableOpacity
+              key={sub.id}
+              style={[s.segment, toolsSub === sub.id && s.segmentActive]}
+              onPress={() => setToolsSub(sub.id)}
+            >
+              <Text style={[s.segmentText, toolsSub === sub.id && s.segmentTextActive]}>
+                {sub.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {mainTab === 'read' && (
+        <View style={s.segmentBar}>
+          {READ_SUBS.map((sub) => (
+            <TouchableOpacity
+              key={sub.id}
+              style={[s.segment, readSub === sub.id && s.segmentActive]}
+              onPress={() => setReadSub(sub.id)}
+            >
+              <Text style={[s.segmentText, readSub === sub.id && s.segmentTextActive]}>
+                {sub.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Content */}
+      <View style={s.content}>
+        {mainTab === 'tools' && toolsSub === 'flowcharts' && <FlowchartsTab />}
+        {mainTab === 'tools' && toolsSub === 'voltages' && <VoltagesTab />}
+        {mainTab === 'tools' && toolsSub === 'calculator' && <CalculatorTab />}
+        {mainTab === 'read' && readSub === 'articles' && <ArticlesTab />}
+        {mainTab === 'read' && readSub === 'tava' && <TavaTab />}
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.primary },
-  tabBar: { flexDirection: 'row', backgroundColor: colors.bg.surface, borderBottomWidth: 1, borderBottomColor: colors.border.default },
-  tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 6 },
-  activeTab: { borderBottomWidth: 2, borderBottomColor: colors.accent },
-  tabText: { fontSize: 14, fontWeight: '600', color: colors.text.secondary },
-  activeTabText: { color: colors.accent },
+
+  // Main tab bar
+  mainTabBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.bg.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.default,
+  },
+  mainTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 6,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  mainTabActive: { borderBottomColor: colors.accent },
+  mainTabText: { fontSize: 15, fontWeight: '600', color: colors.text.secondary },
+  mainTabTextActive: { color: colors.accent },
+
+  // Secondary segmented control
+  segmentBar: {
+    flexDirection: 'row',
+    backgroundColor: colors.bg.elevated,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    borderRadius: 10,
+    padding: 3,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 7,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  segmentActive: { backgroundColor: colors.bg.surface },
+  segmentText: { fontSize: 13, fontWeight: '600', color: colors.text.muted },
+  segmentTextActive: { color: colors.accent },
+
   content: { flex: 1 },
 });
