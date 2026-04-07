@@ -30,6 +30,7 @@ export function requireApproved(req: any, res: Response, next: NextFunction) {
   // Auth + own-profile paths pass through
   if (isAllowed(req.path)) return next();
 
+  console.warn(`[requireApproved] BLOCKED ${req.method} ${req.path} for user=${req.user.id} email=${req.user.email} isApproved=${req.user.isApproved} isAdmin=${req.user.isAdmin}`);
   return res.status(403).json({
     error: 'Account pending approval',
     pendingApproval: true,

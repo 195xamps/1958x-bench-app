@@ -12,7 +12,12 @@ export interface IAuthStorage {
   upsertUser(user: UpsertUser): Promise<User>;
 }
 
-const ADMIN_EMAIL = "brent@195xamps.com";
+// Bootstrap admins via env var (comma-separated). Existing admin promotions
+// in the DB are preserved by upsertUser regardless of this list.
+const BOOTSTRAP_ADMIN_EMAILS = (process.env.BOOTSTRAP_ADMIN_EMAILS || "brent@195xamps.com,brentwrisley@gmail.com")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
 
 class AuthStorage implements IAuthStorage {
   async getUser(id: string): Promise<User | undefined> {
@@ -21,21 +26,29 @@ class AuthStorage implements IAuthStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const isAdmin = userData.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-    // Admin email is auto-approved on first sign-in. Everyone else lands in
-    // the allowlist queue (isApproved defaults to false at the column level).
-    const insertValues: UpsertUser = isAdmin
-      ? { ...userData, isAdmin, isApproved: true }
-      : { ...userData, isAdmin };
+    const email = userData.email?.toLowerCase() || "";
+    const isBootstrapAdmin = BOOTSTRAP_ADMIN_EMAILS.includes(email);
 
+    // Bootstrap admins are auto-admin + auto-approved on first sign-in.
+    // Everyone else lands in the allowlist queue (isApproved defaults to
+    // false at the column level).
+    const insertValues: UpsertUser = isBootstrapAdmin
+      ? { ...userData, isAdmin: true, isApproved: true }
+      : { ...userData };
+
+    // CRITICAL: on update, do NOT overwrite isAdmin or isApproved — admins
+    // can grant/revoke these via the admin UI and we must preserve their
+    // decisions across re-logins.
     const [user] = await db
       .insert(users)
       .values(insertValues)
       .onConflictDoUpdate({
         target: users.id,
         set: {
-          ...userData,
-          isAdmin,
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
         },
       })

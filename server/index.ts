@@ -50,11 +50,15 @@ app.use(express.json({ limit: '5mb' }));
 
 async function initServer() {
   await setupAuth(app);
+
+  // JWT fallback for mobile MUST run before any route handler that reads
+  // req.user (including /api/auth/user). Register it ahead of route mounts.
+  app.use(tokenAuth);
+
   // Tighter rate limit on auth routes (brute-force protection)
   app.use('/api/auth', authLimiter);
   app.use('/api/login', authLimiter);
   registerAuthRoutes(app);
-  app.use(tokenAuth); // JWT fallback for mobile when sessions aren't available
 
   // Global rate limit for all /api routes
   app.use('/api', globalLimiter);
