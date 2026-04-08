@@ -1,14 +1,28 @@
+// Database migration script.
+//
+// Usage:
+//   npm run migrate              → migrates DEV (DATABASE_URL)
+//   npm run migrate -- --prod    → migrates PROD (PROD_DATABASE_URL)
+//   npm run migrate -- --prod --yes  → skip confirmation prompt
+//
+// All migrations are idempotent (CREATE TABLE IF NOT EXISTS, ADD COLUMN IF
+// NOT EXISTS, etc) so re-running is safe. Still flagged as destructive
+// because schema changes can break the running app if something goes wrong.
+
 import 'dotenv/config';
 import pkg from 'pg';
 const { Pool } = pkg;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+import { resolveDbTarget } from './lib/dbTarget';
 
 async function migrate() {
+  const target = await resolveDbTarget({
+    destructive: true,
+    operation: 'Run database migrations',
+  });
+
+  const pool = new Pool({ connectionString: target.url });
   const client = await pool.connect();
-  
+
   try {
     // Create sessions table for authentication
     await client.query(`

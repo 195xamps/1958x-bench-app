@@ -12,7 +12,9 @@
     "test": "jest --watchAll",
     "lint": "expo lint",
     "migrate": "npx tsx server/migrate.ts",
-    "seed:schematics": "npx tsx server/seedSchematics.ts"
+    "migrate:prod": "npx tsx server/migrate.ts -- --prod",
+    "seed:schematics": "npx tsx server/seedSchematics.ts",
+    "seed:schematics:prod": "npx tsx server/seedSchematics.ts -- --prod"
   },
   "jest": {
     "preset": "jest-expo"

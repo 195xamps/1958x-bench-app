@@ -1,11 +1,17 @@
 // Seed script for the curated schematic library.
 //
-// Usage: `npm run seed:schematics`
+// Usage:
+//   npm run seed:schematics              → seeds DEV (DATABASE_URL)
+//   npm run seed:schematics -- --prod    → seeds PROD (PROD_DATABASE_URL)
+//   npm run seed:schematics -- --prod --yes  → skip confirmation prompt
 //
 // This script:
-//   1. Deletes ALL existing schematic data (rows + attachments + job links)
-//   2. Reads server/seeds/schematics.json
-//   3. Inserts every entry as an admin-curated schematic (is_user_uploaded=false)
+//   1. Resolves which DB to target (dev by default, prod with --prod flag)
+//   2. Prints a clear preamble showing host/db/user
+//   3. Asks for "yes" confirmation (skip with --yes)
+//   4. Deletes ALL existing schematic data (rows + attachments + job links)
+//   5. Reads server/seeds/schematics.json
+//   6. Inserts every entry as an admin-curated schematic (is_user_uploaded=false)
 //
 // Re-running the script is destructive — it wipes the table and re-seeds.
 // Edit the JSON file to update the canonical list, then re-run.
@@ -15,6 +21,7 @@ import fs from 'fs';
 import path from 'path';
 import pkg from 'pg';
 const { Pool } = pkg;
+import { resolveDbTarget } from './lib/dbTarget';
 
 interface SeedEntry {
   name: string;
@@ -43,7 +50,13 @@ async function seed() {
 
   console.log(`Loaded ${entries.length} schematic entries from ${seedFile}`);
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  // Resolves dev vs prod, prints preamble, prompts for confirmation if destructive.
+  const target = await resolveDbTarget({
+    destructive: true,
+    operation: `Seed schematic library (${entries.length} entries)`,
+  });
+
+  const pool = new Pool({ connectionString: target.url });
   const client = await pool.connect();
 
   try {
