@@ -121,6 +121,42 @@ const SECTIONS: LinkSection[] = [
     ],
   },
   {
+    title: 'YouTube Channels',
+    icon: 'logo-youtube',
+    links: [
+      {
+        title: 'Psionic Audio',
+        url: 'https://www.youtube.com/@PsionicAudio',
+        description: 'Tyler the tech — repair walkthroughs and bench commentary',
+      },
+      {
+        title: 'Uncle Doug',
+        url: 'https://www.youtube.com/@UncleDoug',
+        description: 'Vintage amp restoration and tube electronics tutorials',
+      },
+      {
+        title: 'Fazio Electric',
+        url: 'https://www.youtube.com/@FazioElectric',
+        description: "Justin Fazio's amp repair and restoration channel",
+      },
+      {
+        title: 'Yeatzee Guitar',
+        url: 'https://www.youtube.com/@YeatzeeGuitar/videos',
+        description: 'DIY tube amp builds, mods, and troubleshooting',
+      },
+      {
+        title: 'Fran Blanche (FranLab)',
+        url: 'https://www.youtube.com/@FranLab',
+        description: 'Electronics, vintage gear teardowns, and engineering deep dives',
+      },
+      {
+        title: 'Fretboard Journal',
+        url: 'https://www.youtube.com/@fretboardjournal',
+        description: 'TAVA podcast video archive and guitar/amp interviews',
+      },
+    ],
+  },
+  {
     title: 'Parts Vendors',
     icon: 'cube-outline',
     links: [
