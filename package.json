@@ -23,6 +23,7 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
+    "@sentry/node": "^10.47.0",
     "@types/compression": "^1.8.1",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/cors": "^2.8.19",

@@ -253,6 +253,15 @@ router.delete('/api/admin/users/:userId', async (req: any, res) => {
   }
 });
 
+// Sentry sanity-check endpoint — throws an error so we can verify the
+// Sentry integration is capturing exceptions in production. Admin only.
+router.get('/api/admin/sentry-test', (req: any, _res) => {
+  if (!req.user?.isAdmin) {
+    throw new Error('Sentry test must be called by an admin');
+  }
+  throw new Error(`Sentry test exception at ${new Date().toISOString()}`);
+});
+
 router.get('/api/admin/stats', async (req: any, res) => {
   try {
     const currentUser = req.user;

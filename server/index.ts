@@ -1,4 +1,7 @@
 import 'dotenv/config';
+// Sentry MUST be the first import after dotenv so its auto-instrumentation
+// can wrap http/express/pg before they're loaded by anything else.
+import { Sentry } from './lib/sentry';
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
@@ -95,6 +98,32 @@ async function initServer() {
   });
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });
+  });
+
+  // Sentry's Express error handler — must be registered AFTER all routes
+  // and BEFORE any other error-handling middleware. Captures any error
+  // thrown from a route handler.
+  Sentry.setupExpressErrorHandler(app);
+
+  // Final fallback error handler — must accept 4 args to be recognized
+  // as an error handler. Sentry has already captured the error by now.
+  app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error('[unhandled]', err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Internal server error' });
+  });
+
+  // Catch unhandled promise rejections + uncaught exceptions, report to
+  // Sentry, then let the process die so Replit restarts it cleanly.
+  process.on('unhandledRejection', (reason) => {
+    console.error('[unhandledRejection]', reason);
+    Sentry.captureException(reason);
+  });
+  process.on('uncaughtException', (err) => {
+    console.error('[uncaughtException]', err);
+    Sentry.captureException(err);
+    // Give Sentry a moment to flush, then exit so the process supervisor restarts us.
+    setTimeout(() => process.exit(1), 1000);
   });
 
   const PORT = parseInt(process.env.PORT || '5000', 10);
