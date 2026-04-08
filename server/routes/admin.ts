@@ -213,6 +213,36 @@ router.patch('/api/admin/users/:userId', async (req: any, res) => {
   }
 });
 
+router.delete('/api/admin/jobs/:jobId', async (req: any, res) => {
+  try {
+    const currentUser = req.user;
+    if (!currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { jobId } = req.params;
+
+    // Cascade-delete everything attached to the job. Order matters because
+    // of FK constraints — leaf rows first, then the job itself.
+    await db.execute(sql`
+      DELETE FROM chat_messages
+      WHERE chat_id IN (SELECT id FROM chats WHERE bench_job_id = ${jobId});
+    `);
+    await db.execute(sql`DELETE FROM chats WHERE bench_job_id = ${jobId}`);
+    await db.execute(sql`DELETE FROM measurements WHERE bench_job_id = ${jobId}`);
+    await db.execute(sql`DELETE FROM repair_actions WHERE bench_job_id = ${jobId}`);
+    await db.execute(sql`DELETE FROM symptoms WHERE bench_job_id = ${jobId}`);
+    await db.execute(sql`DELETE FROM job_schematics WHERE bench_job_id = ${jobId}`);
+    await db.execute(sql`DELETE FROM media WHERE bench_job_id = ${jobId}`);
+    await db.execute(sql`DELETE FROM bench_jobs WHERE id = ${jobId}`);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting job:', error);
+    res.status(500).json({ error: 'Failed to delete job' });
+  }
+});
+
 router.delete('/api/admin/users/:userId', async (req: any, res) => {
   try {
     const currentUser = req.user;

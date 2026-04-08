@@ -11,13 +11,14 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { communityApi } from '../../src/services';
+import { communityApi, adminApi } from '../../src/services';
 import { colors } from '../../src/theme';
 import { getStatusConfig } from '../../src/types/common';
 import type { CommunityJobDetail } from '../../src/types';
-import { formatTimestamp, openUrl } from '../../src/utils';
+import { formatTimestamp, openUrl, showConfirm, showError } from '../../src/utils';
 import { LoadingScreen, EmptyState, StatusBadge } from '../../src/components/shared';
 import { MarkdownContent } from '../../src/components/MarkdownContent';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -28,11 +29,32 @@ type TabType = 'chat' | 'notes' | 'measurements';
 export default function CommunityJobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
   const [job, setJob] = useState<CommunityJobDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const [showMediaGallery, setShowMediaGallery] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleAdminDelete = async () => {
+    if (!id) return;
+    const confirmed = await showConfirm(
+      'Delete Community Job',
+      `Permanently delete "${job?.ampProfile?.make || ''} ${job?.ampProfile?.model || 'this job'}"? This removes the job and all its measurements, repairs, and chat history for the original owner. This cannot be undone.`,
+      { confirmText: 'Delete', destructive: true },
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await adminApi.deleteJob(id);
+      router.back();
+    } catch (e) {
+      console.error('Error deleting community job:', e);
+      showError('Failed to delete job');
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (id) fetchJob();
@@ -128,6 +150,15 @@ export default function CommunityJobDetailScreen() {
             <View style={styles.galleryBadge}>
               <Text style={styles.galleryBadgeText}>{attachments.length}</Text>
             </View>
+          </TouchableOpacity>
+        )}
+        {user?.isAdmin && (
+          <TouchableOpacity
+            style={styles.galleryButton}
+            onPress={handleAdminDelete}
+            disabled={deleting}
+          >
+            <Ionicons name="trash-outline" size={22} color={colors.status.error} />
           </TouchableOpacity>
         )}
       </View>

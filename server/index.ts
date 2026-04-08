@@ -10,6 +10,7 @@ import { registerObjectStorageRoutes } from './replit_integrations/object_storag
 import { setupAuth, registerAuthRoutes, tokenAuth } from './replit_integrations/auth';
 import { globalLimiter, chatLimiter, authLimiter } from './middleware/rateLimit';
 import { requireApproved } from './middleware/requireApproved';
+import { noStoreDefault } from './middleware/cache';
 
 // ── Env var validation ──────────────────────────────────────────────────────
 const REQUIRED_ENV = ['DATABASE_URL', 'OPENAI_API_KEY', 'API_KEY_ENCRYPTION_SECRET'] as const;
@@ -68,6 +69,11 @@ async function initServer() {
   app.use('/api', globalLimiter);
   // Stricter limit on the AI chat message route
   app.use('/api/chats/:id/messages', chatLimiter);
+
+  // Default no-store cache headers for all dynamic API GETs. The
+  // cacheReference / cacheSchematicLibrary middlewares mounted later on
+  // specific routers will override this for read-only catalog data.
+  app.use('/api', noStoreDefault);
 
   // Allowlist gate — block unapproved users from non-auth API routes
   app.use(requireApproved);

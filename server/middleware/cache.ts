@@ -54,3 +54,28 @@ export const cacheSchematicLibrary = cacheControl({
   staleWhileRevalidate: 900,
   scope: 'private',
 });
+
+/**
+ * Default no-store middleware for dynamic API routes. iOS URLCache uses
+ * heuristic caching when no Cache-Control header is present, which means
+ * mutating endpoints (chats, jobs, etc.) can serve stale GET responses
+ * after writes. This middleware sets `no-store` on every GET response
+ * that doesn't already have a Cache-Control header.
+ *
+ * Mount this BEFORE the route handlers, on /api. The cacheReference and
+ * cacheSchematicLibrary middlewares mounted on specific routers patch
+ * res.json AFTER this one, so their explicit max-age values still win
+ * (each patch only sets a header if none is already set, so the closest
+ * patch to the handler runs first and "claims" the header).
+ */
+export function noStoreDefault(req: Request, res: Response, next: NextFunction) {
+  if (req.method !== 'GET') return next();
+  const origJson = res.json.bind(res);
+  res.json = function (body: any) {
+    if (!res.getHeader('Cache-Control')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    }
+    return origJson(body);
+  };
+  next();
+}
