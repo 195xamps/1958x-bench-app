@@ -1,7 +1,9 @@
-import React from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { View, TextInput, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
+import { useSpeechToText } from '../../hooks';
+import { showError } from '../../utils';
 
 interface ChatInputProps {
   value: string;
@@ -29,11 +31,39 @@ export function ChatInput({
 }: ChatInputProps) {
   const sendDisabled = (!value.trim() && canSend) || sending || !canSend;
 
+  // Voice input — appends to the existing value when the user dictates
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; });
+
+  const getCurrentValue = useCallback(() => valueRef.current, []);
+  const { recording, toggle: toggleVoice } = useSpeechToText({
+    getCurrentValue,
+    onUpdate: onChangeText,
+    onError: showError,
+  });
+
+  // Pulsing red dot animation while recording
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!recording) {
+      pulse.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.4, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [recording, pulse]);
+
   return (
     <View style={styles.container}>
       {onAttach && (
         <TouchableOpacity
-          style={styles.attachButton}
+          style={styles.iconButton}
           onPress={onAttach}
           disabled={sending || uploading}
         >
@@ -44,11 +74,27 @@ export function ChatInput({
           />
         </TouchableOpacity>
       )}
+
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={toggleVoice}
+        disabled={sending}
+        accessibilityLabel={recording ? 'Stop voice input' : 'Start voice input'}
+      >
+        <Animated.View style={{ opacity: recording ? pulse : 1 }}>
+          <Ionicons
+            name={recording ? 'mic' : 'mic-outline'}
+            size={24}
+            color={recording ? colors.status.error : sending ? colors.text.muted : colors.accent}
+          />
+        </Animated.View>
+      </TouchableOpacity>
+
       <TextInput
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={recording ? 'Listening…' : placeholder}
         placeholderTextColor={colors.text.muted}
         multiline
         maxLength={maxLength}
@@ -70,14 +116,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 12,
-    gap: 10,
+    gap: 6,
     borderTopWidth: 1,
     borderTopColor: colors.border.default,
     backgroundColor: colors.bg.surface,
   },
-  attachButton: {
+  iconButton: {
     padding: 8,
-    marginRight: 4,
   },
   input: {
     flex: 1,

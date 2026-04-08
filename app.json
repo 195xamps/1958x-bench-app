@@ -60,7 +60,14 @@
           "iCloudContainerEnvironment": "Production"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow 195x Bench to use the microphone for voice input on the chat assistant.",
+          "speechRecognitionPermission": "Allow 195x Bench to transcribe your voice into chat messages so you can keep your hands free at the bench."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
