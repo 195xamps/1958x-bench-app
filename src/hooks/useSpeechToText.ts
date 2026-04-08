@@ -101,7 +101,12 @@ export function useSpeechToText({
   useSpeechRecognitionEvent('error', (event: { error: string; message?: string }) => {
     console.warn('[speech] error:', event.error, event.message);
     setRecording(false);
-    onErrorRef.current?.(errorToFriendly(event.error));
+    // Surface the raw code in the friendly message during development so
+    // we can diagnose when the recognizer refuses to start. Once we know
+    // the codes that show up in practice, we can tighten this back up.
+    const friendly = errorToFriendly(event.error);
+    const detail = event.message ? ` (${event.message})` : '';
+    onErrorRef.current?.(`${friendly} [code: ${event.error || 'unknown'}]${detail}`);
   });
 
   const toggle = useCallback(async () => {
@@ -121,15 +126,21 @@ export function useSpeechToText({
       return;
     }
 
-    ExpoSpeechRecognitionModule.start({
-      lang: 'en-US',
-      interimResults: true,
-      maxAlternatives: 1,
-      continuous: true,
-      requiresOnDeviceRecognition: false,
-      addsPunctuation: true,
-      contextualStrings: AMP_VOCAB,
-    });
+    try {
+      await ExpoSpeechRecognitionModule.start({
+        lang: 'en-US',
+        interimResults: true,
+        maxAlternatives: 1,
+        continuous: true,
+        requiresOnDeviceRecognition: false,
+        addsPunctuation: true,
+        contextualStrings: AMP_VOCAB,
+      });
+    } catch (e: any) {
+      console.warn('[speech] start() threw:', e);
+      setRecording(false);
+      onErrorRef.current?.(`Voice failed to start: ${e?.message || String(e)}`);
+    }
   }, [recording]);
 
   const stop = useCallback(() => {
