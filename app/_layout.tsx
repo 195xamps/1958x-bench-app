@@ -30,6 +30,9 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="measurement" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ headerShown: false }} />
+      <Stack.Screen name="schematic/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="job/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="community-job/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

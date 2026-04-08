@@ -162,8 +162,11 @@ export default function SchematicDetailScreen() {
     }
   }, [id]);
 
+  // Tap-to-open: prefer the curated source URL (Rob Robinette etc), fall
+  // back to a self-hosted file if one exists.
   const openSchematic = useCallback(() => {
-    if (schematic?.fileUrl) openUrl(schematic.fileUrl);
+    const url = schematic?.sourceUrl || schematic?.fileUrl;
+    if (url) openUrl(url);
   }, [schematic]);
 
   const setEditField = useCallback((setter: React.Dispatch<React.SetStateAction<string>>) =>
@@ -215,29 +218,44 @@ export default function SchematicDetailScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Preview */}
-        <TouchableOpacity style={styles.preview} onPress={openSchematic}>
-          {isPdf ? (
-            <View style={styles.pdfPreview}>
-              <Ionicons name="document-text" size={80} color={colors.accent} />
-              <Text style={styles.pdfLabel}>PDF Document</Text>
-              <Text style={styles.tapHint}>Tap to open</Text>
+        {/* Source / Preview */}
+        {schematic.sourceUrl ? (
+          <TouchableOpacity style={styles.sourceCard} onPress={openSchematic}>
+            <View style={styles.sourceIconWrap}>
+              <Ionicons name="open-outline" size={36} color={colors.accent} />
             </View>
-          ) : schematic.fileUrl ? (
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: schematic.fileUrl }} style={styles.schematicImage} resizeMode="contain" />
-              <View style={styles.imageOverlay}>
-                <Ionicons name="expand-outline" size={24} color="white" />
-                <Text style={styles.tapHint}>Tap to view full size</Text>
+            <Text style={styles.sourceTitle}>
+              View Schematic on {schematic.sourceCredit || 'Source Site'}
+            </Text>
+            <Text style={styles.sourceUrlText} numberOfLines={1}>
+              {schematic.sourceUrl}
+            </Text>
+            <Text style={styles.sourceTapHint}>Tap to open in browser</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.preview} onPress={openSchematic}>
+            {isPdf ? (
+              <View style={styles.pdfPreview}>
+                <Ionicons name="document-text" size={80} color={colors.accent} />
+                <Text style={styles.pdfLabel}>PDF Document</Text>
+                <Text style={styles.tapHint}>Tap to open</Text>
               </View>
-            </View>
-          ) : (
-            <View style={styles.noFile}>
-              <Ionicons name="image-outline" size={64} color={colors.text.muted} />
-              <Text style={styles.noFileText}>No file available</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            ) : schematic.fileUrl ? (
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: schematic.fileUrl }} style={styles.schematicImage} resizeMode="contain" />
+                <View style={styles.imageOverlay}>
+                  <Ionicons name="expand-outline" size={24} color="white" />
+                  <Text style={styles.tapHint}>Tap to view full size</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.noFile}>
+                <Ionicons name="image-outline" size={64} color={colors.text.muted} />
+                <Text style={styles.noFileText}>No file available</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* Info sections */}
         <InfoSection label="Amp Model" editMode={editMode}
@@ -381,7 +399,36 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { padding: 16 },
 
-  // Preview
+  // Source card (curated link to original schematic)
+  sourceCard: {
+    backgroundColor: colors.bg.surface,
+    borderRadius: 12,
+    padding: 24,
+    marginBottom: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.accent + '40',
+  },
+  sourceIconWrap: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: colors.bg.elevated,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 12,
+  },
+  sourceTitle: {
+    fontSize: 17, fontWeight: '600', color: colors.accent,
+    textAlign: 'center', marginBottom: 6,
+  },
+  sourceUrlText: {
+    fontSize: 12, color: colors.text.muted,
+    textAlign: 'center', marginBottom: 8,
+  },
+  sourceTapHint: {
+    fontSize: 12, color: colors.text.secondary,
+    fontStyle: 'italic',
+  },
+
+  // Preview (legacy self-hosted file path)
   preview: { backgroundColor: colors.bg.surface, borderRadius: 12, overflow: 'hidden', marginBottom: 16 },
   pdfPreview: { padding: 40, alignItems: 'center', justifyContent: 'center' },
   pdfLabel: { color: colors.white, fontSize: 18, fontWeight: '600', marginTop: 16 },
