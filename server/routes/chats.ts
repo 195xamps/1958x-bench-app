@@ -6,6 +6,42 @@ import OpenAI from 'openai';
 import { CHAT_SYSTEM_PROMPT } from '../lib/systemPrompt';
 import { getRelevantDatabaseContext } from '../lib/dbContext';
 import { tryDecryptSecret } from '../lib/crypto';
+import { generateChatTitle } from '../lib/generateChatTitle';
+
+// Fire-and-forget background title generation. Triggered after the first
+// user/assistant exchange on a standalone chat with the default title.
+// Failures are logged but never bubble up — the user-facing response has
+// already been sent by the time this runs.
+function maybeAutoTitleChat(
+  client: OpenAI,
+  chatId: string,
+  isStandalone: boolean | null,
+  currentTitle: string | null,
+  isFirstExchange: boolean,
+  userText: string,
+  assistantText: string,
+): void {
+  if (!isStandalone) return;            // skip job chats — they already have an amp name
+  if (!isFirstExchange) return;         // only run once, on the first exchange
+  if (currentTitle && currentTitle !== 'New Chat') return;  // user already named it
+
+  // Don't await — let the response return immediately
+  generateChatTitle(client, userText, assistantText)
+    .then(async (title) => {
+      if (!title) return;
+      try {
+        await db.update(schema.chats)
+          .set({ title, updatedAt: new Date() })
+          .where(eq(schema.chats.id, chatId));
+        console.log(`[chat ${chatId}] auto-titled: "${title}"`);
+      } catch (err) {
+        console.warn(`[chat ${chatId}] failed to persist auto-title:`, (err as Error).message);
+      }
+    })
+    .catch((err) => {
+      console.warn(`[chat ${chatId}] auto-title generation failed:`, (err as Error).message);
+    });
+}
 
 const router = Router();
 
@@ -368,19 +404,21 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
           role: 'assistant',
           content: assistantContent,
         }).returning();
-        
+
         await db.update(schema.chats)
           .set({ updatedAt: new Date() })
           .where(eq(schema.chats.id, chatId));
-        
+
         if (userId) {
           const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
           await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);
         }
-        
+
+        maybeAutoTitleChat(aiClient, chatId, chat.isStandalone, chat.title, recentMessages.length === 1, content, assistantContent);
+
         res.write(`data: ${JSON.stringify({ type: 'done', message: assistantMessage })}\n\n`);
         res.end();
-        
+
       } else {
         // ── Non-streaming with Responses API ────────────────────────────
         const response = await aiClient.responses.create({
@@ -403,14 +441,16 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
           role: 'assistant',
           content: assistantContent,
         }).returning();
-        
+
         await db.update(schema.chats)
           .set({ updatedAt: new Date() })
           .where(eq(schema.chats.id, chatId));
-        
+
+        maybeAutoTitleChat(aiClient, chatId, chat.isStandalone, chat.title, recentMessages.length === 1, content, assistantContent);
+
         res.json({ userMessage, assistantMessage });
       }
-      
+
     } else {
       // ═══════════════════════════════════════════════════════════════════
       // LEGACY CHAT COMPLETIONS PATH (fallback — set USE_RESPONSES_API=false)
@@ -486,19 +526,21 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
           role: 'assistant',
           content: assistantContent,
         }).returning();
-        
+
         await db.update(schema.chats)
           .set({ updatedAt: new Date() })
           .where(eq(schema.chats.id, chatId));
-        
+
         if (userId) {
           const estimatedTokens = Math.ceil((content.length + assistantContent.length) / 4);
           await db.execute(sql`UPDATE users SET total_tokens_used = COALESCE(total_tokens_used, 0) + ${estimatedTokens} WHERE id = ${userId}`);
         }
-        
+
+        maybeAutoTitleChat(aiClient, chatId, chat.isStandalone, chat.title, recentMessages.length === 1, content, assistantContent);
+
         res.write(`data: ${JSON.stringify({ type: 'done', message: assistantMessage })}\n\n`);
         res.end();
-        
+
       } else {
         const completion = await aiClient.chat.completions.create({
           model: 'gpt-4o',
@@ -519,11 +561,13 @@ router.post('/api/chats/:id/messages', async (req: any, res) => {
           role: 'assistant',
           content: assistantContent,
         }).returning();
-        
+
         await db.update(schema.chats)
           .set({ updatedAt: new Date() })
           .where(eq(schema.chats.id, chatId));
-        
+
+        maybeAutoTitleChat(aiClient, chatId, chat.isStandalone, chat.title, recentMessages.length === 1, content, assistantContent);
+
         res.json({ userMessage, assistantMessage });
       }
     }

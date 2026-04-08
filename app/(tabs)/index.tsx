@@ -218,10 +218,8 @@ export default function DashboardScreen() {
         data.userMessage,
         data.assistantMessage,
       ]);
-      // Auto-title long first messages
-      if (messages.length === 0 && messageText.length > 30) {
-        await renameChat(activeChat.id, messageText.substring(0, 30) + '...');
-      }
+      // Title is now generated server-side after the first exchange. The
+      // updated title shows up next time fetchChats() runs (closeChat).
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => prev.filter(m => m.id !== 'temp-user'));
