@@ -1,137 +1,281 @@
 [
   {
-    "name": "Fender Deluxe Reverb (AB763)",
-    "ampModel": "Deluxe Reverb",
-    "circuitFamily": "Blackface",
-    "sourceUrl": "https://robrobinette.com/Deluxe_Reverb.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,blackface,ab763,6v6,reverb",
-    "notes": "AB763 circuit, ~22W, 2x6V6GT power tubes. The classic mid-60s Deluxe Reverb."
-  },
-  {
-    "name": "Fender Princeton Reverb (AA1164)",
-    "ampModel": "Princeton Reverb",
-    "circuitFamily": "Blackface",
-    "sourceUrl": "https://robrobinette.com/Princeton_Reverb.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,blackface,aa1164,6v6,reverb",
-    "notes": "AA1164 circuit, 12W single-ended push-pull, the smaller sibling of the Deluxe Reverb."
-  },
-  {
-    "name": "Fender Twin Reverb (AB763)",
-    "ampModel": "Twin Reverb",
-    "circuitFamily": "Blackface",
-    "sourceUrl": "https://robrobinette.com/Twin_Reverb.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,blackface,ab763,6l6,reverb",
-    "notes": "AB763 circuit, 85W, 4x6L6GC power tubes, the loudest of the blackface combos."
-  },
-  {
-    "name": "Fender Super Reverb (AB763)",
-    "ampModel": "Super Reverb",
-    "circuitFamily": "Blackface",
-    "sourceUrl": "https://robrobinette.com/Super_Reverb.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,blackface,ab763,6l6,4x10",
-    "notes": "AB763 circuit, 40W, 2x6L6GC, 4x10\" speakers — the SRV favorite."
-  },
-  {
-    "name": "Fender Vibrolux Reverb (AA864)",
-    "ampModel": "Vibrolux Reverb",
-    "circuitFamily": "Blackface",
-    "sourceUrl": "https://robrobinette.com/Vibrolux_Reverb.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,blackface,aa864,6l6",
-    "notes": "AA864 circuit, 35W, 2x6L6GC, 2x10\" speakers."
-  },
-  {
-    "name": "Fender Bandmaster (AA763)",
-    "ampModel": "Bandmaster",
-    "circuitFamily": "Blackface",
-    "sourceUrl": "https://robrobinette.com/Bandmaster.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,blackface,aa763,6l6,head",
-    "notes": "AA763 piggyback head, 40W, 2x6L6GC."
-  },
-  {
     "name": "Fender Champ (5F1)",
     "ampModel": "Champ",
     "circuitFamily": "Tweed",
-    "sourceUrl": "https://robrobinette.com/5F1_Schematic.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,tweed,5f1,6v6,single-ended",
-    "notes": "5F1 single-ended class A, ~5W, 1x6V6GT. The classic small studio amp."
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_champ_5f1_schem.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,tweed,5f1,6v6,champ",
+    "notes": "~5W single-ended output stage with 1x6V6GT power tube and 5Y3 rectifier. The simplest classic Fender circuit, produced 1957–1964; an ideal first study schematic."
   },
   {
     "name": "Fender Deluxe (5E3)",
     "ampModel": "Deluxe",
     "circuitFamily": "Tweed",
-    "sourceUrl": "https://robrobinette.com/How_the_5E3_Deluxe_Works.htm",
+    "sourceUrl": "https://robrobinette.com/images/Guitar/5E3P_Build/5E3_Schematic_Annotated.pdf",
     "sourceCredit": "Rob Robinette",
-    "tags": "fender,tweed,5e3,6v6,cathode-bias",
-    "notes": "5E3 cathode-biased push-pull, ~12W, 2x6V6GT. One of the most-cloned amp circuits in history."
+    "tags": "fender,tweed,5e3,6v6,deluxe",
+    "notes": "~15W cathode-biased push-pull amp with 2x6V6GT. Annotated by Rob Robinette; famous for interactive controls and early breakup. Produced 1955–1960."
   },
   {
     "name": "Fender Bassman (5F6-A)",
     "ampModel": "Bassman",
     "circuitFamily": "Tweed",
-    "sourceUrl": "https://robrobinette.com/Tweed_Bassman.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,tweed,5f6a,5881,6l6",
-    "notes": "5F6-A circuit, 45W, 2x5881/6L6, 4x10\" speakers. Direct ancestor of the Marshall JTM45."
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_bassman_5f6a.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,tweed,5f6a,6l6,bassman",
+    "notes": "~45W fixed-bias push-pull amp with 4x6L6GC. The direct ancestor of the Marshall JTM45 and virtually every high-gain amp that followed. Produced 1958–1960."
   },
   {
-    "name": "Fender Princeton (5F2-A)",
-    "ampModel": "Princeton",
+    "name": "Fender Bandmaster (5E7)",
+    "ampModel": "Bandmaster",
     "circuitFamily": "Tweed",
-    "sourceUrl": "https://robrobinette.com/Tweed_Princeton.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,tweed,5f2a,6v6,single-ended",
-    "notes": "5F2-A single-ended, ~4.5W, 1x6V6GT. The tweed Princeton."
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_bandmaster_5e7.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,tweed,5e7,6l6,bandmaster",
+    "notes": "~30W push-pull amp with 3x6L6GC and a cathodyne phase inverter. Produced 1955–1960 in a tweed piggyback cabinet; an unusual three-power-tube design."
+  },
+  {
+    "name": "Fender Twin (5D8)",
+    "ampModel": "Twin",
+    "circuitFamily": "Tweed",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_57_twin_amp.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,tweed,5d8,6l6,twin",
+    "notes": "~80W tweed combo with 4x6L6GC — the loudest amp of its era. This is the full 1957 Twin service manual PDF including schematic and layout."
+  },
+  {
+    "name": "Fender Vibrolux (5F11)",
+    "ampModel": "Vibrolux",
+    "circuitFamily": "Tweed",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_vibrolux_5f11_schem.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,tweed,5f11,6v6,vibrolux,tremolo",
+    "notes": "~10W cathode-biased push-pull amp with 2x6V6GT and built-in tremolo. Produced 1956–1961; shares its core architecture with the 5E3 Deluxe."
+  },
+  {
+    "name": "Fender Princeton (6G2)",
+    "ampModel": "Princeton",
+    "circuitFamily": "Brownface",
+    "sourceUrl": "https://www.thetubestore.com/lib/thetubestore/schematics/Fender/Fender-Princeton-6G2-Schematic.pdf",
+    "sourceCredit": "The Tube Store",
+    "tags": "fender,brownface,6g2,6v6,princeton,tremolo",
+    "notes": "~12W brownface combo with 2x6V6GT, fixed bias, and tremolo. Produced 1961–1963; a transitional circuit bridging tweed and blackface tonal character."
+  },
+  {
+    "name": "Fender Deluxe (6G3)",
+    "ampModel": "Deluxe",
+    "circuitFamily": "Brownface",
+    "sourceUrl": "https://www.thetubestore.com/lib/thetubestore/schematics/Fender/Fender-Deluxe-6G3-Schematic.pdf",
+    "sourceCredit": "The Tube Store",
+    "tags": "fender,brownface,6g3,6v6,deluxe,tremolo",
+    "notes": "~15W brownface Deluxe with 2x6V6GT and tube-driven tremolo. Produced 1961–1963; the 6G3 is distinctive for its smooth warm tone before the blackface era."
+  },
+  {
+    "name": "Fender Bassman (6G6-B)",
+    "ampModel": "Bassman",
+    "circuitFamily": "Brownface",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_bassman_6g6b.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,brownface,6g6b,6l6,bassman",
+    "notes": "~50W brownface Bassman with 4x6L6GC, fixed bias. Produced 1961–1963; a key transitional circuit between the famous tweed 5F6-A and the blackface models."
+  },
+  {
+    "name": "Fender Bandmaster (6G7-A)",
+    "ampModel": "Bandmaster",
+    "circuitFamily": "Brownface",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_bandmaster_6g7a_schem.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,brownface,6g7a,6l6,bandmaster,tremolo",
+    "notes": "~40W brownface piggyback with 2x6L6GC and tube tremolo. Produced 1961–1963; features a long-tail pair phase inverter distinct from the earlier tweed 5E7."
+  },
+  {
+    "name": "Fender Deluxe Reverb (AB763)",
+    "ampModel": "Deluxe Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_65_deluxe_reverb_manual.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,blackface,ab763,6v6,deluxe-reverb,reverb",
+    "notes": "~22W push-pull amp with 2x6V6GT, spring reverb, and vibrato. The quintessential studio and recording combo; the AB763 circuit defines the blackface era."
+  },
+  {
+    "name": "Fender Princeton Reverb (AA1164)",
+    "ampModel": "Princeton Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_princeton_reverb_aa1164.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,blackface,aa1164,6v6,princeton-reverb,reverb",
+    "notes": "~12W single-channel amp with 2x6V6GT, reverb, and vibrato. Produced 1964–1967; beloved for warm, compressed tone at practice and session volumes."
+  },
+  {
+    "name": "Fender Vibrolux Reverb (AB568)",
+    "ampModel": "Vibrolux Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_vibroluxreverb_ab568_schem.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,blackface,ab568,6l6,vibrolux-reverb,reverb",
+    "notes": "~35W 2x10 combo with 2x6L6GC, reverb, and vibrato. Produced mid-1960s; the AB568 is a less common but highly regarded blackface circuit."
+  },
+  {
+    "name": "Fender Super Reverb (AA763)",
+    "ampModel": "Super Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_65_super_reverb.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,blackface,aa763,6l6,super-reverb,reverb",
+    "notes": "~45W 4x10 combo with 2x6L6GC, reverb, and vibrato. Produced 1964–1966; a Chicago blues and R&B studio staple, known for glassy highs and punchy mids."
+  },
+  {
+    "name": "Fender Twin Reverb (AB763)",
+    "ampModel": "Twin Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Fender/Fender_65_twin_reverb_sm.pdf",
+    "sourceCredit": "El34World",
+    "tags": "fender,blackface,ab763,6l6,twin-reverb,reverb",
+    "notes": "~85W 2x12 combo with 4x6L6GC; the loudest and cleanest blackface amp. Full '65 Twin Reverb service manual containing the complete AB763 schematic."
   },
   {
     "name": "Marshall JTM45",
     "ampModel": "JTM45",
     "circuitFamily": "Marshall",
-    "sourceUrl": "https://robrobinette.com/JTM45.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "marshall,jtm45,kt66,5881",
-    "notes": "Marshall's first amp — directly derived from the Fender 5F6-A Bassman, ~30W, 2xKT66 (originally) or 5881."
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_jtm45_readable.pdf",
+    "sourceCredit": "El34World",
+    "tags": "marshall,jtm45,kt66,ecc83,plexi",
+    "notes": "~45W fixed-bias push-pull amp derived directly from the Fender 5F6-A Bassman, with 2xKT66 and GZ34 rectifier. Marshall's first production amp, circa 1962–1966."
   },
   {
-    "name": "Marshall JCM800 2203 (100W)",
-    "ampModel": "JCM800 2203",
+    "name": "Marshall 1962 Bluesbreaker",
+    "ampModel": "1962 Bluesbreaker",
     "circuitFamily": "Marshall",
-    "sourceUrl": "https://robrobinette.com/JCM800.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "marshall,jcm800,2203,el34,master-volume",
-    "notes": "100W master-volume single-channel head, 4xEL34. The 80s metal sound."
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_bluesbreaker_reissue_1962.pdf",
+    "sourceCredit": "El34World",
+    "tags": "marshall,bluesbreaker,1962,kt66,ecc83,combo",
+    "notes": "~45W 2x12 combo version of the JTM45 circuit, made famous by Eric Clapton on the John Mayall 'Beano' album in 1966. Uses 2xKT66 and GZ34 rectifier."
   },
   {
-    "name": "Vox AC30",
+    "name": "Marshall JTM100 Tremolo (1966)",
+    "ampModel": "JTM100",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_1959t_66_jtm100t_with_tremelo.gif",
+    "sourceCredit": "El34World",
+    "tags": "marshall,jtm100,el34,ecc83,tremolo,1966",
+    "notes": "~100W 1966 head with 4xEL34 and tremolo channel — an early high-power variant before the model stabilised as the 1959 Super Lead. Very rare in original form."
+  },
+  {
+    "name": "Marshall JMP Lead & Bass (1964)",
+    "ampModel": "JMP Lead & Bass",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_1964_jmp_lead_and_bass.gif",
+    "sourceCredit": "El34World",
+    "tags": "marshall,jmp,1964,el34,lead,bass",
+    "notes": "Early JMP-era schematic showing both the lead and bass channel on one drawing. A key reference for understanding the transition from JTM45 to the plexi designs."
+  },
+  {
+    "name": "Marshall 1959 Super Lead 100W (Plexi)",
+    "ampModel": "1959 Super Lead",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://schematicheaven.net/marshallamps/jcm800_superlead_100w_1959.pdf",
+    "sourceCredit": "Schematic Heaven",
+    "tags": "marshall,plexi,1959,el34,superlead,100w",
+    "notes": "~100W head with 4xEL34; the definitive Plexi Super Lead that powered classic rock. This schematic covers the JCM800-era 1959 iteration of the same circuit."
+  },
+  {
+    "name": "Marshall 1987 50W Lead (Plexi)",
+    "ampModel": "1987 50W Lead",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_1987_jmp_lead_50watt_el34.gif",
+    "sourceCredit": "El34World",
+    "tags": "marshall,plexi,1987,el34,jmp,50w",
+    "notes": "~50W JMP-era Plexi head with 2xEL34. The 50W sibling of the 100W 1959, prized for its tighter feel and lower noise floor; produced through the early 1970s."
+  },
+  {
+    "name": "Marshall 1987 MkII JMP 50W",
+    "ampModel": "1987 MkII",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_1987_mkii_jmp_50watt.gif",
+    "sourceCredit": "El34World",
+    "tags": "marshall,jmp,1987mkii,el34,50w",
+    "notes": "~50W MkII revision of the JMP 1987 with 2xEL34. Introduced detail-level circuit revisions over the original Plexi; produced through the late 1970s."
+  },
+  {
+    "name": "Marshall 1986 Bass 50W",
+    "ampModel": "1986 Bass",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_50w.pdf",
+    "sourceCredit": "El34World",
+    "tags": "marshall,jmp,1986,el34,bass,50w",
+    "notes": "~50W JMP Bass head with 2xEL34, voiced slightly darker than the lead model. Many guitarists favour it for its rounder character; shares core topology with the 1987."
+  },
+  {
+    "name": "Marshall 18 Watt",
+    "ampModel": "18 Watt",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Marshall/Marshall_18watt_schem.pdf",
+    "sourceCredit": "El34World",
+    "tags": "marshall,18w,el84,ecc83",
+    "notes": "~18W combo or head with 2xEL84, produced 1965–1968. Shares circuit lineage with the Vox AC15 and is prized for touch-sensitive dynamics and early breakup."
+  },
+  {
+    "name": "Marshall JMP 50W Lead (1987)",
+    "ampModel": "JMP 50W Lead",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://schematicheaven.net/marshallamps/jmp_lead_50w_1987.pdf",
+    "sourceCredit": "Schematic Heaven",
+    "tags": "marshall,jmp,1987,el34,50w,lead",
+    "notes": "~50W JMP Lead head schematic direct from Schematic Heaven's Marshall archive. A clean reference copy of the 1987 circuit useful alongside the El34World GIF version."
+  },
+  {
+    "name": "Vox AC4",
+    "ampModel": "AC4",
+    "circuitFamily": "Vox",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Vox/Vox_ac4.pdf",
+    "sourceCredit": "El34World",
+    "tags": "vox,ac4,el84,ecc83",
+    "notes": "~4W single-ended Class A combo with 1xEL84. Produced in the early 1960s; the simplest Vox circuit, sharing the characteristic EL84 chime of its larger siblings."
+  },
+  {
+    "name": "Vox AC10",
+    "ampModel": "AC10",
+    "circuitFamily": "Vox",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Vox/Vox_ac10.pdf",
+    "sourceCredit": "El34World",
+    "tags": "vox,ac10,el84,ecc83,ef86",
+    "notes": "~10W push-pull Class A combo with 2xEL84, produced 1958 to mid-1960s. Features an EF86 pentode input stage and the signature Vox Top Cut tone control."
+  },
+  {
+    "name": "Vox AC15 (1959)",
+    "ampModel": "AC15",
+    "circuitFamily": "Vox",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Vox/Vox_ac151959.pdf",
+    "sourceCredit": "El34World",
+    "tags": "vox,ac15,el84,ecc83,ef86,1959",
+    "notes": "~15W push-pull Class A combo with 2xEL84, one of the earliest production versions. Uses the original EF86 pentode front end, predating the 12AX7 Top Boost channel."
+  },
+  {
+    "name": "Vox AC15 (1960)",
+    "ampModel": "AC15",
+    "circuitFamily": "Vox",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Vox/Vox_ac151960.pdf",
+    "sourceCredit": "El34World",
+    "tags": "vox,ac15,el84,ecc83,1960",
+    "notes": "~15W push-pull Class A combo with 2xEL84. The 1960 version is an important transitional schematic showing the move toward the famous Top Boost voicing."
+  },
+  {
+    "name": "Vox AC30 (1960)",
     "ampModel": "AC30",
     "circuitFamily": "Vox",
-    "sourceUrl": "https://robrobinette.com/AC30.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "vox,ac30,el84,top-boost,class-a",
-    "notes": "Class A cathode-biased, 4xEL84, ~30W. The British chime."
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Vox/Vox_ac301960.pdf",
+    "sourceCredit": "El34World",
+    "tags": "vox,ac30,el84,ecc83,1960,top-boost",
+    "notes": "~30W push-pull Class A 2x12 combo with 4xEL84. The 1960 Top Boost circuit used by The Beatles and countless British Invasion bands; a landmark British amp design."
   },
   {
-    "name": "Fender Tweed Champ (5C1)",
-    "ampModel": "Champ",
-    "circuitFamily": "Tweed",
-    "sourceUrl": "https://robrobinette.com/5C1_Schematic.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,tweed,5c1,6v6,vintage",
-    "notes": "Earliest Champ circuit, single-ended class A."
-  },
-  {
-    "name": "Fender Vibroverb (6G16)",
-    "ampModel": "Vibroverb",
-    "circuitFamily": "Brownface",
-    "sourceUrl": "https://robrobinette.com/Brown_Vibroverb.htm",
-    "sourceCredit": "Rob Robinette",
-    "tags": "fender,brownface,6g16,6l6,reverb",
-    "notes": "Brown 1963 Vibroverb, 35W, 2x6L6GC. The first Fender combo with onboard reverb."
+    "name": "Vox AC50",
+    "ampModel": "AC50",
+    "circuitFamily": "Vox",
+    "sourceUrl": "https://el34world.com/charts/Schematics/Files/Vox/Vox_ac50_1.pdf",
+    "sourceCredit": "El34World",
+    "tags": "vox,ac50,el34,ecc83,1960s",
+    "notes": "~50W head with 2xEL34 in a fixed-bias push-pull configuration. Produced from 1963 onward; Vox's larger touring amp, used by major British acts of the 1960s."
   }
 ]
