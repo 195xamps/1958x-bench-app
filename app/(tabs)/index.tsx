@@ -26,7 +26,7 @@ import { useAuth } from '../../src/contexts/AuthContext';
 import { useFileUpload } from '../../src/hooks/useFileUpload';
 import type { Chat, ChatMessage } from '../../src/types';
 import { LoadingScreen, EmptyState, OnboardingOverlay } from '../../src/components/shared';
-import { MessageList } from '../../src/components/chat';
+import { MessageList, ChatInput } from '../../src/components/chat';
 import {
   AttachmentPickerModal,
   showAttachmentOptions,
@@ -360,35 +360,16 @@ export default function DashboardScreen() {
                   uploading={uploading}
                 />
 
-                <View style={styles.inputContainer}>
-                  <TouchableOpacity
-                    style={styles.attachButton}
-                    onPress={handleAttachPress}
-                    disabled={sending || uploading}
-                  >
-                    <Ionicons
-                      name="camera"
-                      size={24}
-                      color={sending || uploading ? colors.text.muted : colors.accent}
-                    />
-                  </TouchableOpacity>
-                  <TextInput
-                    style={styles.input}
-                    value={input}
-                    onChangeText={setInput}
-                    placeholder="Ask about amp repair..."
-                    placeholderTextColor={colors.text.muted}
-                    multiline
-                    maxLength={2000}
-                  />
-                  <TouchableOpacity
-                    style={[styles.sendButton, (!hasSendContent || sending) && styles.sendButtonDisabled]}
-                    onPress={sendMessage}
-                    disabled={!hasSendContent || sending}
-                  >
-                    <Ionicons name="send" size={22} color={colors.text.onAccent} />
-                  </TouchableOpacity>
-                </View>
+                <ChatInput
+                  value={input}
+                  onChangeText={setInput}
+                  onSend={sendMessage}
+                  onAttach={handleAttachPress}
+                  sending={sending}
+                  uploading={uploading}
+                  placeholder="Ask about amp repair..."
+                  canSend={hasSendContent}
+                />
               </KeyboardAvoidingView>
             </View>
           </GestureHandlerRootView>
