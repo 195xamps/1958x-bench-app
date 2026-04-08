@@ -2,16 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { FlowchartsTab, VoltagesTab, CalculatorTab, ArticlesTab, TavaTab } from '../../src/components/reference';
+import { FlowchartsTab, VoltagesTab, CalculatorTab, LinksTab } from '../../src/components/reference';
 import { colors } from '../../src/theme/colors';
 
-type MainTab = 'tools' | 'read' | 'schematics';
+type MainTab = 'tools' | 'links' | 'schematics';
 type ToolsSub = 'flowcharts' | 'voltages' | 'calculator';
-type ReadSub = 'articles' | 'tava';
 
 const MAIN_TABS: { id: MainTab; label: string; icon: string }[] = [
   { id: 'tools', label: 'Tools', icon: 'construct' },
-  { id: 'read', label: 'Read', icon: 'book' },
+  { id: 'links', label: 'Links', icon: 'link' },
   { id: 'schematics', label: 'Schematics', icon: 'document-text' },
 ];
 
@@ -21,16 +20,10 @@ const TOOLS_SUBS: { id: ToolsSub; label: string }[] = [
   { id: 'calculator', label: 'Calculator' },
 ];
 
-const READ_SUBS: { id: ReadSub; label: string }[] = [
-  { id: 'articles', label: 'Articles' },
-  { id: 'tava', label: 'TAVA Podcast' },
-];
-
 export default function ReferenceScreen() {
   const router = useRouter();
   const [mainTab, setMainTab] = useState<MainTab>('tools');
   const [toolsSub, setToolsSub] = useState<ToolsSub>('flowcharts');
-  const [readSub, setReadSub] = useState<ReadSub>('articles');
 
   const handleMainTab = (tab: MainTab) => {
     if (tab === 'schematics') {
@@ -62,7 +55,7 @@ export default function ReferenceScreen() {
         ))}
       </View>
 
-      {/* Secondary segmented control */}
+      {/* Secondary segmented control — only Tools has sub-tabs */}
       {mainTab === 'tools' && (
         <View style={s.segmentBar}>
           {TOOLS_SUBS.map((sub) => (
@@ -78,29 +71,13 @@ export default function ReferenceScreen() {
           ))}
         </View>
       )}
-      {mainTab === 'read' && (
-        <View style={s.segmentBar}>
-          {READ_SUBS.map((sub) => (
-            <TouchableOpacity
-              key={sub.id}
-              style={[s.segment, readSub === sub.id && s.segmentActive]}
-              onPress={() => setReadSub(sub.id)}
-            >
-              <Text style={[s.segmentText, readSub === sub.id && s.segmentTextActive]}>
-                {sub.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
 
       {/* Content */}
       <View style={s.content}>
         {mainTab === 'tools' && toolsSub === 'flowcharts' && <FlowchartsTab />}
         {mainTab === 'tools' && toolsSub === 'voltages' && <VoltagesTab />}
         {mainTab === 'tools' && toolsSub === 'calculator' && <CalculatorTab />}
-        {mainTab === 'read' && readSub === 'articles' && <ArticlesTab />}
-        {mainTab === 'read' && readSub === 'tava' && <TavaTab />}
+        {mainTab === 'links' && <LinksTab />}
       </View>
     </View>
   );
