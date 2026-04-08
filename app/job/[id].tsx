@@ -1,34 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
-  Modal,
-  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { jobsApi, chatsApi, repairActionsApi } from '../../src/services';
 import { colors } from '../../src/theme';
-import { JOB_STATUSES, getStatusConfig } from '../../src/types/common';
-import type { ChatMessage, Attachment, Measurement, RepairAction } from '../../src/types';
+import type { ChatMessage, Attachment, RepairAction } from '../../src/types';
 import { useFileUpload } from '../../src/hooks';
-import {
-  showAlert,
-  showConfirm,
-  showError,
-  formatTimestamp,
-  formatAmpName,
-  openUrl,
-} from '../../src/utils';
+import { showAlert, showConfirm, showError, formatAmpName } from '../../src/utils';
 import { LoadingScreen } from '../../src/components/shared';
 import { MessageList, ChatInput } from '../../src/components/chat';
 import {
@@ -36,37 +23,21 @@ import {
   showAttachmentOptions,
 } from '../../src/components/chat/AttachmentPicker';
 import { AttachmentPreview } from '../../src/components/chat/AttachmentPreview';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type TabType = 'chat' | 'notes' | 'measurements' | 'repairs';
-
-interface JobData {
-  job: {
-    id: string;
-    status: string;
-    customerName: string | null;
-    customerPhone: string | null;
-    ownerSymptoms: string;
-    techNotes: string;
-    priorWork: string;
-    knownMods: string;
-    safetyChecklistCompleted: boolean;
-    isPublic: boolean;
-    shareAnonymously: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
-  ampProfile: {
-    id: string;
-    make: string;
-    model: string;
-    year: string;
-    circuitFamily: string;
-  };
-  measurements: Measurement[];
-  repairActions: RepairAction[];
-}
+import {
+  WorkflowProgress,
+  JobHeader,
+  JobNotesTab,
+  JobMeasurementsTab,
+  JobRepairsTab,
+  JobRepairFormModal,
+  JobStatusPickerModal,
+  JobShareModal,
+  JobEditAmpModal,
+  JobCustomerModal,
+  JobMediaGalleryModal,
+  EMPTY_REPAIR_FORM,
+} from '../../src/components/job';
+import type { JobData, JobTabType, RepairFormState } from '../../src/components/job';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -76,18 +47,18 @@ export default function JobDetailScreen() {
 
   const [loading, setLoading] = useState(true);
   const [jobData, setJobData] = useState<JobData | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('chat');
+  const [activeTab, setActiveTab] = useState<JobTabType>('chat');
 
   // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
-  const [chatInput, setChatInputText] = useState('');
+  const [chatInput, setChatInput] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [chatSendingText, setChatSendingText] = useState('Thinking...');
   const streamAbortRef = useRef<(() => void) | null>(null);
 
-  // File upload hook (chat attachments)
+  // File upload (chat attachments)
   const {
     uploading: uploadingImage,
     pendingAttachments,
@@ -119,7 +90,7 @@ export default function JobDetailScreen() {
   const [savingShare, setSavingShare] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // Edit modal
+  // Edit modals
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ make: '', model: '', year: '', circuitFamily: '' });
   const [savingEdit, setSavingEdit] = useState(false);
@@ -133,83 +104,69 @@ export default function JobDetailScreen() {
   // Repair actions
   const [showAddRepair, setShowAddRepair] = useState(false);
   const [editingRepair, setEditingRepair] = useState<RepairAction | null>(null);
-  const [repairForm, setRepairForm] = useState({
-    description: '',
-    partReplaced: '',
-    partValue: '',
-    partBrand: '',
-    voltageRating: '',
-    dateCode: '',
-    beforeMeasurement: '',
-    afterMeasurement: '',
-    notes: '',
-  });
+  const [repairForm, setRepairForm] = useState<RepairFormState>(EMPTY_REPAIR_FORM);
   const [savingRepair, setSavingRepair] = useState(false);
 
   // ── Data Fetching ────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (id) {
-      fetchJobData();
-      fetchJobChat();
-    }
+    if (!id) return;
+    const fetchJobData = async () => {
+      try {
+        const data = await jobsApi.get(id);
+        setJobData(data);
+        setTechNotes(data.job.techNotes || '');
+        setCurrentStatus(data.job.status || 'active');
+        setIsPublic(data.job.isPublic || false);
+        setShareAnonymously(data.job.shareAnonymously || false);
+      } catch (error) {
+        console.error('Error fetching job:', error);
+        showError('Failed to load job');
+      } finally {
+        setLoading(false);
+      }
+    };
+    const fetchJobChat = async () => {
+      try {
+        const data = await jobsApi.getChat(id);
+        setChatId(data.chat.id);
+        setChatMessages(data.messages);
+      } catch (error) {
+        console.error('Error fetching job chat:', error);
+        showError('Failed to load chat — tap the Chat tab to retry');
+      }
+    };
+    fetchJobData();
+    fetchJobChat();
   }, [id]);
-
-  const fetchJobData = async () => {
-    try {
-      const data = await jobsApi.get(id!);
-      setJobData(data);
-      setTechNotes(data.job.techNotes || '');
-      setCurrentStatus(data.job.status || 'active');
-      setIsPublic(data.job.isPublic || false);
-      setShareAnonymously(data.job.shareAnonymously || false);
-    } catch (error) {
-      console.error('Error fetching job:', error);
-      showError('Failed to load job');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchJobChat = async () => {
-    try {
-      const data = await jobsApi.getChat(id!);
-      setChatId(data.chat.id);
-      setChatMessages(data.messages);
-    } catch (error) {
-      console.error('Error fetching job chat:', error);
-      showError('Failed to load chat — tap the Chat tab to retry');
-    }
-  };
 
   // ── Navigation ───────────────────────────────────────────────────────────
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/jobs' as any);
-  };
+  }, [router]);
 
   // ── Job Actions ──────────────────────────────────────────────────────────
 
-  const deleteJob = async () => {
+  const deleteJob = useCallback(async () => {
     const jobName = formatAmpName(jobData?.ampProfile, 'this job');
     const confirmed = await showConfirm(
       'Delete Job',
       `Delete "${jobName}"? This will permanently remove the job, chat history, and measurements.`,
       { confirmText: 'Delete', destructive: true },
     );
-    if (confirmed) {
-      try {
-        await jobsApi.delete(id!);
-        router.replace('/(tabs)/jobs' as any);
-      } catch (error) {
-        console.error('Error deleting job:', error);
-        showError('Failed to delete job');
-      }
+    if (!confirmed) return;
+    try {
+      await jobsApi.delete(id!);
+      router.replace('/(tabs)/jobs' as any);
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      showError('Failed to delete job');
     }
-  };
+  }, [id, jobData?.ampProfile, router]);
 
-  const updateJobStatus = async (newStatus: string) => {
+  const updateJobStatus = useCallback(async (newStatus: string) => {
     const oldStatus = currentStatus;
     setCurrentStatus(newStatus);
     setShowStatusPicker(false);
@@ -219,9 +176,9 @@ export default function JobDetailScreen() {
       console.error('Error updating status:', error);
       setCurrentStatus(oldStatus);
     }
-  };
+  }, [id, currentStatus]);
 
-  const toggleSharing = async (field: 'isPublic' | 'shareAnonymously', value: boolean) => {
+  const toggleSharing = useCallback(async (field: 'isPublic' | 'shareAnonymously', value: boolean) => {
     if (!id) return;
     setSavingShare(true);
     const oldPublic = isPublic;
@@ -244,18 +201,11 @@ export default function JobDetailScreen() {
     } finally {
       setSavingShare(false);
     }
-  };
+  }, [id, isPublic, shareAnonymously]);
 
   // ── Notes ────────────────────────────────────────────────────────────────
 
-  const handleNotesChange = (text: string) => {
-    setTechNotes(text);
-    setNotesSaved(false);
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => saveNotes(text), 1500);
-  };
-
-  const saveNotes = async (notes: string) => {
+  const saveNotes = useCallback(async (notes: string) => {
     if (!id) return;
     setSavingNotes(true);
     try {
@@ -269,11 +219,18 @@ export default function JobDetailScreen() {
     } finally {
       setSavingNotes(false);
     }
-  };
+  }, [id]);
 
-  // ── Edit ─────────────────────────────────────────────────────────────────
+  const handleNotesChange = useCallback((text: string) => {
+    setTechNotes(text);
+    setNotesSaved(false);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => saveNotes(text), 1500);
+  }, [saveNotes]);
 
-  const openEditModal = () => {
+  // ── Edit amp ─────────────────────────────────────────────────────────────
+
+  const openEditModal = useCallback(() => {
     if (jobData) {
       setEditForm({
         make: jobData.ampProfile.make || '',
@@ -283,9 +240,9 @@ export default function JobDetailScreen() {
       });
       setShowEditModal(true);
     }
-  };
+  }, [jobData]);
 
-  const saveAmpProfile = async () => {
+  const saveAmpProfile = useCallback(async () => {
     if (!id) return;
     if (!editForm.make.trim() && !editForm.model.trim()) {
       showAlert('Required', 'Please enter at least a make or model');
@@ -318,19 +275,19 @@ export default function JobDetailScreen() {
     } finally {
       setSavingEdit(false);
     }
-  };
+  }, [id, editForm]);
 
   // ── Customer ─────────────────────────────────────────────────────────────
 
-  const openCustomerModal = () => {
+  const openCustomerModal = useCallback(() => {
     setCustomerForm({
       customerName: jobData?.job.customerName || '',
       customerPhone: jobData?.job.customerPhone || '',
     });
     setShowCustomerModal(true);
-  };
+  }, [jobData?.job.customerName, jobData?.job.customerPhone]);
 
-  const saveCustomer = async () => {
+  const saveCustomer = useCallback(async () => {
     if (!id) return;
     setSavingCustomer(true);
     try {
@@ -338,7 +295,11 @@ export default function JobDetailScreen() {
       setJobData((prev) =>
         prev ? {
           ...prev,
-          job: { ...prev.job, customerName: customerForm.customerName || null, customerPhone: customerForm.customerPhone || null },
+          job: {
+            ...prev.job,
+            customerName: customerForm.customerName || null,
+            customerPhone: customerForm.customerPhone || null,
+          },
         } : null,
       );
       setShowCustomerModal(false);
@@ -348,28 +309,18 @@ export default function JobDetailScreen() {
     } finally {
       setSavingCustomer(false);
     }
-  };
+  }, [id, customerForm]);
 
-  // ── Repair Actions ────────────────────────────────────────────────────────
+  // ── Repair actions ───────────────────────────────────────────────────────
 
-  const openAddRepairModal = () => {
+  const openAddRepairModal = useCallback(() => {
     setEditingRepair(null);
-    setRepairForm({
-      description: '',
-      partReplaced: '',
-      partValue: '',
-      partBrand: '',
-      voltageRating: '',
-      dateCode: '',
-      beforeMeasurement: '',
-      afterMeasurement: '',
-      notes: '',
-    });
+    setRepairForm(EMPTY_REPAIR_FORM);
     setRepairPhotoUrl(null);
     setShowAddRepair(true);
-  };
+  }, []);
 
-  const openEditRepairModal = (action: RepairAction) => {
+  const openEditRepairModal = useCallback((action: RepairAction) => {
     setEditingRepair(action);
     setRepairForm({
       description: action.description,
@@ -384,16 +335,22 @@ export default function JobDetailScreen() {
     });
     setRepairPhotoUrl(action.photoUrl || null);
     setShowAddRepair(true);
-  };
+  }, []);
 
-  const pickRepairPhoto = async (useCamera: boolean) => {
+  const pickRepairPhoto = useCallback(async (useCamera: boolean) => {
     const ImagePicker = require('expo-image-picker');
     if (useCamera) {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== 'granted') { showAlert('Permission Required', 'Camera permission is required'); return; }
+      if (status !== 'granted') {
+        showAlert('Permission Required', 'Camera permission is required');
+        return;
+      }
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') { showAlert('Permission Required', 'Photo library permission is required'); return; }
+      if (status !== 'granted') {
+        showAlert('Permission Required', 'Photo library permission is required');
+        return;
+      }
     }
     const result = useCamera
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.8 })
@@ -406,9 +363,9 @@ export default function JobDetailScreen() {
       if (url) setRepairPhotoUrl(url);
       else showError('Failed to upload photo');
     }
-  };
+  }, [uploadFile]);
 
-  const saveRepairAction = async () => {
+  const saveRepairAction = useCallback(async () => {
     if (!repairForm.description.trim()) {
       showError('Description is required');
       return;
@@ -444,9 +401,9 @@ export default function JobDetailScreen() {
     } finally {
       setSavingRepair(false);
     }
-  };
+  }, [editingRepair, id, repairForm, repairPhotoUrl]);
 
-  const deleteRepairAction = async (actionId: string) => {
+  const deleteRepairAction = useCallback(async (actionId: string) => {
     const confirmed = await showConfirm(
       'Delete Repair Action',
       'Remove this repair action? This cannot be undone.',
@@ -462,16 +419,16 @@ export default function JobDetailScreen() {
       console.error('Error deleting repair action:', error);
       showError('Failed to delete repair action');
     }
-  };
+  }, []);
 
   // ── Chat ─────────────────────────────────────────────────────────────────
 
-  const sendChatMessage = async () => {
+  const sendChatMessage = useCallback(async () => {
     if ((!chatInput.trim() && pendingAttachments.length === 0) || !chatId || sendingChat) return;
     Keyboard.dismiss();
     const messageText = chatInput.trim();
     const attachmentsToSend = [...pendingAttachments];
-    setChatInputText('');
+    setChatInput('');
     clearAttachments();
     setSendingChat(true);
     setStreamingText('');
@@ -491,7 +448,7 @@ export default function JobDetailScreen() {
       const { promise, abort } = chatsApi.streamMessage(
         chatId,
         messageText,
-        (token) => { setStreamingText(prev => prev + token); },
+        (token) => { setStreamingText((prev) => prev + token); },
         attachmentsToSend.length > 0 ? attachmentsToSend : null,
         (status) => { setChatSendingText(status); },
       );
@@ -514,23 +471,14 @@ export default function JobDetailScreen() {
     } finally {
       setSendingChat(false);
     }
-  };
+  }, [chatInput, chatId, sendingChat, pendingAttachments, clearAttachments]);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  // ── Derived data ─────────────────────────────────────────────────────────
 
-  const getAllAttachments = (): Attachment[] => {
-    return chatMessages.flatMap((msg) => msg.attachments || []);
-  };
-
-  const getStatusColor = (status: string | null) => {
-    if (!status) return colors.text.muted;
-    if (status === 'in_range' || status === 'green') return colors.status.success;
-    if (status === 'warning' || status === 'yellow') return colors.status.warning;
-    if (status === 'out_of_range' || status === 'red') return colors.status.error;
-    return colors.text.muted;
-  };
-
-  const currentStatusConfig = getStatusConfig(currentStatus);
+  const allAttachments: Attachment[] = useMemo(
+    () => chatMessages.flatMap((msg) => msg.attachments || []),
+    [chatMessages],
+  );
 
   // ── Loading / Error ──────────────────────────────────────────────────────
 
@@ -549,7 +497,7 @@ export default function JobDetailScreen() {
 
   const { job, ampProfile, measurements, repairActions } = jobData;
 
-  // ── Tab Renderers ────────────────────────────────────────────────────────
+  // ── Chat tab (kept inline because of streaming + attachment state coupling) ─
 
   const renderChatTab = () => (
     <KeyboardAvoidingView
@@ -581,7 +529,7 @@ export default function JobDetailScreen() {
       />
       <ChatInput
         value={chatInput}
-        onChangeText={setChatInputText}
+        onChangeText={setChatInput}
         onSend={sendChatMessage}
         onAttach={() =>
           showAttachmentOptions(
@@ -599,287 +547,25 @@ export default function JobDetailScreen() {
     </KeyboardAvoidingView>
   );
 
-  const renderNotesTab = () => (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.notesHeader}>
-          <View>
-            <Text style={styles.notesTitle}>Repair Notes</Text>
-            {job.updatedAt && (
-              <Text style={styles.notesLastUpdated}>Last updated: {formatTimestamp(job.updatedAt)}</Text>
-            )}
-          </View>
-          <View style={styles.saveStatus}>
-            {savingNotes && (
-              <>
-                <ActivityIndicator size="small" color={colors.accent} />
-                <Text style={styles.saveStatusText}>Saving...</Text>
-              </>
-            )}
-            {notesSaved && !savingNotes && (
-              <>
-                <Ionicons name="checkmark-circle" size={18} color={colors.status.success} />
-                <Text style={[styles.saveStatusText, { color: colors.status.success }]}>Saved</Text>
-              </>
-            )}
-          </View>
-        </View>
-
-        <TextInput
-          style={styles.notesInput}
-          value={techNotes}
-          onChangeText={handleNotesChange}
-          placeholder="Add repair notes, parts replaced, observations..."
-          placeholderTextColor={colors.text.muted}
-          multiline
-          textAlignVertical="top"
-        />
-
-        {job.ownerSymptoms ? <InfoBlock label="Owner's Symptoms" text={job.ownerSymptoms} /> : null}
-        {job.priorWork ? <InfoBlock label="Prior Work" text={job.priorWork} /> : null}
-        {job.knownMods ? <InfoBlock label="Known Modifications" text={job.knownMods} /> : null}
-
-        {/* Sharing section */}
-        <View style={styles.shareSection}>
-          <View style={styles.shareSectionHeader}>
-            <Ionicons name="globe-outline" size={20} color={colors.accent} />
-            <Text style={styles.shareSectionTitle}>Community Sharing</Text>
-            {savingShare && <ActivityIndicator size="small" color={colors.accent} style={{ marginLeft: 8 }} />}
-          </View>
-          <Text style={styles.shareSectionDescription}>
-            Share this job with the community so other technicians can learn from your work.
-          </Text>
-          <ToggleRow
-            label="Share to Community Bench"
-            hint="Other technicians can view this job (read-only)"
-            value={isPublic}
-            onToggle={() => toggleSharing('isPublic', !isPublic)}
-            disabled={savingShare}
-          />
-          {isPublic && (
-            <ToggleRow
-              label="Share Anonymously"
-              hint="Hide your name from the shared job"
-              value={shareAnonymously}
-              onToggle={() => toggleSharing('shareAnonymously', !shareAnonymously)}
-              disabled={savingShare}
-            />
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-
-  const renderMeasurementsTab = () => (
-    <ScrollView style={styles.measurementsContainer}>
-      <View style={styles.measurementsHeader}>
-        <Text style={styles.measurementsTitle}>Measurements</Text>
-        <TouchableOpacity
-          style={styles.addMeasurementButton}
-          onPress={() => {
-            const params = new URLSearchParams({ benchJobId: id! });
-            if (ampProfile?.circuitFamily) params.append('circuitFamily', ampProfile.circuitFamily);
-            if (ampProfile) params.append('jobName', `${ampProfile.make || ''} ${ampProfile.model || ''}`.trim());
-            router.push(`/measurement?${params.toString()}` as any);
-          }}
-        >
-          <Ionicons name="add" size={20} color={colors.text.onAccent} />
-          <Text style={styles.addMeasurementText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-      {measurements.length === 0 ? (
-        <View style={styles.emptyMeasurements}>
-          <Ionicons name="analytics-outline" size={48} color={colors.bg.elevated} />
-          <Text style={styles.emptyText}>No measurements recorded</Text>
-          <Text style={styles.emptySubtext}>Tap &quot;Add&quot; to record voltage or resistance readings</Text>
-        </View>
-      ) : (
-        measurements.map((m) => (
-          <View key={m.id} style={styles.measurementCard}>
-            <View style={styles.measurementHeader}>
-              <Text style={styles.measurementNode}>{m.nodeName}</Text>
-              <View style={[styles.statusDot, { backgroundColor: getStatusColor(m.status) }]} />
-            </View>
-            <View style={styles.measurementValues}>
-              <View style={styles.valueColumn}>
-                <Text style={styles.valueLabel}>Recorded</Text>
-                <Text style={styles.valueText}>
-                  {m.recordedValue !== null ? `${m.recordedValue} ${m.unit || ''}` : '--'}
-                </Text>
-              </View>
-              <View style={styles.valueColumn}>
-                <Text style={styles.valueLabel}>Expected</Text>
-                <Text style={styles.expectedText}>
-                  {m.expectedMin !== null && m.expectedMax !== null
-                    ? `${m.expectedMin} - ${m.expectedMax} ${m.unit || ''}`
-                    : '--'}
-                </Text>
-              </View>
-            </View>
-            {m.notes && <Text style={styles.measurementNotes}>{m.notes}</Text>}
-          </View>
-        ))
-      )}
-    </ScrollView>
-  );
-
   // ── Main Render ──────────────────────────────────────────────────────────
-
-  const renderRepairsTab = () => (
-    <ScrollView style={styles.measurementsContainer}>
-      <View style={styles.measurementsHeader}>
-        <Text style={styles.measurementsTitle}>Repair Actions</Text>
-        <TouchableOpacity style={styles.addMeasurementButton} onPress={openAddRepairModal}>
-          <Ionicons name="add" size={20} color={colors.text.onAccent} />
-          <Text style={styles.addMeasurementText}>Add</Text>
-        </TouchableOpacity>
-      </View>
-      {repairActions.length === 0 ? (
-        <View style={styles.emptyMeasurements}>
-          <Ionicons name="construct-outline" size={48} color={colors.bg.elevated} />
-          <Text style={styles.emptyText}>No repair actions recorded</Text>
-          <Text style={styles.emptySubtext}>Tap &quot;Add&quot; to log parts replaced, measurements, and notes</Text>
-        </View>
-      ) : (
-        repairActions.map((ra) => (
-          <TouchableOpacity
-            key={ra.id}
-            style={styles.repairCard}
-            onPress={() => openEditRepairModal(ra)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.repairCardHeader}>
-              <Ionicons name="build" size={16} color={colors.accent} />
-              <Text style={styles.repairDescription} numberOfLines={2}>{ra.description}</Text>
-              <TouchableOpacity
-                style={styles.repairDeleteBtn}
-                onPress={() => deleteRepairAction(ra.id)}
-                hitSlop={{ top: 8, bottom: 8, left: 12, right: 4 }}
-              >
-                <Ionicons name="trash-outline" size={16} color={colors.status.error} />
-              </TouchableOpacity>
-            </View>
-            {ra.partReplaced && (
-              <View style={styles.repairDetailRow}>
-                <Text style={styles.repairLabel}>Part</Text>
-                <Text style={styles.repairValue}>
-                  {ra.partReplaced}
-                  {ra.partValue ? ` (${ra.partValue})` : ''}
-                  {ra.partBrand ? ` — ${ra.partBrand}` : ''}
-                </Text>
-              </View>
-            )}
-            {ra.voltageRating && (
-              <View style={styles.repairDetailRow}>
-                <Text style={styles.repairLabel}>Rating</Text>
-                <Text style={styles.repairValue}>{ra.voltageRating}</Text>
-              </View>
-            )}
-            {(ra.beforeMeasurement || ra.afterMeasurement) && (
-              <View style={styles.repairMeasurements}>
-                {ra.beforeMeasurement && (
-                  <View style={styles.repairMeasBox}>
-                    <Text style={styles.repairMeasLabel}>Before</Text>
-                    <Text style={styles.repairMeasValue}>{ra.beforeMeasurement}</Text>
-                  </View>
-                )}
-                {ra.beforeMeasurement && ra.afterMeasurement && (
-                  <Ionicons name="arrow-forward" size={14} color={colors.text.muted} style={{ marginHorizontal: 6, marginTop: 14 }} />
-                )}
-                {ra.afterMeasurement && (
-                  <View style={styles.repairMeasBox}>
-                    <Text style={styles.repairMeasLabel}>After</Text>
-                    <Text style={[styles.repairMeasValue, { color: colors.status.success }]}>{ra.afterMeasurement}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-            {ra.dateCode && (
-              <View style={styles.repairDetailRow}>
-                <Text style={styles.repairLabel}>Date Code</Text>
-                <Text style={styles.repairValue}>{ra.dateCode}</Text>
-              </View>
-            )}
-            {ra.notes && <Text style={styles.repairNotes}>{ra.notes}</Text>}
-            {ra.photoUrl && (
-              <Image source={{ uri: ra.photoUrl }} style={styles.repairCardPhoto} resizeMode="cover" />
-            )}
-            <View style={styles.repairCardFooter}>
-              <Text style={styles.repairTimestamp}>{formatTimestamp(ra.createdAt)}</Text>
-              <View style={styles.repairEditHint}>
-                <Ionicons name="pencil-outline" size={12} color={colors.text.muted} />
-                <Text style={styles.repairEditHintText}>tap to edit</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))
-      )}
-    </ScrollView>
-  );
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBackButton} onPress={goBack}>
-          <Ionicons name="arrow-back" size={28} color={colors.accent} />
-        </TouchableOpacity>
-        <View style={styles.headerInfo}>
-          <TouchableOpacity onPress={openEditModal}>
-            <View style={styles.headerTitleRow}>
-              <Text style={styles.headerTitle} numberOfLines={1}>{formatAmpName(ampProfile)}</Text>
-              <Ionicons name="pencil" size={16} color={colors.text.muted} style={{ marginLeft: 6 }} />
-            </View>
-            <View style={styles.headerSecondRow}>
-              <Text style={styles.headerSubtitle}>
-                {ampProfile.circuitFamily && `${ampProfile.circuitFamily} • `}
-                {ampProfile.year || 'Unknown year'}
-              </Text>
-              <TouchableOpacity
-                style={[styles.statusBadge, { backgroundColor: currentStatusConfig.color + '20' }]}
-                onPress={() => setShowStatusPicker(true)}
-              >
-                <View style={[styles.statusDot, { backgroundColor: currentStatusConfig.color }]} />
-                <Text style={[styles.statusBadgeText, { color: currentStatusConfig.color }]}>
-                  {currentStatusConfig.label}
-                </Text>
-                <Ionicons name="chevron-down" size={14} color={currentStatusConfig.color} />
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.customerInfoRow} onPress={openCustomerModal}>
-            <Ionicons name="person-outline" size={13} color={colors.text.secondary} />
-            <Text style={styles.customerInfoText}>
-              {job.customerName ? job.customerName : 'Add customer'}
-              {job.customerPhone ? ` · ${job.customerPhone}` : ''}
-            </Text>
-            <Ionicons name="pencil" size={12} color={colors.text.muted} style={{ marginLeft: 4 }} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={[styles.shareButton, isPublic && styles.shareButtonActive]}
-            onPress={() => setShowShareModal(true)}
-          >
-            <Ionicons name={isPublic ? 'globe' : 'globe-outline'} size={22} color={isPublic ? colors.status.success : colors.text.secondary} />
-          </TouchableOpacity>
-          {activeTab === 'chat' && (
-            <TouchableOpacity style={styles.galleryButton} onPress={() => setShowMediaGallery(true)}>
-              <Ionicons name="images-outline" size={22} color={colors.text.secondary} />
-              {getAllAttachments().length > 0 && (
-                <View style={styles.galleryBadge}>
-                  <Text style={styles.galleryBadgeText}>{getAllAttachments().length}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity style={styles.deleteJobButton} onPress={deleteJob}>
-            <Ionicons name="trash-outline" size={22} color={colors.status.error} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <JobHeader
+        jobData={jobData}
+        currentStatus={currentStatus}
+        isPublic={isPublic}
+        activeTab={activeTab}
+        attachmentCount={allAttachments.length}
+        onBack={goBack}
+        onEditAmp={openEditModal}
+        onEditCustomer={openCustomerModal}
+        onOpenStatusPicker={() => setShowStatusPicker(true)}
+        onOpenShareModal={() => setShowShareModal(true)}
+        onOpenGallery={() => setShowMediaGallery(true)}
+        onDeleteJob={deleteJob}
+      />
 
-      {/* Workflow progress */}
       <WorkflowProgress
         safetyDone={job.safetyChecklistCompleted}
         diagnoseDone={chatMessages.length > 0}
@@ -889,10 +575,10 @@ export default function JobDetailScreen() {
 
       {/* Tab bar */}
       <View style={styles.tabBar}>
-        {(['chat', 'notes', 'measurements', 'repairs'] as TabType[]).map((tab) => {
-          const icons: Record<TabType, string> = { chat: 'chatbubbles', notes: 'document-text', measurements: 'analytics', repairs: 'construct' };
-          const labels: Record<TabType, string> = { chat: 'Chat', notes: 'Notes', measurements: 'Readings', repairs: 'Repairs' };
-          const counts: Record<TabType, number> = { chat: 0, notes: 0, measurements: measurements.length, repairs: repairActions.length };
+        {(['chat', 'notes', 'measurements', 'repairs'] as JobTabType[]).map((tab) => {
+          const icons: Record<JobTabType, string> = { chat: 'chatbubbles', notes: 'document-text', measurements: 'analytics', repairs: 'construct' };
+          const labels: Record<JobTabType, string> = { chat: 'Chat', notes: 'Notes', measurements: 'Readings', repairs: 'Repairs' };
+          const counts: Record<JobTabType, number> = { chat: 0, notes: 0, measurements: measurements.length, repairs: repairActions.length };
           const count = counts[tab];
           return (
             <TouchableOpacity key={tab} style={[styles.tab, activeTab === tab && styles.activeTab]} onPress={() => setActiveTab(tab)}>
@@ -913,9 +599,39 @@ export default function JobDetailScreen() {
       {/* Content */}
       <View style={styles.content}>
         {activeTab === 'chat' && renderChatTab()}
-        {activeTab === 'notes' && renderNotesTab()}
-        {activeTab === 'measurements' && renderMeasurementsTab()}
-        {activeTab === 'repairs' && renderRepairsTab()}
+        {activeTab === 'notes' && (
+          <JobNotesTab
+            job={job}
+            techNotes={techNotes}
+            savingNotes={savingNotes}
+            notesSaved={notesSaved}
+            isPublic={isPublic}
+            shareAnonymously={shareAnonymously}
+            savingShare={savingShare}
+            onChangeNotes={handleNotesChange}
+            onTogglePublic={(value) => toggleSharing('isPublic', value)}
+            onToggleAnonymous={(value) => toggleSharing('shareAnonymously', value)}
+          />
+        )}
+        {activeTab === 'measurements' && (
+          <JobMeasurementsTab
+            measurements={measurements}
+            onAdd={() => {
+              const params = new URLSearchParams({ benchJobId: id! });
+              if (ampProfile?.circuitFamily) params.append('circuitFamily', ampProfile.circuitFamily);
+              if (ampProfile) params.append('jobName', `${ampProfile.make || ''} ${ampProfile.model || ''}`.trim());
+              router.push(`/measurement?${params.toString()}` as any);
+            }}
+          />
+        )}
+        {activeTab === 'repairs' && (
+          <JobRepairsTab
+            repairActions={repairActions}
+            onAdd={openAddRepairModal}
+            onEdit={openEditRepairModal}
+            onDelete={deleteRepairAction}
+          />
+        )}
       </View>
 
       {/* ── Modals ─────────────────────────────────────────────────────── */}
@@ -928,538 +644,61 @@ export default function JobDetailScreen() {
         onDocument={() => { setShowAttachmentModal(false); pickDocument(); }}
       />
 
-      {/* Media Gallery */}
-      <Modal visible={showMediaGallery} transparent animationType="slide">
-        <View style={styles.galleryOverlay}>
-          <View style={styles.galleryContainer}>
-            <View style={styles.galleryHeader}>
-              <Text style={styles.galleryTitle}>Media Gallery</Text>
-              <TouchableOpacity onPress={() => setShowMediaGallery(false)}>
-                <Ionicons name="close" size={28} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            {getAllAttachments().length === 0 ? (
-              <View style={styles.emptyGallery}>
-                <Ionicons name="images-outline" size={48} color={colors.bg.elevated} />
-                <Text style={styles.emptyGalleryText}>No attachments yet</Text>
-              </View>
-            ) : (
-              <ScrollView style={styles.galleryScroll}>
-                <View style={styles.galleryGrid}>
-                  {getAllAttachments().map((att, index) => (
-                    <TouchableOpacity key={index} style={styles.galleryItem} onPress={() => openUrl(att.url)}>
-                      {att.type === 'image' ? (
-                        <Image source={{ uri: att.url }} style={styles.galleryImage} />
-                      ) : (
-                        <View style={styles.galleryPdf}>
-                          <Ionicons name="document-text" size={32} color={colors.accent} />
-                          <Text style={styles.galleryPdfName} numberOfLines={2}>{att.name || 'Document.pdf'}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
+      <JobMediaGalleryModal
+        visible={showMediaGallery}
+        attachments={allAttachments}
+        onClose={() => setShowMediaGallery(false)}
+      />
 
-      {/* Status Picker */}
-      <Modal visible={showStatusPicker} transparent animationType="fade">
-        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowStatusPicker(false)}>
-          <View style={styles.pickerContent}>
-            <Text style={styles.pickerTitle}>Update Status</Text>
-            {JOB_STATUSES.filter((s) => s.value !== 'all').map((status) => (
-              <TouchableOpacity
-                key={status.value}
-                style={[styles.pickerOption, currentStatus === status.value && styles.pickerOptionSelected]}
-                onPress={() => updateJobStatus(status.value)}
-              >
-                <View style={[styles.statusDot, { backgroundColor: status.color }]} />
-                <Text style={[styles.pickerOptionText, { color: status.color }]}>{status.label}</Text>
-                {currentStatus === status.value && (
-                  <Ionicons name="checkmark" size={20} color={status.color} style={{ marginLeft: 'auto' }} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <JobStatusPickerModal
+        visible={showStatusPicker}
+        currentStatus={currentStatus}
+        onClose={() => setShowStatusPicker(false)}
+        onSelect={updateJobStatus}
+      />
 
-      {/* Share Modal */}
-      <Modal visible={showShareModal} transparent animationType="fade">
-        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowShareModal(false)}>
-          <View style={styles.shareModalContent}>
-            <View style={styles.shareModalHeader}>
-              <Ionicons name="globe-outline" size={24} color={colors.accent} />
-              <Text style={styles.shareModalTitle}>Community Sharing</Text>
-            </View>
-            <Text style={styles.shareModalDescription}>
-              Share this job with the community so other technicians can learn from your work.
-            </Text>
-            <ToggleRow
-              label="Share to Community Bench"
-              hint="Other technicians can view this job (read-only)"
-              value={isPublic}
-              onToggle={() => toggleSharing('isPublic', !isPublic)}
-              disabled={savingShare}
-            />
-            {isPublic && (
-              <ToggleRow
-                label="Share Anonymously"
-                hint="Hide your name from the shared job"
-                value={shareAnonymously}
-                onToggle={() => toggleSharing('shareAnonymously', !shareAnonymously)}
-                disabled={savingShare}
-              />
-            )}
-            {savingShare && (
-              <View style={styles.savingRow}>
-                <ActivityIndicator size="small" color={colors.accent} />
-                <Text style={styles.savingText}>Saving...</Text>
-              </View>
-            )}
-            <TouchableOpacity style={styles.doneButton} onPress={() => setShowShareModal(false)}>
-              <Text style={styles.doneButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+      <JobShareModal
+        visible={showShareModal}
+        isPublic={isPublic}
+        shareAnonymously={shareAnonymously}
+        saving={savingShare}
+        onClose={() => setShowShareModal(false)}
+        onTogglePublic={(value) => toggleSharing('isPublic', value)}
+        onToggleAnonymous={(value) => toggleSharing('shareAnonymously', value)}
+      />
 
-      {/* Edit Modal */}
-      <Modal visible={showEditModal} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.repairModalOverlay}>
-          <View style={styles.repairModalContent}>
-            <View style={styles.repairModalHeader}>
-              <Text style={styles.repairModalTitle}>Edit Amp Profile</Text>
-              <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                <Ionicons name="close" size={28} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.repairFormRow}>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.editLabel}>Make</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editForm.make}
-                    onChangeText={(t) => setEditForm((f) => ({ ...f, make: t }))}
-                    placeholder="e.g. Fender"
-                    placeholderTextColor={colors.text.muted}
-                    autoFocus
-                  />
-                </View>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.editLabel}>Model</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editForm.model}
-                    onChangeText={(t) => setEditForm((f) => ({ ...f, model: t }))}
-                    placeholder="e.g. Deluxe Reverb"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-              </View>
+      <JobEditAmpModal
+        visible={showEditModal}
+        form={editForm}
+        saving={savingEdit}
+        onClose={() => setShowEditModal(false)}
+        onChange={setEditForm}
+        onSave={saveAmpProfile}
+      />
 
-              <View style={styles.repairFormRow}>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.editLabel}>Year</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editForm.year}
-                    onChangeText={(t) => setEditForm((f) => ({ ...f, year: t }))}
-                    placeholder="e.g. 1966"
-                    placeholderTextColor={colors.text.muted}
-                    keyboardType="numeric"
-                  />
-                </View>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.editLabel}>Circuit Family</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editForm.circuitFamily}
-                    onChangeText={(t) => setEditForm((f) => ({ ...f, circuitFamily: t }))}
-                    placeholder="e.g. Blackface"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-              </View>
+      <JobCustomerModal
+        visible={showCustomerModal}
+        form={customerForm}
+        saving={savingCustomer}
+        onClose={() => setShowCustomerModal(false)}
+        onChange={setCustomerForm}
+        onSave={saveCustomer}
+      />
 
-              <Text style={[styles.editLabel, { marginTop: 8 }]}>Common Families</Text>
-              <View style={styles.editChipRow}>
-                {['Blackface', 'Silverface', 'Tweed', 'Marshall', 'Vox', 'Other'].map((family) => (
-                  <TouchableOpacity
-                    key={family}
-                    style={[styles.editChip, editForm.circuitFamily === family && styles.editChipSelected]}
-                    onPress={() => setEditForm((f) => ({ ...f, circuitFamily: f.circuitFamily === family ? '' : family }))}
-                  >
-                    <Text style={[styles.editChipText, editForm.circuitFamily === family && styles.editChipTextSelected]}>
-                      {family}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={{ height: 12 }} />
-            </ScrollView>
-            <TouchableOpacity
-              style={[styles.repairSaveButton, savingEdit && styles.buttonDisabled]}
-              onPress={saveAmpProfile}
-              disabled={savingEdit}
-            >
-              {savingEdit ? (
-                <ActivityIndicator size="small" color={colors.text.onAccent} />
-              ) : (
-                <Text style={styles.repairSaveButtonText}>Save Changes</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Customer Modal */}
-      <Modal visible={showCustomerModal} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.repairModalOverlay}>
-          <View style={[styles.repairModalContent, { flex: undefined }]}>
-            <View style={styles.repairModalHeader}>
-              <Text style={styles.repairModalTitle}>Customer Info</Text>
-              <TouchableOpacity onPress={() => setShowCustomerModal(false)}>
-                <Ionicons name="close" size={28} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.editLabel}>Name</Text>
-            <TextInput
-              style={styles.editInput}
-              value={customerForm.customerName}
-              onChangeText={(t) => setCustomerForm((f) => ({ ...f, customerName: t }))}
-              placeholder="Customer name"
-              placeholderTextColor={colors.text.muted}
-              autoFocus
-            />
-            <Text style={[styles.editLabel, { marginTop: 12 }]}>Phone</Text>
-            <TextInput
-              style={styles.editInput}
-              value={customerForm.customerPhone}
-              onChangeText={(t) => setCustomerForm((f) => ({ ...f, customerPhone: t }))}
-              placeholder="Phone number"
-              placeholderTextColor={colors.text.muted}
-              keyboardType="phone-pad"
-            />
-            <TouchableOpacity
-              style={[styles.repairSaveButton, savingCustomer && styles.buttonDisabled, { marginTop: 20 }]}
-              onPress={saveCustomer}
-              disabled={savingCustomer}
-            >
-              {savingCustomer ? (
-                <ActivityIndicator size="small" color={colors.text.onAccent} />
-              ) : (
-                <Text style={styles.repairSaveButtonText}>Save</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Add/Edit Repair Action Modal */}
-      <Modal visible={showAddRepair} transparent animationType="slide">
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.repairModalOverlay}>
-          <View style={styles.repairModalContent}>
-            <View style={styles.repairModalHeader}>
-              <Text style={styles.repairModalTitle}>{editingRepair ? 'Edit Repair' : 'Add Repair Action'}</Text>
-              <TouchableOpacity onPress={() => setShowAddRepair(false)}>
-                <Ionicons name="close" size={28} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-              <Text style={styles.repairFormLabel}>What was done? *</Text>
-              <TextInput
-                style={[styles.editInput, { minHeight: 60 }]}
-                value={repairForm.description}
-                onChangeText={(t) => setRepairForm((f) => ({ ...f, description: t }))}
-                placeholder="e.g. Replaced coupling cap at V1 plate"
-                placeholderTextColor={colors.text.muted}
-                multiline
-              />
-
-              <Text style={styles.repairFormLabel}>Part Replaced</Text>
-              <TextInput
-                style={styles.editInput}
-                value={repairForm.partReplaced}
-                onChangeText={(t) => setRepairForm((f) => ({ ...f, partReplaced: t }))}
-                placeholder="e.g. Coupling capacitor C3"
-                placeholderTextColor={colors.text.muted}
-              />
-
-              <View style={styles.repairFormRow}>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.repairFormLabel}>Value</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={repairForm.partValue}
-                    onChangeText={(t) => setRepairForm((f) => ({ ...f, partValue: t }))}
-                    placeholder="e.g. 0.022µF"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.repairFormLabel}>Brand</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={repairForm.partBrand}
-                    onChangeText={(t) => setRepairForm((f) => ({ ...f, partBrand: t }))}
-                    placeholder="e.g. Sprague"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.repairFormRow}>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.repairFormLabel}>Voltage Rating</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={repairForm.voltageRating}
-                    onChangeText={(t) => setRepairForm((f) => ({ ...f, voltageRating: t }))}
-                    placeholder="e.g. 600V"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.repairFormLabel}>Date Code</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={repairForm.dateCode}
-                    onChangeText={(t) => setRepairForm((f) => ({ ...f, dateCode: t }))}
-                    placeholder="e.g. 6428"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.repairFormRow}>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.repairFormLabel}>Before</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={repairForm.beforeMeasurement}
-                    onChangeText={(t) => setRepairForm((f) => ({ ...f, beforeMeasurement: t }))}
-                    placeholder="e.g. 180V DC"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-                <View style={styles.repairFormHalf}>
-                  <Text style={styles.repairFormLabel}>After</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={repairForm.afterMeasurement}
-                    onChangeText={(t) => setRepairForm((f) => ({ ...f, afterMeasurement: t }))}
-                    placeholder="e.g. 250V DC"
-                    placeholderTextColor={colors.text.muted}
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.repairFormLabel}>Notes</Text>
-              <TextInput
-                style={[styles.editInput, { minHeight: 60 }]}
-                value={repairForm.notes}
-                onChangeText={(t) => setRepairForm((f) => ({ ...f, notes: t }))}
-                placeholder="Additional notes..."
-                placeholderTextColor={colors.text.muted}
-                multiline
-              />
-
-              <Text style={styles.repairFormLabel}>Photo</Text>
-              {repairPhotoUrl ? (
-                <View style={styles.repairPhotoPreview}>
-                  <Image source={{ uri: repairPhotoUrl }} style={styles.repairPhotoThumb} resizeMode="cover" />
-                  <TouchableOpacity style={styles.repairPhotoRemove} onPress={() => setRepairPhotoUrl(null)}>
-                    <Ionicons name="close-circle" size={22} color={colors.status.error} />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.repairPhotoButtons}>
-                  <TouchableOpacity
-                    style={styles.repairPhotoBtn}
-                    onPress={() => pickRepairPhoto(true)}
-                    disabled={uploadingRepairPhoto}
-                  >
-                    {uploadingRepairPhoto ? (
-                      <ActivityIndicator size="small" color={colors.accent} />
-                    ) : (
-                      <Ionicons name="camera-outline" size={20} color={colors.accent} />
-                    )}
-                    <Text style={styles.repairPhotoBtnText}>Camera</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.repairPhotoBtn}
-                    onPress={() => pickRepairPhoto(false)}
-                    disabled={uploadingRepairPhoto}
-                  >
-                    <Ionicons name="image-outline" size={20} color={colors.accent} />
-                    <Text style={styles.repairPhotoBtnText}>Library</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              <View style={{ height: 20 }} />
-            </ScrollView>
-            <TouchableOpacity
-              style={[styles.repairSaveButton, savingRepair && styles.buttonDisabled]}
-              onPress={saveRepairAction}
-              disabled={savingRepair}
-            >
-              {savingRepair ? (
-                <ActivityIndicator size="small" color={colors.text.onAccent} />
-              ) : (
-                <Text style={styles.repairSaveButtonText}>{editingRepair ? 'Save Changes' : 'Add Repair'}</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <JobRepairFormModal
+        visible={showAddRepair}
+        isEditing={!!editingRepair}
+        form={repairForm}
+        photoUrl={repairPhotoUrl}
+        uploadingPhoto={uploadingRepairPhoto}
+        saving={savingRepair}
+        onClose={() => setShowAddRepair(false)}
+        onChange={setRepairForm}
+        onPickPhoto={pickRepairPhoto}
+        onClearPhoto={() => setRepairPhotoUrl(null)}
+        onSave={saveRepairAction}
+      />
     </View>
-  );
-}
-
-// ─── Workflow Progress ───────────────────────────────────────────────────────
-
-function WorkflowProgress({
-  safetyDone,
-  diagnoseDone,
-  measureDone,
-  repairDone,
-}: {
-  safetyDone: boolean;
-  diagnoseDone: boolean;
-  measureDone: boolean;
-  repairDone: boolean;
-}) {
-  const steps = [
-    { label: 'Safety', icon: 'shield-checkmark', done: safetyDone },
-    { label: 'Diagnose', icon: 'pulse', done: diagnoseDone },
-    { label: 'Measure', icon: 'analytics', done: measureDone },
-    { label: 'Repair', icon: 'construct', done: repairDone },
-  ];
-
-  const completedCount = steps.filter((s) => s.done).length;
-
-  return (
-    <View style={wpStyles.container}>
-      <View style={wpStyles.row}>
-        {steps.map((step, i) => (
-          <React.Fragment key={step.label}>
-            <View style={wpStyles.step}>
-              <View style={[wpStyles.circle, step.done && wpStyles.circleDone]}>
-                {step.done ? (
-                  <Ionicons name="checkmark" size={14} color={colors.text.onAccent} />
-                ) : (
-                  <Ionicons name={step.icon as any} size={14} color={colors.text.muted} />
-                )}
-              </View>
-              <Text style={[wpStyles.label, step.done && wpStyles.labelDone]}>{step.label}</Text>
-            </View>
-            {i < steps.length - 1 && (
-              <View style={[wpStyles.connector, steps[i + 1].done && wpStyles.connectorDone]} />
-            )}
-          </React.Fragment>
-        ))}
-      </View>
-      <Text style={wpStyles.summary}>{completedCount}/{steps.length} steps complete</Text>
-    </View>
-  );
-}
-
-const wpStyles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.bg.surface,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  step: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  circle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.bg.elevated,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  circleDone: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  connector: {
-    flex: 1,
-    height: 2,
-    backgroundColor: colors.bg.elevated,
-    marginHorizontal: 4,
-    marginBottom: 12,
-  },
-  connectorDone: {
-    backgroundColor: colors.accent + '60',
-  },
-  label: {
-    fontSize: 10,
-    color: colors.text.muted,
-    fontWeight: '500',
-  },
-  labelDone: {
-    color: colors.accent,
-  },
-  summary: {
-    fontSize: 11,
-    color: colors.text.muted,
-    textAlign: 'center',
-  },
-});
-
-// ─── Small Reusable Components ───────────────────────────────────────────────
-
-function InfoBlock({ label, text }: { label: string; text: string }) {
-  return (
-    <View style={styles.infoSection}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoText}>{text}</Text>
-    </View>
-  );
-}
-
-function ToggleRow({
-  label,
-  hint,
-  value,
-  onToggle,
-  disabled,
-}: {
-  label: string;
-  hint: string;
-  value: boolean;
-  onToggle: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <TouchableOpacity style={styles.shareToggleRow} onPress={onToggle} disabled={disabled}>
-      <View style={styles.shareToggleInfo}>
-        <Text style={styles.shareToggleLabel}>{label}</Text>
-        <Text style={styles.shareToggleHint}>{hint}</Text>
-      </View>
-      <View style={[styles.toggleSwitch, value && styles.toggleSwitchOn]}>
-        <View style={[styles.toggleKnob, value && styles.toggleKnobOn]} />
-      </View>
-    </TouchableOpacity>
   );
 }
 
@@ -1472,44 +711,10 @@ const styles = StyleSheet.create({
   backButton: { backgroundColor: colors.accent, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
   backButtonText: { color: colors.text.onAccent, fontWeight: '600' },
 
-  // Header
-  header: {
-    flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 50,
-    backgroundColor: colors.bg.surface, borderBottomWidth: 1, borderBottomColor: colors.border.default,
-  },
-  headerBackButton: { marginRight: 12 },
-  headerInfo: { flex: 1 },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright, fontFamily: 'SpaceMono' },
-  headerSecondRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  headerSubtitle: { fontSize: 14, color: colors.accent },
-  customerInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  customerInfoText: {
-    fontSize: 12,
-    color: colors.text.secondary,
-    flex: 1,
-  },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  shareButton: { padding: 8, borderRadius: 8 },
-  shareButtonActive: { backgroundColor: 'rgba(34, 197, 94, 0.15)' },
-  galleryButton: { position: 'relative', padding: 8 },
-  deleteJobButton: { padding: 8 },
-  galleryBadge: {
-    position: 'absolute', top: 2, right: 2, backgroundColor: colors.accent, borderRadius: 10,
-    minWidth: 18, height: 18, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
-  },
-  galleryBadgeText: { color: colors.bg.primary, fontSize: 11, fontWeight: 'bold' },
-  statusBadge: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 12, gap: 4,
-  },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusBadgeText: { fontSize: 12, fontWeight: '600' },
+  // Chat welcome
+  welcomeContainer: { alignItems: 'center', paddingVertical: 40 },
+  welcomeTitle: { fontSize: 24, fontWeight: 'bold', color: colors.text.bright, marginTop: 16, marginBottom: 8 },
+  welcomeText: { color: colors.text.secondary, fontSize: 16, textAlign: 'center', paddingHorizontal: 20 },
 
   // Tab bar
   tabBar: { flexDirection: 'row', backgroundColor: colors.bg.surface, borderBottomWidth: 1, borderBottomColor: colors.border.default },
@@ -1519,348 +724,14 @@ const styles = StyleSheet.create({
   activeTabText: { color: colors.accent },
   content: { flex: 1 },
 
-  // Chat welcome
-  welcomeContainer: { alignItems: 'center', paddingVertical: 40 },
-  welcomeTitle: { fontSize: 24, fontWeight: 'bold', color: colors.text.bright, marginTop: 16, marginBottom: 8 },
-  welcomeText: { color: colors.text.secondary, fontSize: 16, textAlign: 'center', paddingHorizontal: 20 },
-
-  // Notes tab
-  notesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 16, paddingBottom: 8 },
-  notesTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright },
-  notesLastUpdated: { fontSize: 12, color: colors.text.muted, marginTop: 2 },
-  saveStatus: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  saveStatusText: { fontSize: 13, color: colors.accent },
-  notesInput: {
-    marginHorizontal: 16, backgroundColor: colors.bg.surface, borderRadius: 12, padding: 16,
-    color: colors.text.bright, fontSize: 15, lineHeight: 22, minHeight: 200, textAlignVertical: 'top',
-    borderWidth: 1, borderColor: colors.border.default,
-  },
-  infoSection: { marginHorizontal: 16, marginTop: 16, padding: 16, backgroundColor: colors.bg.surface, borderRadius: 12 },
-  infoLabel: { fontSize: 13, fontWeight: '600', color: colors.text.secondary, marginBottom: 4 },
-  infoText: { fontSize: 14, color: colors.text.bright, lineHeight: 20 },
-
-  // Sharing section
-  shareSection: { margin: 16, padding: 16, backgroundColor: colors.bg.surface, borderRadius: 12 },
-  shareSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  shareSectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text.bright },
-  shareSectionDescription: { fontSize: 13, color: colors.text.secondary, marginBottom: 16, lineHeight: 18 },
-  shareToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14 },
-  shareToggleInfo: { flex: 1, marginRight: 12 },
-  shareToggleLabel: { fontSize: 15, fontWeight: '500', color: colors.text.bright },
-  shareToggleHint: { fontSize: 12, color: colors.text.muted, marginTop: 2 },
-  toggleSwitch: {
-    width: 50, height: 28, borderRadius: 14, backgroundColor: colors.bg.elevated,
-    justifyContent: 'center', paddingHorizontal: 2,
-  },
-  toggleSwitchOn: { backgroundColor: colors.status.success },
-  toggleKnob: {
-    width: 24, height: 24, borderRadius: 12, backgroundColor: colors.white,
-  },
-  toggleKnobOn: { alignSelf: 'flex-end' },
-
-  // Measurements tab
-  measurementsContainer: { flex: 1, padding: 16 },
-  measurementsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  measurementsTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright },
-  addMeasurementButton: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.accent,
-    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, gap: 4,
-  },
-  addMeasurementText: { color: colors.text.onAccent, fontWeight: '600' },
-  emptyMeasurements: { alignItems: 'center', paddingTop: 40 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: colors.text.secondary, marginTop: 16 },
-  emptySubtext: { fontSize: 14, color: colors.text.muted, textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
-  measurementCard: {
-    backgroundColor: colors.bg.surface, borderRadius: 12, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: colors.border.default,
-  },
-  measurementHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  measurementNode: { fontSize: 16, fontWeight: '600', color: colors.text.bright },
-  measurementValues: { flexDirection: 'row', gap: 16 },
-  valueColumn: { flex: 1 },
-  valueLabel: { fontSize: 12, color: colors.text.muted, marginBottom: 2 },
-  valueText: { fontSize: 16, fontWeight: '600', color: colors.text.bright },
-  expectedText: { fontSize: 14, color: colors.text.secondary },
-  measurementNotes: { fontSize: 13, color: colors.text.muted, marginTop: 8, fontStyle: 'italic' },
-
-  // Gallery modal
-  galleryOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.9)' },
-  galleryContainer: {
-    flex: 1, backgroundColor: colors.bg.primary, marginTop: 50,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-  },
-  galleryHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 16, borderBottomWidth: 1, borderBottomColor: colors.border.default,
-  },
-  galleryTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright },
-  galleryScroll: { flex: 1, padding: 8 },
-  galleryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  galleryItem: { width: '31%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden' },
-  galleryImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  galleryPdf: {
-    width: '100%', height: '100%', backgroundColor: colors.bg.surface,
-    justifyContent: 'center', alignItems: 'center', padding: 8, borderRadius: 8,
-  },
-  galleryPdfName: { color: colors.text.secondary, fontSize: 10, marginTop: 4, textAlign: 'center' },
-  emptyGallery: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyGalleryText: { color: colors.text.secondary, fontSize: 18, fontWeight: '600', marginTop: 16 },
-
-  // Status / share / edit modals
-  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  pickerContent: { backgroundColor: colors.bg.surface, borderRadius: 16, padding: 16, width: '100%', maxWidth: 320 },
-  pickerTitle: { fontSize: 18, fontWeight: 'bold', color: colors.text.bright, textAlign: 'center', marginBottom: 16 },
-  pickerOption: {
-    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10,
-    marginBottom: 8, backgroundColor: colors.bg.elevated, gap: 10,
-  },
-  pickerOptionSelected: { borderWidth: 1, borderColor: colors.text.muted },
-  pickerOptionText: { fontSize: 16, fontWeight: '500' },
-
-  shareModalContent: {
-    backgroundColor: colors.bg.surface, borderRadius: 16, padding: 24,
-    width: '100%', maxWidth: 400, borderWidth: 1, borderColor: colors.border.default,
-  },
-  shareModalHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
-  shareModalTitle: { fontSize: 20, fontWeight: '700', color: colors.text.primary },
-  shareModalDescription: { fontSize: 14, color: colors.text.secondary, marginBottom: 20, lineHeight: 20 },
-  savingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8 },
-  savingText: { color: colors.accent, fontSize: 14 },
-  doneButton: { backgroundColor: colors.bg.elevated, paddingVertical: 14, borderRadius: 12, alignItems: 'center', marginTop: 20 },
-  doneButtonText: { color: colors.text.primary, fontSize: 16, fontWeight: '600' },
-
-  editLabel: { fontSize: 14, fontWeight: '600', color: colors.text.secondary, marginBottom: 8 },
-  editInput: {
-    backgroundColor: colors.bg.elevated, borderRadius: 10, padding: 14,
-    color: colors.text.bright, fontSize: 16,
-  },
-  editChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  editChip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
-    backgroundColor: colors.bg.elevated, borderWidth: 1, borderColor: colors.border.default,
-  },
-  editChipSelected: { backgroundColor: colors.accent, borderColor: colors.accent },
-  editChipText: { fontSize: 13, color: colors.text.secondary },
-  editChipTextSelected: { color: colors.text.onAccent, fontWeight: '600' },
-  buttonDisabled: { opacity: 0.5 },
-
-  // ── Repair Actions ──────────────────────────────────────────────────────
-  repairCard: {
-    backgroundColor: colors.bg.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  repairCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 8,
-  },
-  repairDescription: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text.bright,
-    lineHeight: 20,
-  },
-  repairDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 3,
-  },
-  repairLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.text.secondary,
-    width: 52,
-  },
-  repairValue: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text.primary,
-  },
-  repairMeasurements: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 6,
-    backgroundColor: colors.bg.elevated,
-    borderRadius: 8,
-    padding: 10,
-  },
-  repairMeasBox: {
-    flex: 1,
-  },
-  repairMeasLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.text.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  repairMeasValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text.bright,
-  },
-  repairNotes: {
-    fontSize: 13,
-    color: colors.text.muted,
-    marginTop: 6,
-    fontStyle: 'italic',
-    lineHeight: 18,
-  },
-  repairTimestamp: {
-    fontSize: 11,
-    color: colors.text.muted,
-    marginTop: 8,
-    textAlign: 'right',
-  },
-  repairFormLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text.secondary,
-    marginBottom: 6,
-    marginTop: 12,
-  },
-  repairFormRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  repairFormHalf: {
-    flex: 1,
-  },
-  repairDeleteBtn: {
-    padding: 4,
-    marginLeft: 4,
-  },
-  repairCardPhoto: {
-    width: '100%',
-    height: 160,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  repairPhotoPreview: {
-    position: 'relative',
-    marginBottom: 4,
-  },
-  repairPhotoThumb: {
-    width: '100%',
-    height: 160,
-    borderRadius: 8,
-  },
-  repairPhotoRemove: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: colors.bg.primary,
-    borderRadius: 11,
-  },
-  repairPhotoButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 4,
-  },
-  repairPhotoBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    backgroundColor: colors.bg.elevated,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  repairPhotoBtnText: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  repairCardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  repairEditHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  repairEditHintText: {
-    fontSize: 11,
-    color: colors.text.muted,
-    fontStyle: 'italic',
-  },
-
   // Tab badges
-  tabIconWrap: {
-    position: 'relative',
-  },
+  tabIconWrap: { position: 'relative' },
   tabBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -8,
-    backgroundColor: colors.bg.elevated,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 3,
+    position: 'absolute', top: -4, right: -8,
+    backgroundColor: colors.bg.elevated, borderRadius: 8,
+    minWidth: 16, height: 16,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 3,
   },
-  tabBadgeActive: {
-    backgroundColor: colors.accent,
-  },
-  tabBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.text.onAccent,
-  },
-
-  // Repair modal (dedicated, replaces borrowed gallery styles)
-  repairModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'flex-end',
-  },
-  repairModalContent: {
-    backgroundColor: colors.bg.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '92%',
-    flex: 1,
-  },
-  repairModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
-  },
-  repairModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.accent,
-  },
-  repairSaveButton: {
-    backgroundColor: colors.accent,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  repairSaveButtonText: {
-    color: colors.text.onAccent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  tabBadgeActive: { backgroundColor: colors.accent },
+  tabBadgeText: { fontSize: 10, fontWeight: '700', color: colors.text.onAccent },
 });
