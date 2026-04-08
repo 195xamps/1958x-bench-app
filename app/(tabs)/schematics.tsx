@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,6 +21,7 @@ import { CIRCUIT_FAMILIES } from '../../src/types/common';
 import type { Schematic, ExternalLink } from '../../src/types';
 import { showAlert, showConfirm, showError } from '../../src/utils';
 import { useFileUpload } from '../../src/hooks/useFileUpload';
+import { useAuth } from '../../src/contexts/AuthContext';
 import { LoadingScreen } from '../../src/components/shared/LoadingScreen';
 import { EmptyState } from '../../src/components/shared/EmptyState';
 import { SearchBar } from '../../src/components/shared/SearchBar';
@@ -59,6 +61,8 @@ const EMPTY_FORM = {
 
 export default function SchematicsScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.isAdmin === true;
   const { uploading: uploadingFile, uploadFile } = useFileUpload();
 
   const [schematics, setSchematics] = useState<Schematic[]>([]);
@@ -148,10 +152,9 @@ export default function SchematicsScreen() {
 
   const handleSave = useCallback(async () => {
     if (!form.name) { showAlert('Required', 'Please enter a name for the schematic'); return; }
-    if (!form.fileUrl) { showAlert('Required', 'Please upload a schematic file (image or PDF)'); return; }
     setSaving(true);
     try {
-      const created = await schematicsApi.create({ ...form, isUserUploaded: true });
+      const created = await schematicsApi.create({ ...form, isUserUploaded: false });
       setSchematics((prev) => [created, ...prev]);
       setShowUploadModal(false);
       setForm(EMPTY_FORM);
@@ -160,7 +163,7 @@ export default function SchematicsScreen() {
       setFileName('');
       showAlert('Success', 'Schematic added to library');
     } catch (error) {
-      showError('Failed to upload schematic');
+      showError('Failed to add schematic');
     } finally {
       setSaving(false);
     }
@@ -214,7 +217,13 @@ export default function SchematicsScreen() {
           <EmptyState
             icon="document-text-outline"
             title={searchQuery ? 'No results' : 'No schematics yet'}
-            subtitle={searchQuery ? `No schematics match "${searchQuery}"` : 'Upload your first schematic to get started'}
+            subtitle={
+              searchQuery
+                ? `No schematics match "${searchQuery}"`
+                : isAdmin
+                  ? 'Tap + to add the first schematic to the library'
+                  : 'The schematic library is being curated. Check back soon.'
+            }
           />
         ) : (
           <>
@@ -225,6 +234,7 @@ export default function SchematicsScreen() {
               <SchematicCard
                 key={s.id}
                 schematic={s}
+                isAdmin={isAdmin}
                 onPress={() => router.push(`/schematic/${s.id}`)}
                 onDelete={() => handleDelete(s.id, s.name)}
               />
@@ -233,9 +243,11 @@ export default function SchematicsScreen() {
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setShowUploadModal(true)}>
-        <Ionicons name="cloud-upload" size={28} color={colors.text.onAccent} />
-      </TouchableOpacity>
+      {isAdmin && (
+        <TouchableOpacity style={styles.fab} onPress={() => setShowUploadModal(true)}>
+          <Ionicons name="add" size={28} color={colors.text.onAccent} />
+        </TouchableOpacity>
+      )}
 
       <UploadModal
         visible={showUploadModal}
@@ -262,8 +274,8 @@ export default function SchematicsScreen() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function SchematicCard({ schematic, onPress, onDelete }: {
-  schematic: Schematic; onPress: () => void; onDelete: () => void;
+function SchematicCard({ schematic, isAdmin, onPress, onDelete }: {
+  schematic: Schematic; isAdmin: boolean; onPress: () => void; onDelete: () => void;
 }) {
   const familyColor = schematic.circuitFamily ? getCircuitFamilyColor(schematic.circuitFamily) : null;
   return (
@@ -276,9 +288,6 @@ function SchematicCard({ schematic, onPress, onDelete }: {
           <Text style={styles.cardName}>{schematic.name}</Text>
           {schematic.ampModel && <Text style={styles.cardModel}>{schematic.ampModel}</Text>}
         </View>
-        {schematic.isUserUploaded && (
-          <View style={styles.userBadge}><Text style={styles.userBadgeText}>User</Text></View>
-        )}
       </View>
 
       {familyColor && (
@@ -299,10 +308,27 @@ function SchematicCard({ schematic, onPress, onDelete }: {
 
       {schematic.notes && <Text style={styles.cardNotes} numberOfLines={2}>{schematic.notes}</Text>}
 
-      <TouchableOpacity style={styles.deleteRow} onPress={onDelete}>
-        <Ionicons name="trash-outline" size={18} color={colors.status.error} />
-        <Text style={styles.deleteText}>Delete</Text>
-      </TouchableOpacity>
+      {schematic.sourceUrl && (
+        <TouchableOpacity
+          style={styles.sourceRow}
+          onPress={(e) => { e.stopPropagation(); Linking.openURL(schematic.sourceUrl!); }}
+        >
+          <Ionicons name="open-outline" size={14} color={colors.accent} />
+          <Text style={styles.sourceText}>
+            View on {schematic.sourceCredit || 'source site'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {isAdmin && (
+        <TouchableOpacity
+          style={styles.deleteRow}
+          onPress={(e) => { e.stopPropagation(); onDelete(); }}
+        >
+          <Ionicons name="trash-outline" size={18} color={colors.status.error} />
+          <Text style={styles.deleteText}>Delete</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -471,6 +497,12 @@ const styles = StyleSheet.create({
   tag: { backgroundColor: colors.bg.elevated, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14 },
   tagText: { color: colors.text.secondary, fontSize: 12 },
   cardNotes: { color: colors.text.muted, fontSize: 14, marginTop: 12, lineHeight: 20 },
+  sourceRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 12, paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: colors.border.default,
+  },
+  sourceText: { color: colors.accent, fontSize: 13, fontWeight: '500' },
   deleteRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border.default, gap: 6 },
   deleteText: { color: colors.status.error, fontSize: 14, fontWeight: '500' },
 

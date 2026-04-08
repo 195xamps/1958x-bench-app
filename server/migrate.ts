@@ -289,6 +289,24 @@ async function migrate() {
       UPDATE users SET is_admin = true, is_approved = true WHERE email = 'brentwrisley@gmail.com';
     `);
 
+    // Schematics: add curated-source columns. Hybrid model — we store
+    // metadata + source link, the actual schematic file lives on the
+    // original site (e.g. robrobinette.com) so we don't host or own it.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='schematics' AND column_name='source_url') THEN
+          ALTER TABLE schematics ADD COLUMN source_url TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='schematics' AND column_name='source_credit') THEN
+          ALTER TABLE schematics ADD COLUMN source_credit TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='schematics' AND column_name='thumbnail_url') THEN
+          ALTER TABLE schematics ADD COLUMN thumbnail_url TEXT;
+        END IF;
+      END $$;
+    `);
+
     console.log('Migration completed successfully!');
   } catch (error) {
     console.error('Migration failed:', error);

@@ -1,0 +1,137 @@
+[
+  {
+    "name": "Fender Deluxe Reverb (AB763)",
+    "ampModel": "Deluxe Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://robrobinette.com/Deluxe_Reverb.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,blackface,ab763,6v6,reverb",
+    "notes": "AB763 circuit, ~22W, 2x6V6GT power tubes. The classic mid-60s Deluxe Reverb."
+  },
+  {
+    "name": "Fender Princeton Reverb (AA1164)",
+    "ampModel": "Princeton Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://robrobinette.com/Princeton_Reverb.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,blackface,aa1164,6v6,reverb",
+    "notes": "AA1164 circuit, 12W single-ended push-pull, the smaller sibling of the Deluxe Reverb."
+  },
+  {
+    "name": "Fender Twin Reverb (AB763)",
+    "ampModel": "Twin Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://robrobinette.com/Twin_Reverb.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,blackface,ab763,6l6,reverb",
+    "notes": "AB763 circuit, 85W, 4x6L6GC power tubes, the loudest of the blackface combos."
+  },
+  {
+    "name": "Fender Super Reverb (AB763)",
+    "ampModel": "Super Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://robrobinette.com/Super_Reverb.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,blackface,ab763,6l6,4x10",
+    "notes": "AB763 circuit, 40W, 2x6L6GC, 4x10\" speakers — the SRV favorite."
+  },
+  {
+    "name": "Fender Vibrolux Reverb (AA864)",
+    "ampModel": "Vibrolux Reverb",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://robrobinette.com/Vibrolux_Reverb.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,blackface,aa864,6l6",
+    "notes": "AA864 circuit, 35W, 2x6L6GC, 2x10\" speakers."
+  },
+  {
+    "name": "Fender Bandmaster (AA763)",
+    "ampModel": "Bandmaster",
+    "circuitFamily": "Blackface",
+    "sourceUrl": "https://robrobinette.com/Bandmaster.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,blackface,aa763,6l6,head",
+    "notes": "AA763 piggyback head, 40W, 2x6L6GC."
+  },
+  {
+    "name": "Fender Champ (5F1)",
+    "ampModel": "Champ",
+    "circuitFamily": "Tweed",
+    "sourceUrl": "https://robrobinette.com/5F1_Schematic.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,tweed,5f1,6v6,single-ended",
+    "notes": "5F1 single-ended class A, ~5W, 1x6V6GT. The classic small studio amp."
+  },
+  {
+    "name": "Fender Deluxe (5E3)",
+    "ampModel": "Deluxe",
+    "circuitFamily": "Tweed",
+    "sourceUrl": "https://robrobinette.com/How_the_5E3_Deluxe_Works.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,tweed,5e3,6v6,cathode-bias",
+    "notes": "5E3 cathode-biased push-pull, ~12W, 2x6V6GT. One of the most-cloned amp circuits in history."
+  },
+  {
+    "name": "Fender Bassman (5F6-A)",
+    "ampModel": "Bassman",
+    "circuitFamily": "Tweed",
+    "sourceUrl": "https://robrobinette.com/Tweed_Bassman.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,tweed,5f6a,5881,6l6",
+    "notes": "5F6-A circuit, 45W, 2x5881/6L6, 4x10\" speakers. Direct ancestor of the Marshall JTM45."
+  },
+  {
+    "name": "Fender Princeton (5F2-A)",
+    "ampModel": "Princeton",
+    "circuitFamily": "Tweed",
+    "sourceUrl": "https://robrobinette.com/Tweed_Princeton.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,tweed,5f2a,6v6,single-ended",
+    "notes": "5F2-A single-ended, ~4.5W, 1x6V6GT. The tweed Princeton."
+  },
+  {
+    "name": "Marshall JTM45",
+    "ampModel": "JTM45",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://robrobinette.com/JTM45.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "marshall,jtm45,kt66,5881",
+    "notes": "Marshall's first amp — directly derived from the Fender 5F6-A Bassman, ~30W, 2xKT66 (originally) or 5881."
+  },
+  {
+    "name": "Marshall JCM800 2203 (100W)",
+    "ampModel": "JCM800 2203",
+    "circuitFamily": "Marshall",
+    "sourceUrl": "https://robrobinette.com/JCM800.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "marshall,jcm800,2203,el34,master-volume",
+    "notes": "100W master-volume single-channel head, 4xEL34. The 80s metal sound."
+  },
+  {
+    "name": "Vox AC30",
+    "ampModel": "AC30",
+    "circuitFamily": "Vox",
+    "sourceUrl": "https://robrobinette.com/AC30.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "vox,ac30,el84,top-boost,class-a",
+    "notes": "Class A cathode-biased, 4xEL84, ~30W. The British chime."
+  },
+  {
+    "name": "Fender Tweed Champ (5C1)",
+    "ampModel": "Champ",
+    "circuitFamily": "Tweed",
+    "sourceUrl": "https://robrobinette.com/5C1_Schematic.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,tweed,5c1,6v6,vintage",
+    "notes": "Earliest Champ circuit, single-ended class A."
+  },
+  {
+    "name": "Fender Vibroverb (6G16)",
+    "ampModel": "Vibroverb",
+    "circuitFamily": "Brownface",
+    "sourceUrl": "https://robrobinette.com/Brown_Vibroverb.htm",
+    "sourceCredit": "Rob Robinette",
+    "tags": "fender,brownface,6g16,6l6,reverb",
+    "notes": "Brown 1963 Vibroverb, 35W, 2x6L6GC. The first Fender combo with onboard reverb."
+  }
+]

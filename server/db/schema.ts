@@ -125,7 +125,10 @@ export const schematics = pgTable('schematics', {
   name: text('name').notNull(),
   ampModel: text('amp_model'),
   circuitFamily: text('circuit_family'),
-  fileUrl: text('file_url'),
+  fileUrl: text('file_url'),                    // optional self-hosted file
+  sourceUrl: text('source_url'),                // primary link out to original page
+  sourceCredit: text('source_credit'),          // human-readable attribution
+  thumbnailUrl: text('thumbnail_url'),          // optional preview image
   isUserUploaded: boolean('is_user_uploaded').default(false),
   tags: text('tags'),
   notes: text('notes'),

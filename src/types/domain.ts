@@ -134,6 +134,9 @@ export interface Schematic {
   ampModel: string | null;
   circuitFamily: string | null;
   fileUrl: string | null;
+  sourceUrl: string | null;
+  sourceCredit: string | null;
+  thumbnailUrl: string | null;
   isUserUploaded: boolean;
   tags: string | null;
   notes: string | null;

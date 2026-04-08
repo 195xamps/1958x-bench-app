@@ -148,7 +148,12 @@ export function TavaTab() {
                 {isExpanded && (
                   <View style={styles.topicsList}>
                     {ep.topics.map((topic) => (
-                      <View key={topic.id} style={styles.topicItem}>
+                      <TouchableOpacity
+                        key={topic.id}
+                        style={styles.topicItem}
+                        onPress={() => Linking.openURL(topic.episodeUrl)}
+                        activeOpacity={0.6}
+                      >
                         {topic.timestamp && <Text style={styles.topicTimestamp}>{topic.timestamp}</Text>}
                         <Text style={styles.topicText}>{topic.topic}</Text>
                         {topic.circuitFamily && (
@@ -156,7 +161,8 @@ export function TavaTab() {
                             <Text style={styles.circuitBadgeText}>{topic.circuitFamily}</Text>
                           </View>
                         )}
-                      </View>
+                        <Ionicons name="open-outline" size={14} color="#6b7280" style={{ marginLeft: 6 }} />
+                      </TouchableOpacity>
                     ))}
                   </View>
                 )}
