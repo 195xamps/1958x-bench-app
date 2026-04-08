@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { db, schema } from '../db';
 import { eq, desc, sql } from 'drizzle-orm';
+import { getSessionUserId } from '../types/session';
 
 const router = Router();
 
@@ -54,8 +55,8 @@ router.get('/api/admin/users', async (req: any, res) => {
     const total = totalResult[0]?.count ?? 0;
     const activeUserIds = new Set(
       activeSessions
-        .map(s => (s.sess as any)?.passport?.user?.id || (s.sess as any)?.passport?.user)
-        .filter(Boolean)
+        .map((s) => getSessionUserId(s.sess))
+        .filter((id): id is string => id !== null),
     );
     const chatCountMap = new Map((chatCounts.rows as any[]).map(r => [r.user_id, r.count]));
     const jobCountMap = new Map((jobCounts.rows as any[]).map(r => [r.user_id, r.count]));
