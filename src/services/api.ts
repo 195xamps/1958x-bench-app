@@ -8,6 +8,20 @@ export const apiClient: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// iOS URLCache (and React Native's underlying networking layer) can cache
+// GET responses aggressively, sometimes ignoring server Cache-Control. To
+// guarantee freshness, we send no-cache request headers AND tag every GET
+// with a millisecond cache-buster query param so the URL itself is unique.
+apiClient.interceptors.request.use((config) => {
+  if ((config.method || 'get').toLowerCase() === 'get') {
+    config.headers = config.headers || {};
+    (config.headers as any)['Cache-Control'] = 'no-cache';
+    (config.headers as any)['Pragma'] = 'no-cache';
+    config.params = { ...(config.params || {}), _t: Date.now() };
+  }
+  return config;
+});
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ error?: string }>) => {
