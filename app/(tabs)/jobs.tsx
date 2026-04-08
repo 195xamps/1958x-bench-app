@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,6 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,20 +15,17 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { jobsApi, chatsApi, schematicsApi } from '../../src/services';
 import { colors } from '../../src/theme';
-import {
-  JOB_STATUSES,
-  SAFETY_CHECKLIST,
-  getStatusConfig,
-} from '../../src/types/common';
-import type {
-  JobWithProfile,
-  CreateJobPayload,
-  ChatMessage,
-} from '../../src/types';
+import { JOB_STATUSES, SAFETY_CHECKLIST, getStatusConfig } from '../../src/types/common';
+import type { JobWithProfile, CreateJobPayload, ChatMessage } from '../../src/types';
 import { useDebounce } from '../../src/hooks';
 import { showAlert, showConfirm, showError, formatDate, formatAmpName } from '../../src/utils';
 import { LoadingScreen, EmptyState } from '../../src/components/shared';
-import { MessageList, ChatInput } from '../../src/components/chat';
+import {
+  NewJobModal,
+  SafetyChecklistModal,
+  JobPreviewModal,
+  JobChatModal,
+} from '../../src/components/jobs';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -379,238 +373,49 @@ export default function JobsScreen() {
         <Ionicons name="add" size={32} color={colors.text.onAccent} />
       </TouchableOpacity>
 
-      {/* ── New Job Modal ──────────────────────────────────────────────── */}
-      <Modal visible={showNewJobModal} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>New Bench Job</Text>
-                <TouchableOpacity onPress={() => setShowNewJobModal(false)}>
-                  <Ionicons name="close" size={28} color={colors.text.secondary} />
-                </TouchableOpacity>
-              </View>
-              <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
-                <Text style={styles.sectionTitle}>Customer</Text>
-                {renderInput('Customer Name', newJob.customerName || '', (t) => setNewJob({ ...newJob, customerName: t }), 'e.g., John Smith')}
-                {renderInput('Phone', newJob.customerPhone || '', (t) => setNewJob({ ...newJob, customerPhone: t }), 'e.g., 555-1234', false, 'phone-pad')}
-                <Text style={styles.sectionTitle}>Amp Identification</Text>
-                {renderInput('Make', newJob.ampMake, (t) => setNewJob({ ...newJob, ampMake: t }), 'e.g., Fender, Marshall, Vox')}
-                {renderInput('Model', newJob.ampModel, (t) => setNewJob({ ...newJob, ampModel: t }), 'e.g., Deluxe Reverb, JCM800')}
-                {renderInput('Year (if known)', newJob.ampYear || '', (t) => setNewJob({ ...newJob, ampYear: t }), 'e.g., 1965, 1970s')}
-                {renderInput('Circuit Family', newJob.circuitFamily || '', (t) => setNewJob({ ...newJob, circuitFamily: t }), 'e.g., AB763, 5E3, JTM45')}
-                <Text style={styles.sectionTitle}>Problem Description</Text>
-                {renderInput('Owner Symptoms', newJob.ownerSymptoms || '', (t) => setNewJob({ ...newJob, ownerSymptoms: t }), 'What is the owner experiencing?', true)}
-                {renderInput('Known Mods', newJob.knownMods || '', (t) => setNewJob({ ...newJob, knownMods: t }), 'Any modifications to the original circuit?', true)}
-                {renderInput('Prior Tech Work', newJob.priorWork || '', (t) => setNewJob({ ...newJob, priorWork: t }), 'Any previous repair attempts?', true)}
-                {renderInput('Tech Notes', newJob.techNotes || '', (t) => setNewJob({ ...newJob, techNotes: t }), 'Initial observations...', true)}
-              </ScrollView>
-              <TouchableOpacity
-                style={[styles.createButton, creating && { opacity: 0.6 }]}
-                onPress={createJob}
-                disabled={creating}
-              >
-                {creating
-                  ? <ActivityIndicator color={colors.text.onAccent} />
-                  : <Text style={styles.createButtonText}>Create Job & Safety Check</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* ── Safety Checklist Modal ─────────────────────────────────────── */}
-      <Modal visible={showSafetyModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Ionicons name="warning" size={28} color={colors.accent} />
-              <Text style={styles.modalTitle}>Safety Checklist</Text>
-            </View>
-            <Text style={styles.safetyWarning}>
-              HIGH VOLTAGE WARNING: Guitar amplifiers contain lethal voltages. Confirm each safety measure before proceeding.
-            </Text>
-            <ScrollView style={styles.modalScroll}>
-              {SAFETY_CHECKLIST.map((item, index) => (
-                <TouchableOpacity key={index} style={styles.checklistItem} onPress={() => toggleSafetyCheck(index)}>
-                  <View style={[styles.checkbox, safetyChecks[index] && styles.checkboxChecked]}>
-                    {safetyChecks[index] && <Ionicons name="checkmark" size={18} color={colors.text.onAccent} />}
-                  </View>
-                  <Text style={styles.checklistText}>{item}</Text>
-                </TouchableOpacity>
-              ))}
-
-              {suggestedSchematics.length > 0 && (
-                <View style={styles.suggestedSection}>
-                  <Text style={styles.suggestedTitle}>
-                    <Ionicons name="document-text-outline" size={14} color={colors.accent} />
-                    {' '}Schematics found in your library
-                  </Text>
-                  {suggestedSchematics.map((s) => {
-                    const attached = attachedSchematicIds.has(s.id);
-                    return (
-                      <View key={s.id} style={styles.suggestedRow}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.suggestedName} numberOfLines={1}>{s.name}</Text>
-                          {s.circuitFamily && <Text style={styles.suggestedFamily}>{s.circuitFamily}</Text>}
-                        </View>
-                        <TouchableOpacity
-                          style={[styles.attachBtn, attached && styles.attachBtnDone]}
-                          onPress={() => attachSuggestedSchematic(s.id)}
-                          disabled={attached}
-                        >
-                          <Ionicons name={attached ? 'checkmark' : 'add'} size={16} color={colors.text.onAccent} />
-                          <Text style={styles.attachBtnText}>{attached ? 'Attached' : 'Attach'}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </ScrollView>
-            <View style={styles.safetyButtons}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowSafetyModal(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.confirmButton, !safetyChecks.every(Boolean) && styles.buttonDisabled]}
-                onPress={completeSafetyChecklist}
-              >
-                <Text style={styles.confirmButtonText}>Confirm & Proceed</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Job Detail Modal ───────────────────────────────────────────── */}
-      <Modal visible={showJobDetailModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{formatAmpName(selectedJob?.ampProfile)}</Text>
-              <TouchableOpacity onPress={() => setShowJobDetailModal(false)}>
-                <Ionicons name="close" size={28} color={colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalScroll}>
-              {selectedJob?.ampProfile?.year && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Year</Text>
-                  <Text style={styles.detailValue}>{selectedJob.ampProfile.year}</Text>
-                </View>
-              )}
-              {selectedJob?.ampProfile?.circuitFamily && (
-                <View style={styles.detailRow}>
-                  <Text style={styles.detailLabel}>Circuit Family</Text>
-                  <Text style={styles.detailValue}>{selectedJob.ampProfile.circuitFamily}</Text>
-                </View>
-              )}
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Status</Text>
-                <Text style={styles.detailValue}>{selectedJob?.job.status}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Safety Checked</Text>
-                <Text style={styles.detailValue}>{selectedJob?.job.safetyChecklistCompleted ? 'Yes' : 'No'}</Text>
-              </View>
-              {selectedJob?.job.ownerSymptoms && (
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Owner Symptoms</Text>
-                  <Text style={styles.detailText}>{selectedJob.job.ownerSymptoms}</Text>
-                </View>
-              )}
-              {selectedJob?.job.techNotes && (
-                <View style={styles.detailSection}>
-                  <Text style={styles.detailLabel}>Tech Notes</Text>
-                  <Text style={styles.detailText}>{selectedJob.job.techNotes}</Text>
-                </View>
-              )}
-            </ScrollView>
-            <TouchableOpacity style={styles.chatButton} onPress={() => selectedJob && openJobChat(selectedJob.job.id)}>
-              <Ionicons name="chatbubble-ellipses" size={22} color={colors.text.onAccent} />
-              <Text style={styles.chatButtonText}>Open Job Chat</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => selectedJob && deleteJob(selectedJob.job.id, formatAmpName(selectedJob.ampProfile, 'Unknown Amp'))}
-            >
-              <Ionicons name="trash-outline" size={22} color={colors.white} />
-              <Text style={styles.deleteButtonText}>Delete Job</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── Job Chat Modal ─────────────────────────────────────────────── */}
-      <Modal visible={showJobChatModal} animationType="slide">
-        <KeyboardAvoidingView style={styles.chatModalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.chatModalHeader}>
-            <TouchableOpacity
-              onPress={() => {
-                setShowJobChatModal(false);
-                setChatMessages([]);
-                setChatId(null);
-              }}
-            >
-              <Ionicons name="arrow-back" size={28} color={colors.accent} />
-            </TouchableOpacity>
-            <Text style={styles.chatModalTitle} numberOfLines={1}>
-              {formatAmpName(selectedJob?.ampProfile)} Chat
-            </Text>
-            <View style={{ width: 28 }} />
-          </View>
-          <MessageList
-            messages={chatMessages}
-            sending={sendingChat}
-            assistantName="Job Assistant"
-            emptyContent={
-              <View style={styles.welcomeContainer}>
-                <Ionicons name="hardware-chip" size={48} color={colors.accent} />
-                <Text style={styles.welcomeTitle}>Job Assistant</Text>
-                <Text style={styles.welcomeText}>
-                  Ask questions specific to this job. The assistant knows the amp details and can help troubleshoot.
-                </Text>
-              </View>
-            }
-          />
-          <ChatInput
-            value={chatInput}
-            onChangeText={setChatInputText}
-            onSend={sendJobChatMessage}
-            sending={sendingChat}
-            placeholder="Ask about this amp..."
-          />
-        </KeyboardAvoidingView>
-      </Modal>
-    </View>
-  );
-}
-
-// ─── Helper ──────────────────────────────────────────────────────────────────
-
-function renderInput(
-  label: string,
-  value: string,
-  onChange: (text: string) => void,
-  placeholder: string,
-  multiline = false,
-  keyboardType: 'default' | 'phone-pad' | 'numeric' = 'default',
-) {
-  return (
-    <>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={[styles.input, multiline && styles.textArea]}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={colors.text.muted}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        keyboardType={keyboardType}
+      <NewJobModal
+        visible={showNewJobModal}
+        newJob={newJob}
+        creating={creating}
+        onClose={() => setShowNewJobModal(false)}
+        onChange={setNewJob}
+        onCreate={createJob}
       />
-    </>
+
+      <SafetyChecklistModal
+        visible={showSafetyModal}
+        safetyChecks={safetyChecks}
+        suggestedSchematics={suggestedSchematics}
+        attachedSchematicIds={attachedSchematicIds}
+        onToggle={toggleSafetyCheck}
+        onAttach={attachSuggestedSchematic}
+        onConfirm={completeSafetyChecklist}
+        onClose={() => setShowSafetyModal(false)}
+      />
+
+      <JobPreviewModal
+        visible={showJobDetailModal}
+        job={selectedJob}
+        onClose={() => setShowJobDetailModal(false)}
+        onOpenChat={() => selectedJob && openJobChat(selectedJob.job.id)}
+        onDelete={() => selectedJob && deleteJob(selectedJob.job.id, formatAmpName(selectedJob.ampProfile, 'Unknown Amp'))}
+      />
+
+      <JobChatModal
+        visible={showJobChatModal}
+        job={selectedJob}
+        messages={chatMessages}
+        input={chatInput}
+        sending={sendingChat}
+        onClose={() => {
+          setShowJobChatModal(false);
+          setChatMessages([]);
+          setChatId(null);
+        }}
+        onChangeInput={setChatInputText}
+        onSend={sendJobChatMessage}
+      />
+    </View>
   );
 }
 
@@ -667,98 +472,4 @@ const styles = StyleSheet.create({
     shadowColor: colors.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 8,
   },
 
-  // Modal common
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  modalContent: {
-    backgroundColor: colors.bg.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    maxHeight: '90%', paddingBottom: 40,
-  },
-  modalHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 20, borderBottomWidth: 1, borderBottomColor: colors.border.default,
-  },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright, flex: 1 },
-  modalScroll: { paddingHorizontal: 20, paddingTop: 8 },
-
-  // New-job form
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.accent, marginTop: 16, marginBottom: 8 },
-  inputLabel: { fontSize: 13, color: colors.text.secondary, marginBottom: 4, marginTop: 10 },
-  input: {
-    backgroundColor: colors.bg.elevated, borderRadius: 10, padding: 14, color: colors.text.bright,
-    fontSize: 15, borderWidth: 1, borderColor: colors.bg.elevated,
-  },
-  textArea: { minHeight: 70, textAlignVertical: 'top' },
-  createButton: {
-    backgroundColor: colors.accent, marginHorizontal: 20, marginTop: 12, padding: 16,
-    borderRadius: 12, alignItems: 'center',
-  },
-  createButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
-
-  // Safety checklist
-  safetyWarning: {
-    color: colors.accent, fontSize: 14, fontWeight: '600', padding: 16,
-    backgroundColor: colors.accent + '10', marginHorizontal: 20, borderRadius: 8,
-    lineHeight: 20, marginTop: 8,
-  },
-  checklistItem: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: colors.bg.elevated,
-  },
-  checkbox: {
-    width: 28, height: 28, borderRadius: 6, borderWidth: 2, borderColor: colors.text.muted,
-    marginRight: 14, justifyContent: 'center', alignItems: 'center',
-  },
-  checkboxChecked: { backgroundColor: colors.status.success, borderColor: colors.status.success },
-  checklistText: { color: colors.text.bright, fontSize: 15, flex: 1 },
-  suggestedSection: {
-    marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border.default,
-  },
-  suggestedTitle: { fontSize: 13, fontWeight: '600', color: colors.accent, marginBottom: 10 },
-  suggestedRow: {
-    flexDirection: 'row', alignItems: 'center', paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: colors.bg.elevated, gap: 10,
-  },
-  suggestedName: { fontSize: 14, color: colors.text.bright, fontWeight: '500' },
-  suggestedFamily: { fontSize: 12, color: colors.text.muted, marginTop: 2 },
-  attachBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-  },
-  attachBtnDone: { backgroundColor: colors.status.success },
-  attachBtnText: { color: colors.text.onAccent, fontSize: 13, fontWeight: '600' },
-  safetyButtons: { flexDirection: 'row', marginTop: 20, gap: 12, paddingHorizontal: 20 },
-  cancelButton: { flex: 1, backgroundColor: colors.bg.elevated, borderRadius: 12, padding: 16, alignItems: 'center' },
-  cancelButtonText: { color: colors.text.bright, fontSize: 16, fontWeight: '600' },
-  confirmButton: { flex: 1, backgroundColor: colors.status.success, borderRadius: 12, padding: 16, alignItems: 'center' },
-  confirmButtonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
-  buttonDisabled: { opacity: 0.5 },
-
-  // Job detail modal
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.bg.elevated },
-  detailLabel: { color: colors.text.secondary, fontSize: 14 },
-  detailValue: { color: colors.text.bright, fontSize: 14, fontWeight: '500' },
-  detailSection: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.bg.elevated },
-  detailText: { color: colors.text.bright, fontSize: 14, marginTop: 4, lineHeight: 20 },
-  chatButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent,
-    padding: 16, borderRadius: 12, marginTop: 16, gap: 10, marginHorizontal: 20,
-  },
-  chatButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
-  deleteButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.status.error,
-    padding: 16, borderRadius: 12, marginTop: 12, gap: 10, marginHorizontal: 20,
-  },
-  deleteButtonText: { color: colors.white, fontSize: 18, fontWeight: '600' },
-
-  // Chat modal
-  chatModalContainer: { flex: 1, backgroundColor: colors.bg.primary },
-  chatModalHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    padding: 16, paddingTop: 50, borderBottomWidth: 1, borderBottomColor: colors.border.default,
-    backgroundColor: colors.bg.surface,
-  },
-  chatModalTitle: { color: colors.text.bright, fontSize: 18, fontWeight: '600', flex: 1, textAlign: 'center' },
-  welcomeContainer: { alignItems: 'center', paddingVertical: 32 },
-  welcomeTitle: { fontSize: 24, fontWeight: 'bold', color: colors.accent, marginTop: 16, marginBottom: 8 },
-  welcomeText: { color: colors.text.secondary, fontSize: 16, textAlign: 'center', paddingHorizontal: 20 },
 });

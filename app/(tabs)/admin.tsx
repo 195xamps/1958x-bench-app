@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, TextInput, ActivityIndicator, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -275,8 +275,11 @@ export default function AdminScreen() {
 
   // ─── Tab content renderers ───────────────────────────────────────────────
 
-  const renderUsersTab = () => users.map((u) => (
-    <TouchableOpacity key={u.id} style={s.userCard} onPress={() => handleUserSelect(u)}>
+  // FlatList renderItem functions — extracted so each row can be virtualized
+  // and only re-rendered when its own data changes.
+
+  const renderUserItem = useCallback(({ item: u }: { item: AdminUser }) => (
+    <TouchableOpacity style={s.userCard} onPress={() => handleUserSelect(u)}>
       <View style={s.userInfo}>
         <View style={s.avatarWrap}>
           {u.profileImageUrl
@@ -305,28 +308,32 @@ export default function AdminScreen() {
       </View>
       <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
     </TouchableOpacity>
-  ));
+  ), []);
 
-  const renderChatsTab = () => allChats.map(({ chat, user: chatUser }) => (
-    <TouchableOpacity key={chat.id} style={s.itemCard} onPress={() => router.push(`/chat/${chat.id}` as any)}>
-      <View style={s.itemHeader}>
-        <Text style={s.itemTitle}>{chat.title}</Text>
-        <View style={[s.badge, { backgroundColor: chat.isStandalone ? colors.status.info : colors.status.purple }]}>
-          <Text style={s.badgeText}>{chat.isStandalone ? 'Standalone' : 'Job Chat'}</Text>
+  const renderChatItem = useCallback(({ item }: { item: { chat: AdminChat; user: AdminUser | null } }) => {
+    const { chat, user: chatUser } = item;
+    return (
+      <TouchableOpacity style={s.itemCard} onPress={() => router.push(`/chat/${chat.id}` as any)}>
+        <View style={s.itemHeader}>
+          <Text style={s.itemTitle}>{chat.title}</Text>
+          <View style={[s.badge, { backgroundColor: chat.isStandalone ? colors.status.info : colors.status.purple }]}>
+            <Text style={s.badgeText}>{chat.isStandalone ? 'Standalone' : 'Job Chat'}</Text>
+          </View>
         </View>
-      </View>
-      <Text style={s.itemSub}>User: {chatUser?.firstName} {chatUser?.lastName} ({chatUser?.email})</Text>
-      <View style={s.itemFooter}>
-        <Text style={s.itemDate}>Updated: {formatDate(chat.updatedAt)}</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
-      </View>
-    </TouchableOpacity>
-  ));
+        <Text style={s.itemSub}>User: {chatUser?.firstName} {chatUser?.lastName} ({chatUser?.email})</Text>
+        <View style={s.itemFooter}>
+          <Text style={s.itemDate}>Updated: {formatDate(chat.updatedAt)}</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
+        </View>
+      </TouchableOpacity>
+    );
+  }, [router]);
 
-  const renderJobsTab = () => allJobs.map(({ job, ampProfile, user: jobUser }) => {
+  const renderJobItem = useCallback(({ item }: { item: AdminJob }) => {
+    const { job, ampProfile, user: jobUser } = item;
     const statusCfg = getStatusConfig(job.status);
     return (
-      <TouchableOpacity key={job.id} style={s.itemCard} onPress={() => router.push(`/job/${job.id}` as any)}>
+      <TouchableOpacity style={s.itemCard} onPress={() => router.push(`/job/${job.id}` as any)}>
         <View style={s.itemHeader}>
           <Text style={s.itemTitle}>{ampProfile?.make || 'Unknown'} {ampProfile?.model || 'Amp'}</Text>
           <View style={[s.badge, { backgroundColor: statusCfg.color }]}><Text style={s.badgeText}>{job.status}</Text></View>
@@ -339,7 +346,7 @@ export default function AdminScreen() {
         </View>
       </TouchableOpacity>
     );
-  });
+  }, [router]);
 
   const renderUsageTab = () => {
     if (!stats) return null;
@@ -433,12 +440,50 @@ export default function AdminScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView style={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
-        {activeTab === 'users' && renderUsersTab()}
-        {activeTab === 'chats' && renderChatsTab()}
-        {activeTab === 'jobs' && renderJobsTab()}
-        {activeTab === 'usage' && renderUsageTab()}
-      </ScrollView>
+      {activeTab === 'users' && (
+        <FlatList
+          data={users}
+          keyExtractor={(u) => u.id}
+          renderItem={renderUserItem}
+          contentContainerStyle={s.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={11}
+          removeClippedSubviews
+        />
+      )}
+      {activeTab === 'chats' && (
+        <FlatList
+          data={allChats}
+          keyExtractor={(item) => item.chat.id}
+          renderItem={renderChatItem}
+          contentContainerStyle={s.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={11}
+          removeClippedSubviews
+        />
+      )}
+      {activeTab === 'jobs' && (
+        <FlatList
+          data={allJobs}
+          keyExtractor={(item) => item.job.id}
+          renderItem={renderJobItem}
+          contentContainerStyle={s.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+          initialNumToRender={12}
+          maxToRenderPerBatch={12}
+          windowSize={11}
+          removeClippedSubviews
+        />
+      )}
+      {activeTab === 'usage' && (
+        <ScrollView style={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}>
+          {renderUsageTab()}
+        </ScrollView>
+      )}
 
       {selectedUser && renderUserDetail()}
     </View>
@@ -474,6 +519,7 @@ const s = StyleSheet.create({
   tabText: { fontSize: 16, fontWeight: '600', color: colors.text.muted },
   activeTabText: { color: colors.accent },
   content: { flex: 1, padding: 16 },
+  listContent: { padding: 16, paddingBottom: 32 },
   // User cards
   userCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.bg.surface, padding: 16, borderRadius: 12, marginBottom: 12 },
   userInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
