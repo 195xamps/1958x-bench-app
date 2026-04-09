@@ -528,6 +528,9 @@ function WelcomePanel() {
         <Text style={styles.exampleText}>• &quot;Have I worked on a Fender amp before?&quot;</Text>
         <Text style={styles.exampleText}>• &quot;Show me schematics for Vox AC30&quot;</Text>
       </View>
+      <Text style={styles.aiDisclaimer}>
+        AI responses may contain errors. Always verify measurements and safety procedures independently.
+      </Text>
     </View>
   );
 }
@@ -736,6 +739,7 @@ const styles = StyleSheet.create({
   exampleQuestions: { backgroundColor: colors.bg.surface, borderRadius: 12, padding: 16, width: '100%' },
   exampleTitle: { color: colors.accent, fontSize: 14, fontWeight: '600', marginBottom: 12 },
   exampleText: { color: colors.text.secondary, fontSize: 14, marginBottom: 8, lineHeight: 20 },
+  aiDisclaimer: { color: colors.text.muted, fontSize: 11, textAlign: 'center', marginTop: 16, fontStyle: 'italic', paddingHorizontal: 16, lineHeight: 16 },
   // Rename modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 24,

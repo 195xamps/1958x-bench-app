@@ -519,6 +519,9 @@ export default function JobDetailScreen() {
               Ask questions about this {ampProfile?.make} {ampProfile?.model}.
               Upload photos for identification or troubleshooting help.
             </Text>
+            <Text style={styles.aiDisclaimer}>
+              AI responses may contain errors. Always verify measurements and safety procedures independently.
+            </Text>
           </View>
         }
       />
@@ -715,6 +718,7 @@ const styles = StyleSheet.create({
   welcomeContainer: { alignItems: 'center', paddingVertical: 40 },
   welcomeTitle: { fontSize: 24, fontWeight: 'bold', color: colors.text.bright, marginTop: 16, marginBottom: 8 },
   welcomeText: { color: colors.text.secondary, fontSize: 16, textAlign: 'center', paddingHorizontal: 20 },
+  aiDisclaimer: { color: colors.text.muted, fontSize: 11, textAlign: 'center', marginTop: 16, fontStyle: 'italic', paddingHorizontal: 16, lineHeight: 16 },
 
   // Tab bar
   tabBar: { flexDirection: 'row', backgroundColor: colors.bg.surface, borderBottomWidth: 1, borderBottomColor: colors.border.default },
