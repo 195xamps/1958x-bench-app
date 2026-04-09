@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
   // New chat
   newChatButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.accent, padding: 16, borderRadius: 12, gap: 10, marginBottom: 24,
+    backgroundColor: colors.accent, padding: 16, borderRadius: 6, gap: 10, marginBottom: 24,
   },
   newChatButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontFamily: 'Jost-SemiBold', color: colors.text.bright, marginBottom: 12 },
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   },
   activityCard: {
     backgroundColor: colors.bg.surface,
-    borderRadius: 12,
+    borderRadius: 6,
     borderLeftWidth: 3,
     overflow: 'hidden',
     width: 155,

@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   // Search
   searchContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: colors.bg.surface,
-    borderRadius: 12, paddingHorizontal: 12, marginHorizontal: 16, marginBottom: 12, height: 44,
+    borderRadius: 6, paddingHorizontal: 12, marginHorizontal: 16, marginBottom: 12, height: 44,
   },
   searchInput: { flex: 1, color: colors.text.bright, fontSize: 16, height: '100%' },
 
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
 
   // Job card
   jobCard: {
-    backgroundColor: colors.bg.surface, borderRadius: 12, padding: 16, marginBottom: 12,
+    backgroundColor: colors.bg.surface, borderRadius: 6, padding: 16, marginBottom: 12,
     borderWidth: 1, borderColor: colors.bg.elevated,
   },
   jobHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
