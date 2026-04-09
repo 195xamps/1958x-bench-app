@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
   TouchableOpacity,
   TextInput,
   Modal,
@@ -276,82 +275,41 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={feedItems}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.activityRow}
-        style={styles.scrollView}
-        contentContainerStyle={feedItems.length === 0 ? { flex: 1 } : undefined}
-        ListHeaderComponent={
-          <>
-            {/* User Header */}
-            <TouchableOpacity style={styles.userHeader} onPress={() => router.push('/profile' as any)} activeOpacity={0.7}>
-              <View style={styles.userInfo}>
-                {user?.profileImageUrl ? (
-                  <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
-                ) : (
-                  <View style={styles.userAvatarPlaceholder}>
-                    <Ionicons name="person" size={20} color={colors.text.secondary} />
-                  </View>
-                )}
-                <View style={styles.userTextContainer}>
-                  <Text style={styles.userName}>
-                    {user?.firstName || user?.email?.split('@')[0] || 'User'}
-                  </Text>
-                  <Text style={styles.userEmail}>{user?.email}</Text>
-                </View>
+      <ScrollView style={styles.scrollView}>
+        {/* User Header */}
+        <TouchableOpacity style={styles.userHeader} onPress={() => router.push('/profile' as any)} activeOpacity={0.7}>
+          <View style={styles.userInfo}>
+            {user?.profileImageUrl ? (
+              <Image source={{ uri: user.profileImageUrl }} style={styles.userAvatar} />
+            ) : (
+              <View style={styles.userAvatarPlaceholder}>
+                <Ionicons name="person" size={20} color={colors.text.secondary} />
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
-            </TouchableOpacity>
-            <PinStripe marginVertical={4} />
-
-            <View style={styles.header}>
-              <Text style={styles.title}>195x Bench App</Text>
-              <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
+            )}
+            <View style={styles.userTextContainer}>
+              <Text style={styles.userName}>
+                {user?.firstName || user?.email?.split('@')[0] || 'User'}
+              </Text>
+              <Text style={styles.userEmail}>{user?.email}</Text>
             </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
+        </TouchableOpacity>
+        <PinStripe marginVertical={4} />
 
-            <TouchableOpacity style={styles.newChatButton} onPress={createNewChat}>
-              <Ionicons name="chatbubble-ellipses" size={24} color={colors.text.onAccent} />
-              <Text style={styles.newChatButtonText}>Start New Chat</Text>
-            </TouchableOpacity>
+        <View style={styles.header}>
+          <Text style={styles.title}>195x Bench Assistant</Text>
+          <Text style={styles.subtitle}>Guitar Amp Troubleshooting Assistant</Text>
+        </View>
 
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-          </>
-        }
-        renderItem={({ item }) => {
-          if (item.type === 'chat') {
-            return (
-              <ActivityCard
-                type="chat"
-                icon="chatbubble-ellipses"
-                stripeColor={colors.accent}
-                typeLabel="Chat"
-                title={item.chat.title || 'New Chat'}
-                subtitle={item.chat.benchJobId ? 'Linked to job' : 'Standalone chat'}
-                timestamp={formatRelativeDate(item.updatedAt)}
-                onPress={() => openChatModal(item.chat)}
-                onOptions={() => { setSelectedChat(item.chat); setShowOptionsModal(true); }}
-              />
-            );
-          } else {
-            const statusCfg = getStatusConfig(item.job.status || 'active');
-            return (
-              <ActivityCard
-                type="job"
-                icon="briefcase"
-                stripeColor={colors.status.info}
-                typeLabel="Job"
-                title={formatAmpName(item.ampProfile)}
-                subtitle={`${item.ampProfile?.circuitFamily || 'Unknown'} · ${statusCfg.label}`}
-                statusColor={statusCfg.color}
-                timestamp={formatRelativeDate(item.updatedAt)}
-                onPress={() => router.push(`/job/${item.job.id}`)}
-              />
-            );
-          }
-        }}
-        ListEmptyComponent={
+        <TouchableOpacity style={styles.newChatButton} onPress={createNewChat}>
+          <Ionicons name="chatbubble-ellipses" size={24} color={colors.text.onAccent} />
+          <Text style={styles.newChatButtonText}>Start New Chat</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+
+        {feedItems.length === 0 ? (
           <View style={styles.emptyFeed}>
             <TubeSymbol />
             <Text style={styles.emptyFeedTitle}>No activity yet</Text>
@@ -359,8 +317,45 @@ export default function DashboardScreen() {
               Start a chat or create a job from the Jobs tab. Your recent activity will appear here.
             </Text>
           </View>
-        }
-      />
+        ) : (
+          <View style={styles.activityGrid}>
+            {feedItems.map((item) => {
+              if (item.type === 'chat') {
+                return (
+                  <ActivityCard
+                    key={item.id}
+                    type="chat"
+                    icon="chatbubble-ellipses"
+                    stripeColor={colors.accent}
+                    typeLabel="Chat"
+                    title={item.chat.title || 'New Chat'}
+                    subtitle={item.chat.benchJobId ? 'Linked to job' : 'Standalone chat'}
+                    timestamp={formatRelativeDate(item.updatedAt)}
+                    onPress={() => openChatModal(item.chat)}
+                    onOptions={() => { setSelectedChat(item.chat); setShowOptionsModal(true); }}
+                  />
+                );
+              } else {
+                const statusCfg = getStatusConfig(item.job.status || 'active');
+                return (
+                  <ActivityCard
+                    key={item.id}
+                    type="job"
+                    icon="briefcase"
+                    stripeColor={colors.status.info}
+                    typeLabel="Job"
+                    title={formatAmpName(item.ampProfile)}
+                    subtitle={`${item.ampProfile?.circuitFamily || 'Unknown'} · ${statusCfg.label}`}
+                    statusColor={statusCfg.color}
+                    timestamp={formatRelativeDate(item.updatedAt)}
+                    onPress={() => router.push(`/job/${item.job.id}`)}
+                  />
+                );
+              }
+            })}
+          </View>
+        )}
+      </ScrollView>
 
       {/* ─── Full-Screen Chat Modal ────────────────────────────────────── */}
       {showChatModal && (
@@ -678,35 +673,33 @@ const styles = StyleSheet.create({
   },
   newChatButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontFamily: 'Jost-SemiBold', color: colors.text.bright, marginBottom: 12 },
-  // Activity cards (unified feed) — compact cards, 2-column grid on wide screens
-  activityRow: {
+  // Activity cards — fixed-size cards that wrap to fill available width
+  // ~150px each → 4 per row on iPad, 2 per row on iPhone
+  activityGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 0,
   },
   activityCard: {
     backgroundColor: colors.bg.surface,
-    borderRadius: 14,
-    borderLeftWidth: 4,
+    borderRadius: 12,
+    borderLeftWidth: 3,
     overflow: 'hidden',
-    width: '48%',
-    minWidth: 160,
-    flexGrow: 1,
-    marginBottom: 10,
+    width: 155,
+    marginBottom: 0,
   },
-  activityCardContent: { padding: 12 },
+  activityCardContent: { padding: 10 },
   activityCardOptions: {
-    position: 'absolute', top: 4, right: 4, padding: 6,
+    position: 'absolute', top: 2, right: 2, padding: 4,
   },
-  activityCardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  activityCardTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  activityCardType: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  activityCardTimestamp: { fontSize: 10, color: colors.text.muted, marginLeft: 'auto' },
-  activityCardTitle: { fontSize: 14, fontWeight: '600', color: colors.text.bright, marginBottom: 4, paddingRight: 20 },
-  activityCardSubRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  activityCardDot: { width: 6, height: 12, borderRadius: 2 },
-  activityCardSubtitle: { fontSize: 11, color: colors.text.secondary, flex: 1 },
+  activityCardTop: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  activityCardTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  activityCardType: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  activityCardTimestamp: { fontSize: 9, color: colors.text.muted, marginLeft: 'auto' },
+  activityCardTitle: { fontSize: 12, fontWeight: '600', color: colors.text.bright, marginBottom: 3, paddingRight: 16 },
+  activityCardSubRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  activityCardDot: { width: 5, height: 10, borderRadius: 2 },
+  activityCardSubtitle: { fontSize: 10, color: colors.text.secondary, flex: 1 },
   // Empty feed
   emptyFeed: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingTop: 40 },
   emptyFeedTitle: { fontSize: 20, fontWeight: '600', color: colors.text.bright, marginTop: 16, marginBottom: 8 },

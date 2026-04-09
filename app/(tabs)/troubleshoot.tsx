@@ -35,7 +35,7 @@ const COMMON_SYMPTOMS = [
 const WELCOME_MESSAGE: TroubleshootingMessage = {
   role: 'assistant',
   content:
-    "I'm your troubleshooting assistant for the 195x Bench App. I'll guide you through diagnosing and repairing guitar amplifiers safely and methodically.\n\n" +
+    "I'm your troubleshooting assistant for the 195x Bench Assistant. I'll guide you through diagnosing and repairing guitar amplifiers safely and methodically.\n\n" +
     '**SAFETY FIRST**: Before we begin any high-voltage work, please confirm:\n' +
     '- Isolation transformer is connected\n' +
     '- Capacitors are discharged\n' +

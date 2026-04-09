@@ -17,7 +17,7 @@ export default function LoginScreen() {
           <View style={s.logoCircle}>
             <Ionicons name="hardware-chip" size={48} color={colors.accent} />
           </View>
-          <Text style={s.appName}>195x Bench</Text>
+          <Text style={s.appName}>195x Bench Assistant</Text>
           <Text style={s.tagline}>Professional Tube Amp Service Assistant</Text>
         </View>
 

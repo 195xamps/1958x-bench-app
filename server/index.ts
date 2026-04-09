@@ -82,7 +82,7 @@ async function initServer() {
 
   // Health check
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: '195x Bench App API running' });
+    res.json({ status: 'ok', message: '195x Bench Assistant API running' });
   });
 
   // Mount route modules
@@ -100,7 +100,7 @@ async function initServer() {
   // Root + 404 — this is an API server, not a web host. Anything that
   // isn't a known /api/* route gets a small JSON response.
   app.get('/', (_req, res) => {
-    res.json({ name: '195x Bench App API', status: 'ok' });
+    res.json({ name: '195x Bench Assistant API', status: 'ok' });
   });
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });
@@ -134,7 +134,7 @@ async function initServer() {
 
   const PORT = parseInt(process.env.PORT || '5000', 10);
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`195x Bench App running on port ${PORT}`);
+    console.log(`195x Bench Assistant running on port ${PORT}`);
   });
 }
 
