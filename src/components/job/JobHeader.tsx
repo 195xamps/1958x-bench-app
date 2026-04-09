@@ -119,7 +119,7 @@ const s = StyleSheet.create({
   backBtn: { marginRight: 12 },
   info: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: 'bold', color: colors.text.bright, fontFamily: 'SpaceMono' },
+  title: { fontSize: 20, fontFamily: 'Jost-Bold', color: colors.text.bright },
   secondRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   subtitle: { fontSize: 14, color: colors.accent },
   customerRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },

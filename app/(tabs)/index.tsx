@@ -669,15 +669,15 @@ const styles = StyleSheet.create({
   logoutButton: { padding: 8 },
   // Header
   header: { marginBottom: 24, paddingTop: 16 },
-  title: { fontSize: 32, fontWeight: 'bold', color: colors.cream, marginBottom: 4 },
-  subtitle: { fontSize: 16, color: colors.text.secondary },
+  title: { fontSize: 32, fontFamily: 'Jost-Bold', color: colors.cream, marginBottom: 4 },
+  subtitle: { fontSize: 16, fontFamily: 'Jost', color: colors.text.secondary },
   // New chat
   newChatButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.accent, padding: 16, borderRadius: 12, gap: 10, marginBottom: 24,
   },
   newChatButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text.bright, marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontFamily: 'Jost-SemiBold', color: colors.text.bright, marginBottom: 12 },
   // Activity cards (unified feed) — compact cards, 2-column grid on wide screens
   activityRow: {
     flexDirection: 'row',

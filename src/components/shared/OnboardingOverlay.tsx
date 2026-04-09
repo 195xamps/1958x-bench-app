@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     fontWeight: 'bold',
     color: colors.text.bright,
-    fontFamily: 'SpaceMono',
+    fontFamily: 'Jost-Bold',
     textAlign: 'center',
     lineHeight: 38,
     marginBottom: 16,

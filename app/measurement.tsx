@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: colors.accent,
-    fontFamily: 'SpaceMono',
+    fontFamily: 'Jost-Bold',
   },
   subtitle: {
     fontSize: 14,

@@ -170,7 +170,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.bg.surface,
     borderBottomWidth: 1, borderBottomColor: colors.border.default,
   },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: colors.cream, marginBottom: 16 },
+  headerTitle: { fontSize: 28, fontFamily: 'Jost-Bold', color: colors.cream, marginBottom: 16 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   statCard: {
     flex: 1, backgroundColor: colors.bg.elevated,

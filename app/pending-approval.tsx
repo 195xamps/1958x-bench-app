@@ -63,7 +63,7 @@ const s = StyleSheet.create({
     color: colors.text.bright,
     marginBottom: 16,
     textAlign: 'center',
-    fontFamily: 'SpaceMono',
+    fontFamily: 'Jost-Bold',
   },
   body: {
     fontSize: 15,

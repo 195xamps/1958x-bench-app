@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.accent,
-    fontFamily: 'SpaceMono',
+    fontFamily: 'Jost-Bold',
   },
   // Mode toggle
   modeToggle: {
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
     marginTop: 16,
     marginBottom: 8,
-    fontFamily: 'SpaceMono',
+    fontFamily: 'Jost-Bold',
   },
   welcomeText: {
     color: colors.text.secondary,

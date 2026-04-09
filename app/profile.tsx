@@ -331,9 +331,8 @@ const s = StyleSheet.create({
   backBtn: { padding: 4 },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Jost-Bold',
     color: colors.text.primary,
-    fontFamily: 'SpaceMono',
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 60 },
