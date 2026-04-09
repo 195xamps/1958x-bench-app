@@ -3,6 +3,7 @@ import 'dotenv/config';
 // can wrap http/express/pg before they're loaded by anything else.
 import { Sentry } from './lib/sentry';
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
@@ -97,8 +98,19 @@ async function initServer() {
   app.use(repairActionRoutes);
   app.use(profileRoutes);
 
-  // Root + 404 — this is an API server, not a web host. Anything that
-  // isn't a known /api/* route gets a small JSON response.
+  // Legal & support pages — public HTML, no auth required.
+  // Apple requires these URLs for App Store submission.
+  app.get('/privacy', (_req, res) => {
+    res.sendFile('privacy.html', { root: path.join(__dirname, 'pages') });
+  });
+  app.get('/terms', (_req, res) => {
+    res.sendFile('terms.html', { root: path.join(__dirname, 'pages') });
+  });
+  app.get('/support', (_req, res) => {
+    res.sendFile('support.html', { root: path.join(__dirname, 'pages') });
+  });
+
+  // Root + 404
   app.get('/', (_req, res) => {
     res.json({ name: '195x Bench Assistant API', status: 'ok' });
   });
