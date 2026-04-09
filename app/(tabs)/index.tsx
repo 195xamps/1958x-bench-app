@@ -26,7 +26,7 @@ import { getStatusConfig } from '../../src/types/common';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useFileUpload } from '../../src/hooks/useFileUpload';
 import type { Chat, ChatMessage } from '../../src/types';
-import { LoadingScreen, EmptyState, OnboardingOverlay } from '../../src/components/shared';
+import { LoadingScreen, EmptyState, OnboardingOverlay, PinStripe } from '../../src/components/shared';
 import { MessageList, ChatInput } from '../../src/components/chat';
 import {
   AttachmentPickerModal,
@@ -304,6 +304,7 @@ export default function DashboardScreen() {
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.text.muted} />
             </TouchableOpacity>
+            <PinStripe marginVertical={4} />
 
             <View style={styles.header}>
               <Text style={styles.title}>195x Bench App</Text>
@@ -654,7 +655,7 @@ const styles = StyleSheet.create({
   // User header
   userHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border.default,
+    marginBottom: 8, paddingBottom: 8,
   },
   userInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   userAvatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
