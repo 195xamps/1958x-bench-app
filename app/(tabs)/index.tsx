@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   logoutButton: { padding: 8 },
   // Header
   header: { marginBottom: 24, paddingTop: 16 },
-  title: { fontSize: 32, fontWeight: 'bold', color: colors.accent, marginBottom: 4 },
+  title: { fontSize: 32, fontWeight: 'bold', color: colors.cream, marginBottom: 4 },
   subtitle: { fontSize: 16, color: colors.text.secondary },
   // New chat
   newChatButton: {

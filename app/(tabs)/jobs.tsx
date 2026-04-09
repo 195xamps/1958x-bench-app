@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
 
   // Header
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  title: { fontSize: 28, fontWeight: 'bold', color: colors.text.bright, fontFamily: 'SpaceMono' },
+  title: { fontSize: 28, fontWeight: 'bold', color: colors.cream, fontFamily: 'SpaceMono' },
   subtitle: { fontSize: 14, color: colors.text.secondary, marginTop: 4 },
 
   // Search

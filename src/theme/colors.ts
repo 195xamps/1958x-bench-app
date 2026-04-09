@@ -17,6 +17,7 @@ export const colors = {
   },
   accent: '#d97706',       // amber-600 — deeper, richer, distinct from warning
   accentLight: '#f59e0b',  // amber-400 — old accent, now used as light variant
+  cream: '#f3e9d2',        // parchment/faceplate — evokes aged schematic paper
   border: {
     default: '#1f2d42',    // matches elevated so borders feel natural
   },
