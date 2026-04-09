@@ -19,9 +19,10 @@ import { GestureHandlerRootView, Pressable as GHPressable } from 'react-native-g
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useRouter } from 'expo-router';
-import { chatsApi } from '../../src/services';
+import { chatsApi, jobsApi } from '../../src/services';
 import { colors } from '../../src/theme';
-import { showAlert, showConfirm, showError, openUrl } from '../../src/utils';
+import { showAlert, showConfirm, showError, openUrl, formatAmpName } from '../../src/utils';
+import { getStatusConfig } from '../../src/types/common';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useFileUpload } from '../../src/hooks/useFileUpload';
 import type { Chat, ChatMessage } from '../../src/types';
@@ -32,6 +33,12 @@ import {
   showAttachmentOptions,
   AttachmentPreview,
 } from '../../src/components/chat';
+
+// ─── Activity Feed Types ───────────────────────────────────────────────────
+
+type FeedItem =
+  | { type: 'chat'; id: string; updatedAt: string; chat: Chat }
+  | { type: 'job'; id: string; updatedAt: string; job: any; ampProfile: any };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -54,10 +61,8 @@ function formatRelativeDate(dateString: string): string {
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [chats, setChats] = useState<Chat[]>([]);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
 
   // Chat modal state
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -84,32 +89,48 @@ export default function DashboardScreen() {
     clearAttachments,
   } = useFileUpload();
 
-  // ─── Data ───────────────────────────────────────────────────────────────
+  // ─── Data: unified activity feed ─────────────────────────────────────
 
-  const PAGE_SIZE = 20;
+  const FEED_LIMIT = 10;
   const lastFetchRef = useRef<number>(0);
   useFocusEffect(useCallback(() => {
     const elapsed = (Date.now() - lastFetchRef.current) / 1000;
-    if (elapsed > 30 || !chats.length) { fetchChats(); }
+    if (elapsed > 15 || !feedItems.length) { fetchFeed(); }
   }, []));
 
-  const fetchChats = async (loadMore = false) => {
-    if (loadMore) setLoadingMore(true);
+  const fetchFeed = async () => {
     try {
-      const offset = loadMore ? chats.length : 0;
-      const result = await chatsApi.list({ limit: PAGE_SIZE, offset });
-      if (loadMore) {
-        setChats(prev => [...prev, ...result.data]);
-      } else {
-        setChats(result.data);
-      }
-      setHasMore(result.hasMore);
+      // Fetch recent chats + recent jobs in parallel, merge by updatedAt
+      const [chatResult, jobResult] = await Promise.all([
+        chatsApi.list({ limit: FEED_LIMIT }),
+        jobsApi.list({ limit: FEED_LIMIT }),
+      ]);
+
+      const chatItems: FeedItem[] = (chatResult.data || []).map((c: Chat) => ({
+        type: 'chat' as const,
+        id: `chat-${c.id}`,
+        updatedAt: c.updatedAt,
+        chat: c,
+      }));
+
+      const jobItems: FeedItem[] = (jobResult.data || []).map((j: any) => ({
+        type: 'job' as const,
+        id: `job-${j.job.id}`,
+        updatedAt: j.job.updatedAt || j.job.createdAt,
+        job: j.job,
+        ampProfile: j.ampProfile,
+      }));
+
+      const merged = [...chatItems, ...jobItems]
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, FEED_LIMIT);
+
+      setFeedItems(merged);
       lastFetchRef.current = Date.now();
     } catch (error) {
-      console.error('Error fetching chats:', error);
+      console.error('Error fetching feed:', error);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   };
 
@@ -118,7 +139,6 @@ export default function DashboardScreen() {
   const createNewChat = async () => {
     try {
       const newChat = await chatsApi.create({ title: 'New Chat' });
-      setChats([newChat, ...chats]);
       openChatModal(newChat);
     } catch (error) {
       console.error('Error creating chat:', error);
@@ -142,13 +162,17 @@ export default function DashboardScreen() {
     setShowChatModal(false);
     setActiveChat(null);
     setMessages([]);
-    fetchChats();
+    fetchFeed();
   };
 
   const renameChat = async (chatId: string, title: string) => {
     try {
       await chatsApi.rename(chatId, title);
-      setChats(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
+      setFeedItems(prev => prev.map(item =>
+        item.type === 'chat' && item.chat.id === chatId
+          ? { ...item, chat: { ...item.chat, title } }
+          : item
+      ));
       if (activeChat?.id === chatId) setActiveChat({ ...activeChat, title });
     } catch (error) {
       console.error('Error renaming chat:', error);
@@ -164,7 +188,7 @@ export default function DashboardScreen() {
     if (!confirmed) return;
     try {
       await chatsApi.delete(chatId);
-      setChats(prev => prev.filter(c => c.id !== chatId));
+      setFeedItems(prev => prev.filter(item => !(item.type === 'chat' && item.chat.id === chatId)));
       setShowOptionsModal(false);
       if (activeChat?.id === chatId) { setShowChatModal(false); setActiveChat(null); }
     } catch (error) {
@@ -176,7 +200,7 @@ export default function DashboardScreen() {
   const convertToJob = async (chat: Chat) => {
     try {
       await chatsApi.convertToJob(chat.id);
-      setChats(prev => prev.filter(c => c.id !== chat.id));
+      setFeedItems(prev => prev.filter(item => !(item.type === 'chat' && item.chat.id === chat.id)));
       setShowOptionsModal(false);
       showAlert('Job Created', 'Chat converted to a bench job. Check the Jobs tab to fill in amp details.');
     } catch (error: any) {
@@ -253,10 +277,10 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <FlatList
-        data={chats}
+        data={feedItems}
         keyExtractor={(item) => item.id}
         style={styles.scrollView}
-        contentContainerStyle={chats.length === 0 ? { flex: 1 } : undefined}
+        contentContainerStyle={feedItems.length === 0 ? { flex: 1 } : undefined}
         ListHeaderComponent={
           <>
             {/* User Header */}
@@ -289,23 +313,50 @@ export default function DashboardScreen() {
               <Text style={styles.newChatButtonText}>Start New Chat</Text>
             </TouchableOpacity>
 
-            <Text style={styles.sectionTitle}>Recent Chats</Text>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
           </>
         }
-        renderItem={({ item: chat }) => (
-          <ChatCard
-            key={chat.id}
-            chat={chat}
-            onPress={() => openChatModal(chat)}
-            onOptions={() => { setSelectedChat(chat); setShowOptionsModal(true); }}
-          />
-        )}
-        ListEmptyComponent={<HomeEmptyState onCreateJob={() => router.push('/(tabs)/jobs' as any)} onNewChat={createNewChat} />}
-        onEndReached={() => { if (hasMore && !loadingMore) fetchChats(true); }}
-        onEndReachedThreshold={0.3}
-        ListFooterComponent={loadingMore ? (
-          <ActivityIndicator size="small" color={colors.accent} style={{ paddingVertical: 16 }} />
-        ) : null}
+        renderItem={({ item }) => {
+          if (item.type === 'chat') {
+            return (
+              <ActivityCard
+                type="chat"
+                icon="chatbubble-ellipses"
+                stripeColor={colors.accent}
+                typeLabel="Chat"
+                title={item.chat.title || 'New Chat'}
+                subtitle={item.chat.benchJobId ? 'Linked to job' : 'Standalone chat'}
+                timestamp={formatRelativeDate(item.updatedAt)}
+                onPress={() => openChatModal(item.chat)}
+                onOptions={() => { setSelectedChat(item.chat); setShowOptionsModal(true); }}
+              />
+            );
+          } else {
+            const statusCfg = getStatusConfig(item.job.status || 'active');
+            return (
+              <ActivityCard
+                type="job"
+                icon="briefcase"
+                stripeColor={colors.status.info}
+                typeLabel="Job"
+                title={formatAmpName(item.ampProfile)}
+                subtitle={`${item.ampProfile?.circuitFamily || 'Unknown'} · ${statusCfg.label}`}
+                statusColor={statusCfg.color}
+                timestamp={formatRelativeDate(item.updatedAt)}
+                onPress={() => router.push(`/job/${item.job.id}`)}
+              />
+            );
+          }
+        }}
+        ListEmptyComponent={
+          <View style={styles.emptyFeed}>
+            <Ionicons name="hardware-chip" size={48} color={colors.accent} />
+            <Text style={styles.emptyFeedTitle}>No activity yet</Text>
+            <Text style={styles.emptyFeedSub}>
+              Start a chat or create a job from the Jobs tab. Your recent activity will appear here.
+            </Text>
+          </View>
+        }
       />
 
       {/* ─── Full-Screen Chat Modal ────────────────────────────────────── */}
@@ -421,32 +472,43 @@ export default function DashboardScreen() {
   );
 }
 
-// ─── Home Empty State ────────────────────────────────────────────────────────
+// ─── Activity Card ──────────────────────────────────────────────────────────
 
-function HomeEmptyState({ onCreateJob, onNewChat }: { onCreateJob: () => void; onNewChat: () => void }) {
+function ActivityCard({
+  type, icon, stripeColor, typeLabel, title, subtitle, statusColor, timestamp, onPress, onOptions,
+}: {
+  type: 'chat' | 'job';
+  icon: string;
+  stripeColor: string;
+  typeLabel: string;
+  title: string;
+  subtitle: string;
+  statusColor?: string;
+  timestamp: string;
+  onPress: () => void;
+  onOptions?: () => void;
+}) {
   return (
-    <View style={styles.homeEmpty}>
-      <TouchableOpacity style={styles.homeEmptyPrimary} onPress={onCreateJob}>
-        <View style={styles.homeEmptyCardIcon}>
-          <Ionicons name="briefcase" size={26} color={colors.accent} />
+    <View style={[styles.activityCard, { borderLeftColor: stripeColor }]}>
+      <TouchableOpacity style={styles.activityCardContent} onPress={onPress} activeOpacity={0.7}>
+        <View style={styles.activityCardTop}>
+          <View style={styles.activityCardTypeRow}>
+            <Ionicons name={icon as any} size={16} color={stripeColor} />
+            <Text style={[styles.activityCardType, { color: stripeColor }]}>{typeLabel}</Text>
+          </View>
+          <Text style={styles.activityCardTimestamp}>{timestamp}</Text>
         </View>
-        <View style={styles.homeEmptyCardText}>
-          <Text style={styles.homeEmptyCardTitle}>Create a Job</Text>
-          <Text style={styles.homeEmptyCardDesc}>Track measurements, repairs, and notes per amp</Text>
+        <Text style={styles.activityCardTitle} numberOfLines={1}>{title}</Text>
+        <View style={styles.activityCardSubRow}>
+          {statusColor && <View style={[styles.activityCardDot, { backgroundColor: statusColor }]} />}
+          <Text style={styles.activityCardSubtitle} numberOfLines={1}>{subtitle}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
       </TouchableOpacity>
-
-      <TouchableOpacity style={styles.homeEmptySecondary} onPress={onNewChat}>
-        <View style={[styles.homeEmptyCardIcon, { backgroundColor: colors.bg.elevated }]}>
-          <Ionicons name="chatbubble-ellipses" size={26} color={colors.text.secondary} />
-        </View>
-        <View style={styles.homeEmptyCardText}>
-          <Text style={styles.homeEmptyCardTitle}>Quick Chat</Text>
-          <Text style={styles.homeEmptyCardDesc}>Ask a one-off repair question</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
-      </TouchableOpacity>
+      {onOptions && (
+        <TouchableOpacity style={styles.activityCardOptions} onPress={onOptions}>
+          <Ionicons name="ellipsis-vertical" size={18} color={colors.text.muted} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -472,29 +534,6 @@ function WelcomePanel() {
   );
 }
 
-// ─── Chat Card ──────────────────────────────────────────────────────────────
-
-function ChatCard({ chat, onPress, onOptions }: { chat: Chat; onPress: () => void; onOptions: () => void }) {
-  return (
-    <View style={styles.chatCard}>
-      <TouchableOpacity style={styles.chatCardContent} onPress={onPress}>
-        <View style={styles.chatCardHeader}>
-          <Ionicons name={chat.benchJobId ? 'briefcase' : 'chatbubble-ellipses'} size={20} color={colors.accent} />
-          <Text style={styles.chatTitle} numberOfLines={1}>{chat.title}</Text>
-        </View>
-        <Text style={styles.chatDate}>{formatRelativeDate(chat.updatedAt)}</Text>
-        {chat.benchJobId && (
-          <View style={styles.linkedBadge}>
-            <Text style={styles.linkedBadgeText}>Linked to Job</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.chatOptionsButton} onPress={onOptions}>
-        <Ionicons name="ellipsis-vertical" size={20} color={colors.text.secondary} />
-      </TouchableOpacity>
-    </View>
-  );
-}
 
 // ─── Rename Modal ───────────────────────────────────────────────────────────
 
@@ -636,85 +675,30 @@ const styles = StyleSheet.create({
   },
   newChatButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text.bright, marginBottom: 12 },
-  // Home empty state
-  homeEmpty: {
-    flex: 1,
-    paddingTop: 40,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-  },
-  homeEmptyTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: colors.text.bright,
-    fontFamily: 'SpaceMono',
-    marginBottom: 10,
-  },
-  homeEmptySubtitle: {
-    fontSize: 15,
-    color: colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-    paddingHorizontal: 8,
-  },
-  homeEmptyPrimary: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // Activity cards (unified feed)
+  activityCard: {
     backgroundColor: colors.bg.surface,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: colors.accent + '50',
-  },
-  homeEmptySecondary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bg.surface,
-    borderRadius: 14,
-    padding: 16,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  homeEmptyCardIcon: {
-    width: 48,
-    height: 48,
     borderRadius: 12,
-    backgroundColor: colors.accent + '18',
-    justifyContent: 'center',
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 14,
+    overflow: 'hidden',
   },
-  homeEmptyCardText: { flex: 1 },
-  homeEmptyCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.bright,
-    marginBottom: 3,
-  },
-  homeEmptyCardDesc: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    lineHeight: 18,
-  },
-  // Chat cards
-  chatCard: {
-    backgroundColor: colors.bg.surface, borderRadius: 12, marginBottom: 12,
-    borderLeftWidth: 4, borderLeftColor: colors.accent, flexDirection: 'row', alignItems: 'center',
-  },
-  chatCardContent: { flex: 1, padding: 16 },
-  chatOptionsButton: { padding: 16, justifyContent: 'center', alignItems: 'center' },
-  chatCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  chatTitle: { color: colors.text.bright, fontSize: 16, fontWeight: '500', flex: 1 },
-  chatDate: { color: colors.text.muted, fontSize: 12 },
-  linkedBadge: {
-    alignSelf: 'flex-start', backgroundColor: colors.status.successDark,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, marginTop: 8,
-  },
-  linkedBadgeText: { color: colors.status.successLight, fontSize: 11, fontWeight: '600' },
+  activityCardContent: { flex: 1, padding: 14 },
+  activityCardOptions: { padding: 14, justifyContent: 'center', alignItems: 'center' },
+  activityCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  activityCardTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  activityCardType: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  activityCardTimestamp: { fontSize: 11, color: colors.text.muted },
+  activityCardTitle: { fontSize: 16, fontWeight: '600', color: colors.text.bright, marginBottom: 4 },
+  activityCardSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  activityCardDot: { width: 8, height: 8, borderRadius: 4 },
+  activityCardSubtitle: { fontSize: 13, color: colors.text.secondary, flex: 1 },
+  // Empty feed
+  emptyFeed: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingTop: 40 },
+  emptyFeedTitle: { fontSize: 20, fontWeight: '600', color: colors.text.bright, marginTop: 16, marginBottom: 8 },
+  emptyFeedSub: { fontSize: 14, color: colors.text.secondary, textAlign: 'center', lineHeight: 20 },
   // Full-screen chat
   fullScreenOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -747,21 +731,6 @@ const styles = StyleSheet.create({
   exampleQuestions: { backgroundColor: colors.bg.surface, borderRadius: 12, padding: 16, width: '100%' },
   exampleTitle: { color: colors.accent, fontSize: 14, fontWeight: '600', marginBottom: 12 },
   exampleText: { color: colors.text.secondary, fontSize: 14, marginBottom: 8, lineHeight: 20 },
-  // Input
-  inputContainer: {
-    flexDirection: 'row', alignItems: 'flex-end', padding: 12, gap: 10,
-    borderTopWidth: 1, borderTopColor: colors.border.default, backgroundColor: colors.bg.surface,
-  },
-  attachButton: { padding: 8, marginRight: 4 },
-  input: {
-    flex: 1, backgroundColor: colors.bg.elevated, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 12, color: colors.white, fontSize: 16, maxHeight: 100,
-  },
-  sendButton: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  sendButtonDisabled: { opacity: 0.5 },
   // Rename modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center', padding: 24,
