@@ -279,6 +279,8 @@ export default function DashboardScreen() {
       <FlatList
         data={feedItems}
         keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.activityRow}
         style={styles.scrollView}
         contentContainerStyle={feedItems.length === 0 ? { flex: 1 } : undefined}
         ListHeaderComponent={
@@ -675,26 +677,35 @@ const styles = StyleSheet.create({
   },
   newChatButtonText: { color: colors.text.onAccent, fontSize: 18, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text.bright, marginBottom: 12 },
-  // Activity cards (unified feed)
+  // Activity cards (unified feed) — compact cards, 2-column grid on wide screens
+  activityRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 0,
+  },
   activityCard: {
     backgroundColor: colors.bg.surface,
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: 14,
     borderLeftWidth: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
     overflow: 'hidden',
+    width: '48%',
+    minWidth: 160,
+    flexGrow: 1,
+    marginBottom: 10,
   },
-  activityCardContent: { flex: 1, padding: 14 },
-  activityCardOptions: { padding: 14, justifyContent: 'center', alignItems: 'center' },
-  activityCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  activityCardTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  activityCardType: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  activityCardTimestamp: { fontSize: 11, color: colors.text.muted },
-  activityCardTitle: { fontSize: 16, fontWeight: '600', color: colors.text.bright, marginBottom: 4 },
-  activityCardSubRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  activityCardDot: { width: 8, height: 8, borderRadius: 4 },
-  activityCardSubtitle: { fontSize: 13, color: colors.text.secondary, flex: 1 },
+  activityCardContent: { padding: 12 },
+  activityCardOptions: {
+    position: 'absolute', top: 4, right: 4, padding: 6,
+  },
+  activityCardTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  activityCardTypeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  activityCardType: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  activityCardTimestamp: { fontSize: 10, color: colors.text.muted, marginLeft: 'auto' },
+  activityCardTitle: { fontSize: 14, fontWeight: '600', color: colors.text.bright, marginBottom: 4, paddingRight: 20 },
+  activityCardSubRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  activityCardDot: { width: 6, height: 6, borderRadius: 3 },
+  activityCardSubtitle: { fontSize: 11, color: colors.text.secondary, flex: 1 },
   // Empty feed
   emptyFeed: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingTop: 40 },
   emptyFeedTitle: { fontSize: 20, fontWeight: '600', color: colors.text.bright, marginTop: 16, marginBottom: 8 },
