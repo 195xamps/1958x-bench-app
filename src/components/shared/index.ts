@@ -4,3 +4,10 @@ export { StatusBadge } from './StatusBadge';
 export { SearchBar } from './SearchBar';
 export { OnboardingOverlay } from './OnboardingOverlay';
 export { PinStripe } from './PinStripe';
+export {
+  TubeSymbol,
+  MeterSymbol,
+  ResistorSymbol,
+  WaveformSymbol,
+  SchematicPageSymbol,
+} from './SchematicArt';

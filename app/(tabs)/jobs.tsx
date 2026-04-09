@@ -19,7 +19,7 @@ import { JOB_STATUSES, SAFETY_CHECKLIST, getStatusConfig } from '../../src/types
 import type { JobWithProfile, CreateJobPayload, ChatMessage } from '../../src/types';
 import { useDebounce } from '../../src/hooks';
 import { showAlert, showConfirm, showError, formatDate, formatAmpName } from '../../src/utils';
-import { LoadingScreen, EmptyState } from '../../src/components/shared';
+import { LoadingScreen, EmptyState, TubeSymbol } from '../../src/components/shared';
 import {
   NewJobModal,
   SafetyChecklistModal,
@@ -356,7 +356,7 @@ export default function JobsScreen() {
         }}
         ListEmptyComponent={
           <EmptyState
-            icon="briefcase-outline"
+            icon={<TubeSymbol />}
             title="No bench jobs yet"
             subtitle="Start a new job to begin troubleshooting"
           />

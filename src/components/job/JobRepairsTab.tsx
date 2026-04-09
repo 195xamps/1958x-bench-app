@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
+import { ResistorSymbol } from '../shared';
 import { formatTimestamp } from '../../utils';
 import type { RepairAction } from '../../types';
 
@@ -25,7 +26,7 @@ function JobRepairsTabImpl({ repairActions, onAdd, onEdit, onDelete }: Props) {
 
       {repairActions.length === 0 ? (
         <View style={s.empty}>
-          <Ionicons name="construct-outline" size={48} color={colors.bg.elevated} />
+          <ResistorSymbol />
           <Text style={s.emptyTitle}>No repair actions recorded</Text>
           <Text style={s.emptySub}>Tap &quot;Add&quot; to log parts replaced, measurements, and notes</Text>
         </View>

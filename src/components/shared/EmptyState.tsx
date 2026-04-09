@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
 
 interface EmptyStateProps {
-  icon: keyof typeof Ionicons.glyphMap;
+  /** Ionicon name OR a custom React element (e.g. a SchematicArt component). */
+  icon: keyof typeof Ionicons.glyphMap | ReactNode;
   title: string;
   subtitle?: string;
   actionLabel?: string;
@@ -12,9 +13,13 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon, title, subtitle, actionLabel, onAction }: EmptyStateProps) {
+  const isCustomIcon = typeof icon !== 'string';
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={64} color={colors.text.muted} />
+      {isCustomIcon
+        ? icon
+        : <Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={64} color={colors.text.muted} />
+      }
       <Text style={styles.title}>{title}</Text>
       {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       {actionLabel && onAction && (

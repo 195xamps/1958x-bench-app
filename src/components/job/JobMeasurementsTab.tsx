@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
+import { MeterSymbol } from '../shared';
 import type { Measurement } from '../../types';
 
 interface Props {
@@ -30,7 +31,7 @@ function JobMeasurementsTabImpl({ measurements, onAdd }: Props) {
 
       {measurements.length === 0 ? (
         <View style={s.empty}>
-          <Ionicons name="analytics-outline" size={48} color={colors.bg.elevated} />
+          <MeterSymbol />
           <Text style={s.emptyTitle}>No measurements recorded</Text>
           <Text style={s.emptySub}>Tap &quot;Add&quot; to record voltage or resistance readings</Text>
         </View>

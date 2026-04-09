@@ -26,7 +26,7 @@ import { getStatusConfig } from '../../src/types/common';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useFileUpload } from '../../src/hooks/useFileUpload';
 import type { Chat, ChatMessage } from '../../src/types';
-import { LoadingScreen, EmptyState, OnboardingOverlay, PinStripe } from '../../src/components/shared';
+import { LoadingScreen, EmptyState, OnboardingOverlay, PinStripe, TubeSymbol } from '../../src/components/shared';
 import { MessageList, ChatInput } from '../../src/components/chat';
 import {
   AttachmentPickerModal,
@@ -353,7 +353,7 @@ export default function DashboardScreen() {
         }}
         ListEmptyComponent={
           <View style={styles.emptyFeed}>
-            <Ionicons name="hardware-chip" size={48} color={colors.accent} />
+            <TubeSymbol />
             <Text style={styles.emptyFeedTitle}>No activity yet</Text>
             <Text style={styles.emptyFeedSub}>
               Start a chat or create a job from the Jobs tab. Your recent activity will appear here.

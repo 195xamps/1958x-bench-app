@@ -24,6 +24,7 @@ import { useFileUpload } from '../../src/hooks/useFileUpload';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { LoadingScreen } from '../../src/components/shared/LoadingScreen';
 import { EmptyState } from '../../src/components/shared/EmptyState';
+import { SchematicPageSymbol } from '../../src/components/shared';
 import { SearchBar } from '../../src/components/shared/SearchBar';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -215,7 +216,7 @@ export default function SchematicsScreen() {
           />
         ) : schematics.length === 0 ? (
           <EmptyState
-            icon="document-text-outline"
+            icon={<SchematicPageSymbol />}
             title={searchQuery ? 'No results' : 'No schematics yet'}
             subtitle={
               searchQuery

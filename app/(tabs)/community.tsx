@@ -21,7 +21,7 @@ import { colors } from '../../src/theme';
 import { getStatusConfig } from '../../src/types/common';
 import type { CommunityJob, MyJob } from '../../src/types';
 import { formatDate } from '../../src/utils';
-import { LoadingScreen, EmptyState, SearchBar, StatusBadge } from '../../src/components/shared';
+import { LoadingScreen, EmptyState, SearchBar, StatusBadge, WaveformSymbol } from '../../src/components/shared';
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
@@ -188,7 +188,7 @@ export default function CommunityScreen() {
         )}
         ListEmptyComponent={
           <EmptyState
-            icon="folder-open-outline"
+            icon={<WaveformSymbol />}
             title="No shared jobs yet"
             subtitle="Be the first to share! Open a job and enable sharing in the Notes tab."
           />
