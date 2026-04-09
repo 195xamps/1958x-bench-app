@@ -6,6 +6,7 @@ export const colors = {
     muted: '#2d3a4f',
     dark: '#0a0f18',
     warm: '#1e1a16',
+    tabBar: '#1a1814',     // warm walnut hint — amber accent pops against this
   },
   text: {
     primary: '#f3f4f6',
