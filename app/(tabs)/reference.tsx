@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, lazy, Suspense } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { FlowchartsTab, VoltagesTab, CalculatorTab, LinksTab } from '../../src/components/reference';
 import { colors } from '../../src/theme/colors';
+
+// Lazy-load the schematics screen so it renders inline without navigating
+// away (which would lose the Tools/Links/Schematics tab bar).
+const SchematicsScreen = lazy(() => import('./schematics'));
 
 type MainTab = 'tools' | 'links' | 'schematics';
 type ToolsSub = 'flowcharts' | 'voltages' | 'calculator';
@@ -21,17 +24,8 @@ const TOOLS_SUBS: { id: ToolsSub; label: string }[] = [
 ];
 
 export default function ReferenceScreen() {
-  const router = useRouter();
   const [mainTab, setMainTab] = useState<MainTab>('tools');
   const [toolsSub, setToolsSub] = useState<ToolsSub>('flowcharts');
-
-  const handleMainTab = (tab: MainTab) => {
-    if (tab === 'schematics') {
-      router.push('/(tabs)/schematics' as any);
-      return;
-    }
-    setMainTab(tab);
-  };
 
   return (
     <View style={s.container}>
@@ -41,7 +35,7 @@ export default function ReferenceScreen() {
           <TouchableOpacity
             key={tab.id}
             style={[s.mainTab, mainTab === tab.id && s.mainTabActive]}
-            onPress={() => handleMainTab(tab.id)}
+            onPress={() => setMainTab(tab.id)}
           >
             <Ionicons
               name={tab.icon as any}
@@ -78,6 +72,11 @@ export default function ReferenceScreen() {
         {mainTab === 'tools' && toolsSub === 'voltages' && <VoltagesTab />}
         {mainTab === 'tools' && toolsSub === 'calculator' && <CalculatorTab />}
         {mainTab === 'links' && <LinksTab />}
+        {mainTab === 'schematics' && (
+          <Suspense fallback={<View style={s.loading}><ActivityIndicator color={colors.accent} /></View>}>
+            <SchematicsScreen />
+          </Suspense>
+        )}
       </View>
     </View>
   );
@@ -128,4 +127,5 @@ const s = StyleSheet.create({
   segmentTextActive: { color: colors.accent },
 
   content: { flex: 1 },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
