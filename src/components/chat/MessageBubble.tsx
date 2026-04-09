@@ -71,19 +71,21 @@ export const MessageBubble = React.memo(function MessageBubble({ message, showAs
 const styles = StyleSheet.create({
   bubble: {
     maxWidth: '85%',
-    padding: 14,
-    borderRadius: 16,
+    padding: 12,
+    borderRadius: 6,
     marginBottom: 12,
   },
   userBubble: {
     alignSelf: 'flex-end',
     backgroundColor: colors.accent,
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 2,
   },
   assistantBubble: {
     alignSelf: 'flex-start',
     backgroundColor: colors.bg.surface,
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 2,
+    borderWidth: 1,
+    borderColor: colors.accent + '25',
   },
   assistantHeader: {
     flexDirection: 'row',
@@ -94,7 +96,7 @@ const styles = StyleSheet.create({
   assistantLabel: {
     color: colors.accent,
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'Jost-SemiBold',
   },
   userText: {
     color: colors.text.onAccent,
@@ -114,13 +116,13 @@ const styles = StyleSheet.create({
   attachmentImage: {
     width: 200,
     height: 150,
-    borderRadius: 8,
+    borderRadius: 4,
   },
   pdfAttachment: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.bg.primary,
-    borderRadius: 8,
+    borderRadius: 4,
     padding: 12,
     gap: 8,
     borderWidth: 1,
