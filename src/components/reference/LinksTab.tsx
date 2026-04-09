@@ -39,11 +39,6 @@ const SECTIONS: LinkSection[] = [
         url: 'https://www.tdpri.com/forums/glowing-bottle-tube-amp-forum.96/',
         description: 'Telecaster Discussion Page tube amp forum',
       },
-      {
-        title: 'Music Electronics Forum',
-        url: 'https://music-electronics-forum.com/',
-        description: 'Active amp tech discussion',
-      },
     ],
   },
   {
@@ -61,8 +56,8 @@ const SECTIONS: LinkSection[] = [
         description: 'Hoffman Amplifiers + huge schematic and tutorial archive',
       },
       {
-        title: 'Aiken Amplification — Tech Articles',
-        url: 'https://www.aikenamps.com/index.php/articles',
+        title: 'Aiken Amplification — White Papers',
+        url: 'https://www.aikenamps.com/index.php/white-papers',
         description: "Randall Aiken's deep technical write-ups",
       },
       {
@@ -87,9 +82,9 @@ const SECTIONS: LinkSection[] = [
         description: 'Searchable archive of vintage amp schematics',
       },
       {
-        title: 'Dr. Tube Schematics',
-        url: 'https://www.drtube.com/schematics.htm',
-        description: 'Public schematic library',
+        title: 'Dr. Tube Library',
+        url: 'https://www.drtube.com/library/',
+        description: 'Public schematic and tube data library',
       },
     ],
   },
@@ -101,11 +96,6 @@ const SECTIONS: LinkSection[] = [
         title: "Frank's Electron Tube Pages",
         url: 'https://frank.pocnet.net/',
         description: 'The canonical tube datasheet archive',
-      },
-      {
-        title: 'Tubebooks.org',
-        url: 'https://www.tubebooks.org/',
-        description: 'Free historical tube and electronics service manuals',
       },
     ],
   },
@@ -127,7 +117,7 @@ const SECTIONS: LinkSection[] = [
       {
         title: 'Psionic Audio',
         url: 'https://www.youtube.com/@PsionicAudio',
-        description: 'Tyler the tech — repair walkthroughs and bench commentary',
+        description: 'Repair walkthroughs and bench commentary',
       },
       {
         title: 'Uncle Doug',
@@ -137,7 +127,7 @@ const SECTIONS: LinkSection[] = [
       {
         title: 'Fazio Electric',
         url: 'https://www.youtube.com/@FazioElectric',
-        description: "Justin Fazio's amp repair and restoration channel",
+        description: "Colleen Fazio's amp repair and restoration channel",
       },
       {
         title: 'Yeatzee Guitar',
