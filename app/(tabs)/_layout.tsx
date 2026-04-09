@@ -14,7 +14,8 @@ export default function TabLayout() {
         tabBarInactiveTintColor: colors.text.secondary,
         tabBarStyle: {
           backgroundColor: colors.bg.tabBar,
-          borderTopColor: colors.border.default,
+          borderTopColor: colors.accent + '30',
+          borderTopWidth: 1,
           height: 90,
           paddingBottom: 20,
           paddingTop: 10,
@@ -24,8 +25,9 @@ export default function TabLayout() {
         },
         headerTintColor: colors.accent,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 11,
+          fontFamily: 'Jost-SemiBold',
+          letterSpacing: 0.3,
         },
       }}
     >
