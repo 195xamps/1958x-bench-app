@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../../theme';
+import { TubeLoader } from './TubeLoader';
 
 interface LoadingScreenProps {
   message?: string;
@@ -9,7 +10,7 @@ interface LoadingScreenProps {
 export function LoadingScreen({ message = 'Loading...' }: LoadingScreenProps) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" color={colors.accent} />
+      <TubeLoader size={48} />
       <Text style={styles.text}>{message}</Text>
     </View>
   );

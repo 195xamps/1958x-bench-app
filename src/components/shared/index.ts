@@ -11,3 +11,4 @@ export {
   WaveformSymbol,
   SchematicPageSymbol,
 } from './SchematicArt';
+export { TubeLoader } from './TubeLoader';
