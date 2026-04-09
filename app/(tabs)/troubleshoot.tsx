@@ -20,16 +20,21 @@ import { ChatInput } from '../../src/components/chat';
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const COMMON_SYMPTOMS = [
-  'Hum after recap',
   'No sound at all',
-  'Red plating on tubes',
-  'Motorboating',
-  'Volume drop',
-  'Reverb not working',
-  'Tremolo weak',
+  'Hum or buzz',
   'Fuse blows',
-  'Scratchy pots',
+  'Red plating on tubes',
+  'Volume drop or weak output',
+  'Motorboating',
+  'Oscillation or squealing',
+  'Reverb not working',
+  'Tremolo weak or not working',
+  'Scratchy pots or crackling',
+  'Intermittent signal dropout',
+  'One channel dead',
+  'Amp sounds thin or harsh',
   'Pops on standby toggle',
+  'Microphonic tubes',
 ];
 
 const WELCOME_MESSAGE: TroubleshootingMessage = {
