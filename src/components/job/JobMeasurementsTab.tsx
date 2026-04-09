@@ -85,7 +85,7 @@ const s = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   node: { fontSize: 16, fontWeight: '600', color: colors.text.bright },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusDot: { width: 8, height: 14, borderRadius: 3 },
   values: { flexDirection: 'row', gap: 16 },
   col: { flex: 1 },
   valueLabel: { fontSize: 12, color: colors.text.muted, marginBottom: 2 },

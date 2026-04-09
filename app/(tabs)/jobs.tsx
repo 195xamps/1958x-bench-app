@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
   jobAmpName: { fontSize: 18, fontWeight: '600', color: colors.text.bright, flex: 1, marginRight: 8 },
   jobBadges: { flexDirection: 'row', alignItems: 'center' },
   statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusDot: { width: 8, height: 14, borderRadius: 3 },
   statusText: { fontSize: 12, fontWeight: '600' },
   customerRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
   customerName: { fontSize: 13, color: colors.text.secondary, fontWeight: '500' },

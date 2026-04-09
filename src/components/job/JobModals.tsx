@@ -338,7 +338,7 @@ const s = StyleSheet.create({
   },
   pickerOptionSelected: { borderWidth: 1, borderColor: colors.text.muted },
   pickerOptionText: { fontSize: 16, fontWeight: '500' },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusDot: { width: 8, height: 14, borderRadius: 3 },
 
   // Share modal
   shareModalContent: {

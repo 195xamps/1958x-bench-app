@@ -138,6 +138,6 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 12, gap: 4,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusDot: { width: 8, height: 14, borderRadius: 3 },
   statusBadgeText: { fontSize: 12, fontWeight: '600' },
 });

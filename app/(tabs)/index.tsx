@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
   activityCardTimestamp: { fontSize: 10, color: colors.text.muted, marginLeft: 'auto' },
   activityCardTitle: { fontSize: 14, fontWeight: '600', color: colors.text.bright, marginBottom: 4, paddingRight: 20 },
   activityCardSubRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  activityCardDot: { width: 6, height: 6, borderRadius: 3 },
+  activityCardDot: { width: 6, height: 12, borderRadius: 2 },
   activityCardSubtitle: { fontSize: 11, color: colors.text.secondary, flex: 1 },
   // Empty feed
   emptyFeed: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32, paddingTop: 40 },
